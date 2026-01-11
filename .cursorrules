@@ -1,0 +1,169 @@
+# Cursor Rules for Digestive Diary
+
+## Project Overview
+
+**App Name**: Digestive Diary
+
+**Purpose**: A digestive disorder tracking app focused on logging, pattern recognition, and non-judgmental user experience. This is a logging tool, NOT medical advice.
+
+**Technology Stack**:
+- Next.js 14+ with App Router
+- TypeScript
+- Tailwind CSS (mobile-first)
+- OpenAI API (GPT models + Whisper)
+- Groq API (fast inference)
+- Next.js API routes for backend
+
+---
+
+## Core Features
+
+### Must Include:
+1. **Food Logging** - What, roughly how much, tags (dairy, gluten, etc.), timestamp
+2. **Symptom Logging** - Type, severity (1-10), duration, timestamp
+3. **Timeline View** - Chronological view of food + symptoms + context
+4. **Experiments/Diet Phases** - Start/stop diet experiments ("testing no dairy")
+5. **Context Toggles** - Sleep quality, stress level, physical activity, bowel movement
+6. **Insights** - Pattern detection and descriptions (non-medical)
+7. **Export** - PDF summaries for doctor visits
+
+### Page Structure:
+- `/` - Log page (default landing) - Two big buttons: "Log Food", "Log Symptom" + today's timeline
+- `/timeline` - Scrollable time-axis with filters
+- `/experiments` - Start/stop diet experiments
+- `/insights` - Read-only pattern cards
+- `/settings` - Export, dark mode, disclaimer, about
+
+---
+
+## Critical Exclusions
+
+**DO NOT include these features (they backfire for users with eating/digestive disorders):**
+
+- ❌ Calorie counting
+- ❌ Nutrient breakdown
+- ❌ "Good/bad" food labels
+- ❌ Daily goals
+- ❌ Gamification (points, streaks, badges)
+- ❌ Weight tracking (unless specifically requested later)
+- ❌ Nutrition database in MVP (keep it simple)
+- ❌ Medical diagnoses or treatment recommendations
+
+---
+
+## UX Principles
+
+1. **Fast** - Target <2s for save operations
+2. **Non-judgmental** - No labels, no scores, no "good/bad"
+3. **Pattern-oriented** - Help users notice patterns themselves
+4. **Not overwhelming** - Optional context chips, no mandatory forms
+5. **Mobile-first** - Bottom navigation, touch-friendly, responsive
+6. **Low friction** - Voice logging, quick entry, minimal taps
+
+---
+
+## AI Features (NON-MEDICAL)
+
+### Voice Logging (Whisper)
+- Users can speak food/symptoms instead of typing
+- Integrate Whisper API for transcription
+
+### Natural Language Food Parsing (OpenAI/Groq)
+- Parse spoken/text input into structured data
+- Extract foods, quantities, tags
+- Use Groq for fast inference, OpenAI for complex parsing
+
+### Smart Pattern Descriptions (OpenAI)
+- Generate natural language insights from patterns
+- ONLY describe patterns in user's data
+- NO medical interpretations
+
+### Doctor-Friendly Summaries (OpenAI)
+- Generate PDF summaries for doctor visits
+- Include timeline overview, patterns, experiments
+
+### Constraints for AI:
+- **NO medical advice** - Only describe patterns
+- **NO diagnoses** - Only observations
+- **NO recommendations** - Only data organization
+- Always include disclaimers: "Not medical advice"
+- Only use user's own data (no external medical knowledge)
+
+---
+
+## Code Guidelines
+
+### File Organization:
+- Use Next.js App Router structure
+- Components in `/components` folder
+- Types in `/types` folder
+- Utils in `/lib` folder
+- API routes in `/app/api` folder
+
+### TypeScript:
+- Use TypeScript for all files
+- Define types for: FoodLog, Symptom, Experiment, Context, TimelineItem
+- Avoid `any` types
+
+### Styling:
+- Use Tailwind CSS (utility-first)
+- Mobile-first breakpoints
+- Calming color scheme (soft blues, greens, neutrals)
+- Support dark/light mode
+
+### State Management:
+- Start with React Context or Zustand (avoid Redux for MVP)
+- Keep state local when possible
+- Consider localStorage for persistence in MVP
+
+---
+
+## Data Privacy
+
+- GDPR-aware (note for future full implementation)
+- User data privacy controls
+- Export/delete data options
+- No data sharing without explicit consent
+- API keys stored in environment variables (never commit)
+
+---
+
+## Performance
+
+- Optimize for fast saves (<2s)
+- Cache AI-generated content when possible
+- Use Groq for fast inference, OpenAI for quality
+- Lazy load non-critical components
+- Optimize images and assets
+
+---
+
+## Future Considerations (NOT in MVP)
+
+- Healthcare provider access/admin panel
+- Community forum
+- Photo uploads
+- External integrations (Google Fit, Apple Health, nutrition APIs)
+- Comprehensive testing infrastructure
+- Advanced analytics
+
+---
+
+## Development Focus
+
+- **MVP-oriented** - Get core logging working first
+- **User-centric** - Fast, non-judgmental, helpful
+- **Pattern-focused** - Help users notice patterns, don't tell them what to do
+- **Iterative** - Build core features, then enhance
+
+---
+
+## Important Reminders
+
+1. This is a **logging tool**, not a medical device
+2. Always include disclaimers: "This app is for logging purposes only and does not provide medical advice"
+3. Keep interactions fast and low-friction
+4. Avoid anything that could trigger disordered eating behaviors
+5. Focus on patterns, not prescriptions
+6. Make it easy to log and forget, review later
+
