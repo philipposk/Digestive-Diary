@@ -1,0 +1,296 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload } from '@/types';
+
+interface AppState {
+  foodLogs: FoodLog[];
+  symptoms: Symptom[];
+  contexts: Context[];
+  experiments: Experiment[];
+  realizations: Realization[];
+  chatSession: ChatSession | null;
+  sources: Source[];
+  photoUploads: PhotoUpload[];
+  
+  // Actions
+  addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
+  addSymptom: (symptom: Omit<Symptom, 'id' | 'timestamp'>) => void;
+  addRealization: (realization: Omit<Realization, 'id' | 'timestamp'>) => void;
+  deleteRealization: (id: string) => void;
+  addContext: (context: Omit<Context, 'id' | 'timestamp'>) => void;
+  addExperiment: (experiment: Omit<Experiment, 'id'>) => void;
+  endExperiment: (id: string) => void;
+  deleteFoodLog: (id: string) => void;
+  deleteSymptom: (id: string) => void;
+  addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
+  clearChatSession: () => void;
+  addSource: (source: Omit<Source, 'id' | 'addedAt'>) => void;
+  deleteSource: (id: string) => void;
+  updateSource: (id: string, updates: Partial<Source>) => void;
+  addPhotoUpload: (upload: Omit<PhotoUpload, 'id' | 'uploadedAt'>) => void;
+  deletePhotoUpload: (id: string) => void;
+  
+  // Bulk operations for sample data
+  setFoodLogs: (logs: FoodLog[]) => void;
+  setSymptoms: (symptoms: Symptom[]) => void;
+  setContexts: (contexts: Context[]) => void;
+  setExperiments: (experiments: Experiment[]) => void;
+}
+
+// Custom storage with Date serialization
+const storage = {
+  getItem: (name: string): string | null => {
+    const str = localStorage.getItem(name);
+    if (!str) return null;
+    try {
+      const parsed = JSON.parse(str);
+      if (parsed?.state) {
+        // Convert date strings back to Date objects
+        parsed.state.foodLogs = (parsed.state.foodLogs || []).map((log: any) => ({
+          ...log,
+          timestamp: new Date(log.timestamp),
+        }));
+        parsed.state.symptoms = (parsed.state.symptoms || []).map((s: any) => ({
+          ...s,
+          timestamp: new Date(s.timestamp),
+        }));
+        parsed.state.contexts = (parsed.state.contexts || []).map((c: any) => ({
+          ...c,
+          timestamp: new Date(c.timestamp),
+        }));
+        parsed.state.experiments = (parsed.state.experiments || []).map((e: any) => ({
+          ...e,
+          startDate: new Date(e.startDate),
+          endDate: e.endDate ? new Date(e.endDate) : undefined,
+        }));
+        parsed.state.realizations = (parsed.state.realizations || []).map((r: any) => ({
+          ...r,
+          timestamp: new Date(r.timestamp),
+        }));
+        parsed.state.sources = (parsed.state.sources || []).map((s: any) => ({
+          ...s,
+          addedAt: new Date(s.addedAt),
+        }));
+        parsed.state.photoUploads = (parsed.state.photoUploads || []).map((p: any) => ({
+          ...p,
+          uploadedAt: new Date(p.uploadedAt),
+        }));
+        if (parsed.state.chatSession) {
+          parsed.state.chatSession = {
+            ...parsed.state.chatSession,
+            createdAt: new Date(parsed.state.chatSession.createdAt),
+            updatedAt: new Date(parsed.state.chatSession.updatedAt),
+            messages: (parsed.state.chatSession.messages || []).map((m: any) => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+            })),
+          };
+        }
+      }
+      return JSON.stringify(parsed);
+    } catch {
+      return str;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    localStorage.removeItem(name);
+  },
+};
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      foodLogs: [],
+      symptoms: [],
+      contexts: [],
+      experiments: [],
+      realizations: [],
+      chatSession: null,
+      sources: [],
+      photoUploads: [],
+
+      addFoodLog: (log) => {
+        const newLog: FoodLog = {
+          ...log,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => ({
+          foodLogs: [...state.foodLogs, newLog].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          ),
+        }));
+      },
+
+      addSymptom: (symptom) => {
+        const newSymptom: Symptom = {
+          ...symptom,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => ({
+          symptoms: [...state.symptoms, newSymptom].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          ),
+        }));
+      },
+
+      addContext: (context) => {
+        const newContext: Context = {
+          ...context,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => ({
+          contexts: [...state.contexts, newContext].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          ),
+        }));
+      },
+
+      addExperiment: (experiment) => {
+        const newExperiment: Experiment = {
+          ...experiment,
+          id: crypto.randomUUID(),
+        };
+        set((state) => ({
+          experiments: [...state.experiments, newExperiment].sort(
+            (a, b) => b.startDate.getTime() - a.startDate.getTime()
+          ),
+        }));
+      },
+
+      endExperiment: (id) => {
+        set((state) => ({
+          experiments: state.experiments.map((exp) =>
+            exp.id === id ? { ...exp, active: false, endDate: new Date() } : exp
+          ),
+        }));
+      },
+
+      deleteFoodLog: (id) => {
+        set((state) => ({
+          foodLogs: state.foodLogs.filter((log) => log.id !== id),
+        }));
+      },
+
+      deleteSymptom: (id) => {
+        set((state) => ({
+          symptoms: state.symptoms.filter((symptom) => symptom.id !== id),
+        }));
+      },
+
+      addRealization: (realization) => {
+        const newRealization: Realization = {
+          ...realization,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => ({
+          realizations: [...state.realizations, newRealization].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          ),
+        }));
+      },
+
+      deleteRealization: (id) => {
+        set((state) => ({
+          realizations: state.realizations.filter((r) => r.id !== id),
+        }));
+      },
+
+      addChatMessage: (message) => {
+        const newMessage: ChatMessage = {
+          ...message,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => {
+          const now = new Date();
+          if (!state.chatSession) {
+            // Create new chat session
+            return {
+              chatSession: {
+                id: crypto.randomUUID(),
+                messages: [newMessage],
+                createdAt: now,
+                updatedAt: now,
+              },
+            };
+          } else {
+            // Add to existing session
+            return {
+              chatSession: {
+                ...state.chatSession,
+                messages: [...state.chatSession.messages, newMessage],
+                updatedAt: now,
+              },
+            };
+          }
+        });
+      },
+
+      clearChatSession: () => {
+        set({ chatSession: null });
+      },
+
+      addSource: (source) => {
+        const newSource: Source = {
+          ...source,
+          id: crypto.randomUUID(),
+          addedAt: new Date(),
+        };
+        set((state) => ({
+          sources: [...state.sources, newSource].sort(
+            (a, b) => b.addedAt.getTime() - a.addedAt.getTime()
+          ),
+        }));
+      },
+
+      deleteSource: (id) => {
+        set((state) => ({
+          sources: state.sources.filter((s) => s.id !== id),
+        }));
+      },
+
+      updateSource: (id, updates) => {
+        set((state) => ({
+          sources: state.sources.map((s) =>
+            s.id === id ? { ...s, ...updates } : s
+          ),
+        }));
+      },
+
+      addPhotoUpload: (upload) => {
+        const newUpload: PhotoUpload = {
+          ...upload,
+          id: crypto.randomUUID(),
+          uploadedAt: new Date(),
+        };
+        set((state) => ({
+          photoUploads: [...state.photoUploads, newUpload].sort(
+            (a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime()
+          ),
+        }));
+      },
+
+      deletePhotoUpload: (id) => {
+        set((state) => ({
+          photoUploads: state.photoUploads.filter((p) => p.id !== id),
+        }));
+      },
+
+      setFoodLogs: (logs) => set({ foodLogs: logs }),
+      setSymptoms: (symptoms) => set({ symptoms }),
+      setContexts: (contexts) => set({ contexts }),
+      setExperiments: (experiments) => set({ experiments }),
+    }),
+    {
+      name: 'digestive-diary-storage',
+      storage: createJSONStorage(() => storage),
+    }
+  )
+);

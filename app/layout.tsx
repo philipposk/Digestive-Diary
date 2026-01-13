@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/navigation/BottomNav";
+import ThemeProvider from "@/components/ThemeProvider";
+import FloatingChatButton from "@/components/chat/FloatingChatButton";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,14 +18,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <main className="min-h-screen pb-20">
-          {children}
-        </main>
-        <BottomNav />
-      </body>
-    </html>
-  );
-}
+    <html lang="en" suppressHydrationWarning className="w-full">
+      <body className={`${inter.className} w-full`}>
+        <ThemeProvider>
+          <main className="min-h-screen pb-20 bg-white dark:bg-gray-950 w-full">
+            {children}
+          </main>
+                <BottomNav />
+                <FloatingChatButton />
+              </ThemeProvider>
+            </body>
+          </html>
+        );
+      }
 

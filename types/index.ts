@@ -23,6 +23,7 @@ export interface Symptom {
   duration?: string; // e.g., '30 minutes', '2 hours'
   timestamp: Date;
   notes?: string;
+  linkedFoodId?: string; // Optional link to a food log that may have caused this
 }
 
 export interface Context {
@@ -65,11 +66,61 @@ export interface Pattern {
   description: string; // Natural language description
   confidence: 'low' | 'medium' | 'high';
   dataPoints: number;
+  category?: string; // Optional category for insights
   pattern: {
     symptom: string;
     followsFood?: string;
     timeWindow?: string; // e.g., '3-5 hours'
     context?: Partial<Context>;
   };
+}
+
+export interface Realization {
+  id: string;
+  content: string; // User-written realization/note
+  timestamp: Date;
+  linkedData?: {
+    foodLogIds?: string[];
+    symptomIds?: string[];
+    experimentId?: string;
+  };
+  aiOrganized?: string; // AI-organized version (optional)
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+export interface ChatSession {
+  id: string;
+  messages: ChatMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type SourceType = 'book' | 'article' | 'video' | 'pdf' | 'other';
+
+export interface Source {
+  id: string;
+  title: string;
+  type: SourceType;
+  url?: string; // For videos, articles
+  filePath?: string; // For PDFs, uploaded files
+  description?: string;
+  author?: string;
+  addedAt: Date;
+  content?: string; // Extracted/uploaded content for AI to reference
+  tags?: string[]; // For categorization
+}
+
+export interface PhotoUpload {
+  id: string;
+  fileUrl: string;
+  uploadedAt: Date;
+  parsedContent?: string; // OCR/extracted text
+  foodLogId?: string; // If converted to food log
 }
 
