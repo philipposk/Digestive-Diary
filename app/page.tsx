@@ -14,6 +14,7 @@ export default function HomePage() {
   const [showSymptomModal, setShowSymptomModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   
   const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
@@ -22,6 +23,14 @@ export default function HomePage() {
   const setContexts = useAppStore((state) => state.setContexts);
   const setExperiments = useAppStore((state) => state.setExperiments);
   const experiments = useAppStore((state) => state.experiments);
+
+  // Check if welcome banner was dismissed
+  useEffect(() => {
+    const dismissed = localStorage.getItem('welcomeBannerDismissed');
+    if (dismissed === 'true') {
+      setShowWelcomeBanner(false);
+    }
+  }, []);
 
   // Generate sample data on first load if no data exists
   useEffect(() => {
@@ -33,6 +42,11 @@ export default function HomePage() {
       setExperiments(sampleData.experiments);
     }
   }, [foodLogs.length, setFoodLogs, setSymptoms, setContexts, setExperiments]);
+
+  const handleDismissWelcome = () => {
+    setShowWelcomeBanner(false);
+    localStorage.setItem('welcomeBannerDismissed', 'true');
+  };
 
   const todayItems = useMemo(() => {
     const todayStart = new Date(today);
@@ -92,6 +106,29 @@ export default function HomePage() {
   return (
     <>
       <div className="w-full max-w-2xl mx-auto px-4 py-6">
+        {/* Welcome Banner */}
+        {showWelcomeBanner && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-5 relative">
+            <button
+              onClick={handleDismissWelcome}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              aria-label="Dismiss welcome message"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="pr-8">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Digestive Diary
+              </h1>
+              <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+                A platform to help you track your food, symptoms, and patterns. Log what you eat and how you feel, discover connections over time, and organize your data for better insights. This is a logging tool, not medical advice.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Search Bar */}
         <div className="mb-6">
           <input
