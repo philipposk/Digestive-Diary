@@ -23,6 +23,8 @@ export default function HomePage() {
   const setSymptoms = useAppStore((state) => state.setSymptoms);
   const setContexts = useAppStore((state) => state.setContexts);
   const setExperiments = useAppStore((state) => state.setExperiments);
+  const setRealizations = useAppStore((state) => state.setRealizations);
+  const setChatSession = useAppStore((state) => state.setChatSession);
   const experiments = useAppStore((state) => state.experiments);
   const contexts = useAppStore((state) => state.contexts);
 
@@ -49,8 +51,10 @@ export default function HomePage() {
       setSymptoms(sampleData.symptoms);
       setContexts(sampleData.contexts);
       setExperiments(sampleData.experiments);
+      setRealizations(sampleData.realizations);
+      setChatSession(sampleData.chatSession);
     }
-  }, [foodLogs.length, setFoodLogs, setSymptoms, setContexts, setExperiments]);
+  }, [foodLogs.length, setFoodLogs, setSymptoms, setContexts, setExperiments, setRealizations, setChatSession]);
 
   const handleDismissWelcome = () => {
     setShowWelcomeBanner(false);
@@ -63,6 +67,8 @@ export default function HomePage() {
       setSymptoms([]);
       setContexts([]);
       setExperiments([]);
+      setRealizations([]);
+      setChatSession(null);
       localStorage.setItem('demoDataCleared', 'true');
       setShowClearDemoButton(false);
     }

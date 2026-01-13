@@ -1,4 +1,4 @@
-import { FoodLog, Symptom, Context, Experiment } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatSession, ChatMessage } from '@/types';
 
 const foodOptions = [
   { food: 'Oatmeal with banana', quantity: '1 bowl', tags: ['gluten', 'fiber-rich'] },
@@ -228,12 +228,76 @@ export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]
     });
   }
 
+  // Generate sample realizations (3-4 examples)
+  const realizationsData = [
+    {
+      content: 'I noticed that when I avoid dairy for a few days, my intestinal pinching reduces significantly. Tea with oregano seems to help when I do get symptoms.',
+      timestamp: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+    },
+    {
+      content: 'Glutamine supplements appear to help with inflammation. I\'ve been taking them during my Fish Focus experiment and symptoms are milder.',
+      timestamp: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+    },
+    {
+      content: 'Symptoms typically appear 2-4 hours after eating, especially with processed foods or foods containing dairy.',
+      timestamp: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+    },
+    {
+      content: 'Stress and poor sleep seem to make my symptoms worse, even when eating the same foods.',
+      timestamp: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+    },
+  ];
+
+  realizationsData.forEach((r) => {
+    realizations.push({
+      id: crypto.randomUUID(),
+      content: r.content,
+      timestamp: r.timestamp,
+    });
+  });
+
+  // Generate sample chat session
+  const chatMessages: ChatMessage[] = [
+    {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: 'What foods seem to trigger my symptoms most?',
+      timestamp: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: 'Based on your logged data, I can see patterns where bloating and intestinal pinching often appear after consuming dairy products and processed foods. Specifically, you\'ve linked symptoms to pizza, mac and cheese, and ice cream multiple times. Your data shows these symptoms typically appear 2-4 hours after eating. Remember, this is based on patterns in your logged data only - not medical advice.',
+      timestamp: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000 + 30000),
+    },
+    {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: 'How is my current experiment going?',
+      timestamp: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: 'Your "Fish Focus" experiment has been active for 3 days. During this period, you\'ve logged fewer instances of bloating and intestinal pinching compared to the two weeks before starting the experiment. This could indicate a positive pattern, but you\'ll need more data points to draw meaningful conclusions. Keep tracking to see if this trend continues!',
+      timestamp: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000 + 30000),
+    },
+  ];
+
+  const chatSession: ChatSession | null = chatMessages.length > 0 ? {
+    id: crypto.randomUUID(),
+    messages: chatMessages,
+    createdAt: chatMessages[0].timestamp,
+    updatedAt: chatMessages[chatMessages.length - 1].timestamp,
+  } : null;
+
   // Sort all by timestamp
   foodLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   symptoms.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   contexts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   experiments.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+  realizations.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-  return { foodLogs, symptoms, contexts, experiments };
+  return { foodLogs, symptoms, contexts, experiments, realizations, chatSession };
 }
 

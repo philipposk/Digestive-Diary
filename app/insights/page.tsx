@@ -11,6 +11,22 @@ export default function InsightsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedInsight, setSelectedInsight] = useState<Pattern | null>(null);
+  
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(date);
+  };
+  
+  const formatTime = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(date);
+  };
 
   const insights = useMemo(() => {
     return generateInsights(foodLogs, symptoms);
@@ -182,6 +198,53 @@ export default function InsightsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Occurrences */}
+                {selectedInsight.occurrences && selectedInsight.occurrences.length > 0 && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-green-800 dark:text-green-200 mb-3">
+                      Specific Occurrences ({selectedInsight.occurrences.length})
+                    </h3>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {selectedInsight.occurrences.map((occurrence, idx) => {
+                        const foodLog = foodLogs.find((f) => f.id === occurrence.foodLogId);
+                        const symptom = symptoms.find((s) => s.id === occurrence.symptomId);
+                        
+                        if (!foodLog || !symptom) return null;
+                        
+                        return (
+                          <div
+                            key={idx}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-green-200 dark:border-green-800"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium">🍽️ {foodLog.food}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">→</span>
+                                  <span className="text-sm font-medium">🏥 {symptom.type}</span>
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                  <div>Food: {formatDate(foodLog.timestamp)} at {formatTime(foodLog.timestamp)}</div>
+                                  <div>Symptom: {formatDate(symptom.timestamp)} at {formatTime(symptom.timestamp)}</div>
+                                  <div className="font-medium text-green-700 dark:text-green-300">
+                                    Time between: ~{occurrence.hoursBetween} hour{occurrence.hoursBetween !== 1 ? 's' : ''}
+                                  </div>
+                                </div>
+                                {symptom.severity && (
+                                  <div className="mt-2 text-xs">
+                                    <span className="text-gray-600 dark:text-gray-400">Severity: </span>
+                                    <span className="font-medium">{symptom.severity}/10</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Data Points */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">

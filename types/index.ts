@@ -93,6 +93,11 @@ export interface Pattern {
     timeWindow?: string; // e.g., '3-5 hours'
     context?: Partial<Context>;
   };
+  occurrences?: Array<{
+    symptomId: string;
+    foodLogId: string;
+    hoursBetween: number;
+  }>; // Actual occurrences that contributed to this pattern
 }
 
 export interface Realization {

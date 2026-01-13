@@ -39,6 +39,8 @@ interface AppState {
   setSymptoms: (symptoms: Symptom[]) => void;
   setContexts: (contexts: Context[]) => void;
   setExperiments: (experiments: Experiment[]) => void;
+  setRealizations: (realizations: Realization[]) => void;
+  setChatSession: (chatSession: ChatSession | null) => void;
 }
 
 // Custom storage with Date serialization
@@ -346,6 +348,8 @@ export const useAppStore = create<AppState>()(
       setSymptoms: (symptoms) => set({ symptoms }),
       setContexts: (contexts) => set({ contexts }),
       setExperiments: (experiments) => set({ experiments }),
+      setRealizations: (realizations) => set({ realizations }),
+      setChatSession: (chatSession) => set({ chatSession }),
     }),
     {
       name: 'digestive-diary-storage',
