@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { generateInsights } from '@/lib/generateInsights';
+import { formatDate, formatTime } from '@/lib/utils';
 import { Pattern } from '@/types';
 
 export default function InsightsPage() {
@@ -11,22 +12,6 @@ export default function InsightsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedInsight, setSelectedInsight] = useState<Pattern | null>(null);
-  
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(date);
-  };
-  
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }).format(date);
-  };
 
   const insights = useMemo(() => {
     return generateInsights(foodLogs, symptoms);
