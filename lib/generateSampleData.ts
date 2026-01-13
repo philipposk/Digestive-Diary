@@ -73,11 +73,12 @@ const symptomTypes = [
 ];
 const durations = ['30 minutes', '1 hour', '2 hours', '3 hours', '4 hours', 'half day'];
 
-export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]; contexts: Context[]; experiments: Experiment[] } {
+export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]; contexts: Context[]; experiments: Experiment[]; realizations: Realization[]; chatSession: ChatSession | null } {
   const foodLogs: FoodLog[] = [];
   const symptoms: Symptom[] = [];
   const contexts: Context[] = [];
   const experiments: Experiment[] = [];
+  const realizations: Realization[] = [];
   
   const now = new Date();
   const twoWeeksAgo = new Date(now);
