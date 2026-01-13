@@ -18,12 +18,20 @@ export interface FoodLog {
 
 export interface Symptom {
   id: string;
-  type: string; // e.g., 'bloating', 'pain', 'nausea'
+  type: string; // e.g., 'bloating', 'pain', 'nausea', 'rash', 'pimple'
   severity: SeverityLevel;
   duration?: string; // e.g., '30 minutes', '2 hours'
   timestamp: Date;
   notes?: string;
   linkedFoodId?: string; // Optional link to a food log that may have caused this
+  photoUrl?: string; // URL or base64 data URL for symptom photos (rashes, skin issues, etc.)
+  linkedSymptomId?: string; // Link to previous occurrence of same symptom (for evolution tracking)
+  aiAnalysis?: {
+    description?: string; // AI-generated description of what the photo shows
+    suggestion?: string; // AI suggestion (e.g., "Consider consulting a doctor")
+    possibleCauses?: string[]; // Possible causes based on food logs
+    analysisTimestamp: Date;
+  };
 }
 
 export interface Context {
@@ -37,6 +45,17 @@ export interface Context {
   notes?: string;
 }
 
+export type ExperimentLogType = 'text' | 'audio' | 'image' | 'video';
+
+export interface ExperimentLog {
+  id: string;
+  experimentId: string;
+  type: ExperimentLogType;
+  content: string; // Text content, audio URL, image URL, or video URL
+  timestamp: Date;
+  notes?: string;
+}
+
 export interface Experiment {
   id: string;
   name: string; // e.g., 'No Dairy', 'Low FODMAP'
@@ -44,6 +63,7 @@ export interface Experiment {
   endDate?: Date;
   active: boolean;
   notes?: string;
+  logs?: ExperimentLog[]; // Optional logs for tracking progress
 }
 
 export interface TimelineItem {

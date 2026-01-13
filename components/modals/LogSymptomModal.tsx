@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
-import { SeverityLevel } from '@/types';
+import { SeverityLevel, Symptom } from '@/types';
 import { FoodLog } from '@/types';
 
 interface LogSymptomModalProps {
@@ -24,6 +24,9 @@ const symptomTypes = [
   'cramps',
   'intestinal pinching',
   'inflammation',
+  'rash',
+  'pimple',
+  'skin irritation',
   'other'
 ];
 const severityLevels: SeverityLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -35,8 +38,17 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [linkedFoodId, setLinkedFoodId] = useState<string>('');
+  const [linkedSymptomId, setLinkedSymptomId] = useState<string>('');
+  const [photoUrl, setPhotoUrl] = useState<string>('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const addSymptom = useAppStore((state) => state.addSymptom);
+  const updateSymptom = useAppStore((state) => state.updateSymptom);
   const foodLogs = useAppStore((state) => state.foodLogs);
+  const symptoms = useAppStore((state) => state.symptoms);
 
   // Get recent food logs (last 24 hours) for linking
   const recentFoodLogs = foodLogs
@@ -44,23 +56,115 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
       const hoursAgo = (Date.now() - log.timestamp.getTime()) / (1000 * 60 * 60);
       return hoursAgo <= 24;
     })
-    .slice(0, 10) // Show last 10
+    .slice(0, 10)
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+  // Get previous symptoms of the same type for linking (last 30 days)
+  const previousSymptoms = symptoms
+    .filter((s) => {
+      if (type && type !== 'other') {
+        return s.type === type;
+      }
+      return true;
+    })
+    .filter((s) => {
+      const daysAgo = (Date.now() - s.timestamp.getTime()) / (1000 * 60 * 60 * 24);
+      return daysAgo <= 30;
+    })
+    .slice(0, 10)
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset form when modal closes
+      setType('');
+      setCustomType('');
+      setSeverity(5);
+      setDuration('');
+      setNotes('');
+      setLinkedFoodId('');
+      setLinkedSymptomId('');
+      setPhotoUrl('');
+      setPhotoFile(null);
+      setAiAnalysis(null);
+    }
+  }, [isOpen]);
+
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setPhotoUrl(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const analyzePhoto = async () => {
+    if (!photoFile) return;
+
+    setAnalyzingPhoto(true);
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        
+        // Get recent food logs for context
+        const recentFoods = foodLogs
+          .filter((log) => {
+            const hoursAgo = (Date.now() - log.timestamp.getTime()) / (1000 * 60 * 60);
+            return hoursAgo <= 48;
+          })
+          .slice(0, 20);
+
+        const response = await fetch('/api/openai/analyze-symptom-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: base64,
+            userData: { foodLogs: recentFoods },
+          }),
+        });
+
+        const analysis = await response.json();
+        setAiAnalysis(analysis);
+      };
+      reader.readAsDataURL(photoFile);
+    } catch (error) {
+      console.error('Error analyzing photo:', error);
+      alert('Failed to analyze photo. Please try again.');
+    } finally {
+      setAnalyzingPhoto(false);
+    }
+  };
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const symptomType = type === 'other' ? customType.trim() : type;
     if (!symptomType) return;
 
-    addSymptom({
+    const newSymptom: Omit<Symptom, 'id' | 'timestamp'> = {
       type: symptomType,
       severity,
       duration: duration.trim() || undefined,
       notes: notes.trim() || undefined,
       linkedFoodId: linkedFoodId || undefined,
-    });
+      linkedSymptomId: linkedSymptomId || undefined,
+      photoUrl: photoUrl || undefined,
+      aiAnalysis: aiAnalysis
+        ? {
+            description: aiAnalysis.description,
+            suggestion: aiAnalysis.suggestion,
+            possibleCauses: aiAnalysis.possibleCauses || [],
+            analysisTimestamp: new Date(),
+          }
+        : undefined,
+    };
+
+    addSymptom(newSymptom);
 
     // Reset form
     setType('');
@@ -69,6 +173,10 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
     setDuration('');
     setNotes('');
     setLinkedFoodId('');
+    setLinkedSymptomId('');
+    setPhotoUrl('');
+    setPhotoFile(null);
+    setAiAnalysis(null);
     onClose();
   };
 
@@ -77,6 +185,15 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  };
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
     }).format(date);
   };
 
@@ -117,6 +234,111 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
               )}
             </div>
 
+            {/* Photo Upload Section */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Photo (optional) - for visual symptoms like rashes, pimples, etc.
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePhotoUpload(file);
+                }}
+                className="hidden"
+              />
+              <div className="space-y-2">
+                {!photoUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-accent-500 dark:hover:border-accent-500 transition-colors text-gray-600 dark:text-gray-400"
+                  >
+                    📷 Take or Upload Photo
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <img
+                        src={photoUrl}
+                        alt="Symptom photo"
+                        className="w-full rounded-lg max-h-48 object-contain bg-gray-100 dark:bg-gray-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoUrl('');
+                          setPhotoFile(null);
+                          setAiAnalysis(null);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {!aiAnalysis && (
+                      <button
+                        type="button"
+                        onClick={analyzePhoto}
+                        disabled={analyzingPhoto}
+                        className="w-full px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {analyzingPhoto ? 'Analyzing...' : '🤖 Analyze Photo with AI'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                
+                {/* AI Analysis Results */}
+                {aiAnalysis && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">AI Analysis</h4>
+                    
+                    {aiAnalysis.description && (
+                      <div>
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Description:</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">{aiAnalysis.description}</p>
+                      </div>
+                    )}
+                    
+                    {aiAnalysis.documentationTips && (
+                      <div>
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Documentation Tips:</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">{aiAnalysis.documentationTips}</p>
+                      </div>
+                    )}
+                    
+                    {aiAnalysis.suggestion && (
+                      <div>
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Recommendation:</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">{aiAnalysis.suggestion}</p>
+                      </div>
+                    )}
+                    
+                    {aiAnalysis.possibleCauses && aiAnalysis.possibleCauses.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Possible Connections:</p>
+                        <ul className="list-disc list-inside text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                          {aiAnalysis.possibleCauses.map((cause: string, idx: number) => (
+                            <li key={idx}>{cause}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {aiAnalysis.disclaimer && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 italic mt-2">
+                        {aiAnalysis.disclaimer}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-2">
                 Severity: {severity}/10
@@ -144,6 +366,27 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                 placeholder="e.g., 30 minutes, 2 hours"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Link to Previous Symptom (optional)
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Track how this symptom evolves - link to a previous occurrence
+              </p>
+              <select
+                value={linkedSymptomId}
+                onChange={(e) => setLinkedSymptomId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="">None - New symptom occurrence</option>
+                {previousSymptoms.map((symptom) => (
+                  <option key={symptom.id} value={symptom.id}>
+                    {formatDate(symptom.timestamp)} - {symptom.type} (severity: {symptom.severity}/10)
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -189,7 +432,7 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
               <button
                 type="submit"
                 className="flex-1 px-4 py-2 bg-accent-500 text-white rounded-lg hover:bg-accent-600"
-                disabled={!type || (type === 'other' && !customType.trim())}
+                disabled={!type || (type === 'other' && !customType.trim()) || analyzingPhoto}
               >
                 Save
               </button>

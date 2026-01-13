@@ -24,7 +24,7 @@ export default function TimelinePage() {
     startDate.setDate(startDate.getDate() - daysAgo);
     startDate.setHours(0, 0, 0, 0);
 
-    const items: Array<{ type: 'food' | 'symptom'; data: FoodLog | Symptom; timestamp: Date; linkedFood?: FoodLog }> = [];
+    const items: Array<{ type: 'food' | 'symptom'; data: FoodLog | Symptom; timestamp: Date; linkedFood?: FoodLog; linkedSymptom?: Symptom }> = [];
 
     if (filter === 'all' || filter === 'food') {
       foodLogs.forEach((log) => {
@@ -40,7 +40,10 @@ export default function TimelinePage() {
           const linkedFood = symptom.linkedFoodId 
             ? foodLogs.find((f) => f.id === symptom.linkedFoodId)
             : undefined;
-          items.push({ type: 'symptom', data: symptom, timestamp: symptom.timestamp, linkedFood });
+          const linkedSymptom = symptom.linkedSymptomId
+            ? symptoms.find((s) => s.id === symptom.linkedSymptomId)
+            : undefined;
+          items.push({ type: 'symptom', data: symptom, timestamp: symptom.timestamp, linkedFood, linkedSymptom });
         }
       });
     }
@@ -190,6 +193,11 @@ export default function TimelinePage() {
                             ← After: {item.linkedFood.food} ({formatTime(item.linkedFood.timestamp)})
                           </div>
                         )}
+                        {item.type === 'symptom' && item.linkedSymptom && (
+                          <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                            🔗 Evolution: Linked to {item.linkedSymptom.type} ({formatDate(item.linkedSymptom.timestamp)})
+                          </div>
+                        )}
                       </div>
                     </div>
                     <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
@@ -214,16 +222,52 @@ export default function TimelinePage() {
                     </div>
                   )}
                   {item.type === 'symptom' && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Severity: {(item.data as Symptom).severity}/10
-                      </span>
-                      {(item.data as Symptom).duration && (
+                    <>
+                      <div className="flex items-center gap-2 mt-2">
                         <span className="text-sm text-gray-600 dark:text-gray-400">
-                          • {(item.data as Symptom).duration}
+                          Severity: {(item.data as Symptom).severity}/10
                         </span>
+                        {(item.data as Symptom).duration && (
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            • {(item.data as Symptom).duration}
+                          </span>
+                        )}
+                      </div>
+                      {(item.data as Symptom).photoUrl && (
+                        <div className="mt-2">
+                          <img
+                            src={(item.data as Symptom).photoUrl}
+                            alt="Symptom photo"
+                            className="rounded-lg max-h-48 object-contain bg-gray-100 dark:bg-gray-900"
+                          />
+                        </div>
                       )}
-                    </div>
+                      {(item.data as Symptom).aiAnalysis && (
+                        <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2">
+                          {(item.data as Symptom).aiAnalysis?.description && (
+                            <div>
+                              <p className="text-xs font-medium text-blue-800 dark:text-blue-200">AI Analysis:</p>
+                              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                {(item.data as Symptom).aiAnalysis?.description}
+                              </p>
+                            </div>
+                          )}
+                          {(item.data as Symptom).aiAnalysis?.suggestion && (
+                            <div>
+                              <p className="text-xs font-medium text-blue-800 dark:text-blue-200">Recommendation:</p>
+                              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                {(item.data as Symptom).aiAnalysis?.suggestion}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {(item.data as Symptom).notes && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">
+                          {(item.data as Symptom).notes}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

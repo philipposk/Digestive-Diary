@@ -15,6 +15,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
+  const [showClearDemoButton, setShowClearDemoButton] = useState(false);
   
   const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
@@ -23,6 +24,7 @@ export default function HomePage() {
   const setContexts = useAppStore((state) => state.setContexts);
   const setExperiments = useAppStore((state) => state.setExperiments);
   const experiments = useAppStore((state) => state.experiments);
+  const contexts = useAppStore((state) => state.contexts);
 
   // Check if welcome banner was dismissed
   useEffect(() => {
@@ -31,6 +33,13 @@ export default function HomePage() {
       setShowWelcomeBanner(false);
     }
   }, []);
+
+  // Check if demo data was cleared
+  useEffect(() => {
+    const demoCleared = localStorage.getItem('demoDataCleared');
+    const hasData = foodLogs.length > 0 || symptoms.length > 0 || experiments.length > 0;
+    setShowClearDemoButton(!demoCleared && hasData);
+  }, [foodLogs.length, symptoms.length, experiments.length]);
 
   // Generate sample data on first load if no data exists
   useEffect(() => {
@@ -46,6 +55,17 @@ export default function HomePage() {
   const handleDismissWelcome = () => {
     setShowWelcomeBanner(false);
     localStorage.setItem('welcomeBannerDismissed', 'true');
+  };
+
+  const handleClearDemoData = () => {
+    if (confirm('Are you sure you want to clear all demo data and start fresh? This cannot be undone.')) {
+      setFoodLogs([]);
+      setSymptoms([]);
+      setContexts([]);
+      setExperiments([]);
+      localStorage.setItem('demoDataCleared', 'true');
+      setShowClearDemoButton(false);
+    }
   };
 
   const todayItems = useMemo(() => {
@@ -125,6 +145,28 @@ export default function HomePage() {
               <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
                 A platform to help you track your food, symptoms, and patterns. Log what you eat and how you feel, discover connections over time, and organize your data for better insights. This is a logging tool, not medical advice.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Clear Demo Data Button */}
+        {showClearDemoButton && (
+          <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                  Demo Data Loaded
+                </p>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                  This app is showing sample data. Clear it to start logging your own data.
+                </p>
+              </div>
+              <button
+                onClick={handleClearDemoData}
+                className="ml-4 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+              >
+                Clear Demo Data
+              </button>
             </div>
           </div>
         )}

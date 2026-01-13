@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog } from '@/types';
 
 interface AppState {
   foodLogs: FoodLog[];
@@ -15,11 +15,15 @@ interface AppState {
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
   addSymptom: (symptom: Omit<Symptom, 'id' | 'timestamp'>) => void;
+  updateSymptom: (id: string, updates: Partial<Symptom>) => void;
   addRealization: (realization: Omit<Realization, 'id' | 'timestamp'>) => void;
   deleteRealization: (id: string) => void;
   addContext: (context: Omit<Context, 'id' | 'timestamp'>) => void;
   addExperiment: (experiment: Omit<Experiment, 'id'>) => void;
+  updateExperiment: (id: string, updates: Partial<Experiment>) => void;
   endExperiment: (id: string) => void;
+  addExperimentLog: (experimentId: string, log: Omit<ExperimentLog, 'id' | 'timestamp' | 'experimentId'>) => void;
+  deleteExperimentLog: (experimentId: string, logId: string) => void;
   deleteFoodLog: (id: string) => void;
   deleteSymptom: (id: string) => void;
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
@@ -53,6 +57,12 @@ const storage = {
         parsed.state.symptoms = (parsed.state.symptoms || []).map((s: any) => ({
           ...s,
           timestamp: new Date(s.timestamp),
+          aiAnalysis: s.aiAnalysis
+            ? {
+                ...s.aiAnalysis,
+                analysisTimestamp: new Date(s.aiAnalysis.analysisTimestamp),
+              }
+            : undefined,
         }));
         parsed.state.contexts = (parsed.state.contexts || []).map((c: any) => ({
           ...c,
@@ -62,6 +72,10 @@ const storage = {
           ...e,
           startDate: new Date(e.startDate),
           endDate: e.endDate ? new Date(e.endDate) : undefined,
+          logs: (e.logs || []).map((log: any) => ({
+            ...log,
+            timestamp: new Date(log.timestamp),
+          })),
         }));
         parsed.state.realizations = (parsed.state.realizations || []).map((r: any) => ({
           ...r,
@@ -138,6 +152,14 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      updateSymptom: (id, updates) => {
+        set((state) => ({
+          symptoms: state.symptoms.map((symptom) =>
+            symptom.id === id ? { ...symptom, ...updates } : symptom
+          ),
+        }));
+      },
+
       addContext: (context) => {
         const newContext: Context = {
           ...context,
@@ -155,10 +177,47 @@ export const useAppStore = create<AppState>()(
         const newExperiment: Experiment = {
           ...experiment,
           id: crypto.randomUUID(),
+          logs: experiment.logs || [],
         };
         set((state) => ({
           experiments: [...state.experiments, newExperiment].sort(
             (a, b) => b.startDate.getTime() - a.startDate.getTime()
+          ),
+        }));
+      },
+
+      updateExperiment: (id, updates) => {
+        set((state) => ({
+          experiments: state.experiments.map((exp) =>
+            exp.id === id ? { ...exp, ...updates } : exp
+          ),
+        }));
+      },
+
+      addExperimentLog: (experimentId, log) => {
+        const newLog: ExperimentLog = {
+          ...log,
+          experimentId,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => ({
+          experiments: state.experiments.map((exp) =>
+            exp.id === experimentId
+              ? { ...exp, logs: [...(exp.logs || []), newLog].sort(
+                  (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+                ) }
+              : exp
+          ),
+        }));
+      },
+
+      deleteExperimentLog: (experimentId, logId) => {
+        set((state) => ({
+          experiments: state.experiments.map((exp) =>
+            exp.id === experimentId
+              ? { ...exp, logs: (exp.logs || []).filter((log) => log.id !== logId) }
+              : exp
           ),
         }));
       },
