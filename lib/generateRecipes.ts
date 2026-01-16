@@ -77,18 +77,18 @@ export function generateSampleRecipes(): Recipe[] {
   // Duplicate some recipes to reach ~100 (with variations)
   const additionalRecipes: Recipe[] = [];
   for (let i = 0; i < 75; i++) {
-    const baseRecipe = recipeTemplates[i % recipeTemplates.length];
+    const baseRecipe = recipes[i % recipes.length];
     additionalRecipes.push({
       id: `recipe-${recipes.length + i + 1}`,
-      name: `${baseRecipe.name} Variation ${Math.floor(i / recipeTemplates.length) + 1}`,
+      name: `${baseRecipe.name} Variation ${Math.floor(i / recipes.length) + 1}`,
       description: `A variation of ${baseRecipe.name.toLowerCase()}.`,
       ingredients: baseRecipe.ingredients,
       instructions: baseRecipe.instructions,
       tags: [...baseRecipe.tags, i % 2 === 0 ? 'quick' : 'comfort-food'],
-      estimatedMacros: {
-        ...baseRecipe.macros,
-        calories: baseRecipe.macros.calories + (Math.floor(Math.random() * 100) - 50),
-      },
+      estimatedMacros: baseRecipe.estimatedMacros ? {
+        ...baseRecipe.estimatedMacros,
+        calories: (baseRecipe.estimatedMacros.calories || 0) + (Math.floor(Math.random() * 100) - 50),
+      } : undefined,
       sourceName: ['AllRecipes', 'BBC Good Food', 'Food Network'][i % 3],
       sourceUrl: `https://example.com/recipe/${recipes.length + i + 1}`,
     });
