@@ -6,9 +6,10 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { href: '/', label: 'Log', icon: '📝' },
   { href: '/calendar', label: 'Calendar', icon: '📅' },
-  { href: '/timeline', label: 'Timeline', icon: '📋' },
   { href: '/experiments', label: 'Experiments', icon: '🧪' },
   { href: '/insights', label: 'Insights', icon: '💡' },
+  { href: '/recipes', label: 'Recipes', icon: '🍽️' },
+  { href: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
 export default function BottomNav() {
@@ -24,14 +25,14 @@ export default function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center flex-1 h-full ${
+                className={`flex flex-col items-center justify-center flex-1 h-full min-w-0 ${
                   isActive
                     ? 'text-primary-600 dark:text-primary-400'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
-                <span className="text-2xl mb-1">{item.icon}</span>
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className="text-xl mb-0.5">{item.icon}</span>
+                <span className="text-[10px] font-medium truncate w-full text-center">{item.label}</span>
               </Link>
             );
           })}
