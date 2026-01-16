@@ -28,22 +28,24 @@ export default function TimelinePage() {
 
     if (filter === 'all' || filter === 'food') {
       foodLogs.forEach((log) => {
-        if (log.timestamp >= startDate) {
-          items.push({ type: 'food', data: log, timestamp: log.timestamp });
+        const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+        if (logTimestamp >= startDate) {
+          items.push({ type: 'food', data: log, timestamp: logTimestamp });
         }
       });
     }
 
     if (filter === 'all' || filter === 'symptom') {
       symptoms.forEach((symptom) => {
-        if (symptom.timestamp >= startDate) {
+        const symptomTimestamp = symptom.timestamp instanceof Date ? symptom.timestamp : new Date(symptom.timestamp);
+        if (symptomTimestamp >= startDate) {
           const linkedFood = symptom.linkedFoodId 
             ? foodLogs.find((f) => f.id === symptom.linkedFoodId)
             : undefined;
           const linkedSymptom = symptom.linkedSymptomId
             ? symptoms.find((s) => s.id === symptom.linkedSymptomId)
             : undefined;
-          items.push({ type: 'symptom', data: symptom, timestamp: symptom.timestamp, linkedFood, linkedSymptom });
+          items.push({ type: 'symptom', data: symptom, timestamp: symptomTimestamp, linkedFood, linkedSymptom });
         }
       });
     }

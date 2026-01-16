@@ -86,17 +86,19 @@ export default function HomePage() {
     const items: Array<{ type: 'food' | 'symptom'; data: FoodLog | Symptom; timestamp: Date; linkedFood?: FoodLog }> = [];
     
     foodLogs.forEach((log) => {
-      if (log.timestamp >= todayStart && log.timestamp <= todayEnd) {
-        items.push({ type: 'food', data: log, timestamp: log.timestamp });
+      const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+      if (logTimestamp >= todayStart && logTimestamp <= todayEnd) {
+        items.push({ type: 'food', data: log, timestamp: logTimestamp });
       }
     });
 
     symptoms.forEach((symptom) => {
-      if (symptom.timestamp >= todayStart && symptom.timestamp <= todayEnd) {
+      const symptomTimestamp = symptom.timestamp instanceof Date ? symptom.timestamp : new Date(symptom.timestamp);
+      if (symptomTimestamp >= todayStart && symptomTimestamp <= todayEnd) {
         const linkedFood = symptom.linkedFoodId 
           ? foodLogs.find((f) => f.id === symptom.linkedFoodId)
           : undefined;
-        items.push({ type: 'symptom', data: symptom, timestamp: symptom.timestamp, linkedFood });
+        items.push({ type: 'symptom', data: symptom, timestamp: symptomTimestamp, linkedFood });
       }
     });
 
@@ -307,7 +309,11 @@ export default function HomePage() {
         {fastingSettings.enabled && (() => {
           const now = new Date();
           const lastMealTime = fastingSettings.lastMealTime ? new Date(fastingSettings.lastMealTime) : null;
-          const lastMeal = foodLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+          const lastMeal = foodLogs.sort((a, b) => {
+            const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+            const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+            return bTime.getTime() - aTime.getTime();
+          })[0];
           const effectiveLastMeal = lastMealTime || (lastMeal ? lastMeal.timestamp : null);
           
           if (!effectiveLastMeal) return null;

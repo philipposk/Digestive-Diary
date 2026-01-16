@@ -15,7 +15,8 @@ export default function CalendarPage() {
   const logsByDate = useMemo(() => {
     const grouped = new Map<string, typeof foodLogs>();
     foodLogs.forEach((log) => {
-      const dateKey = formatDate(log.timestamp);
+      const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+      const dateKey = formatDate(logTimestamp);
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, []);
       }
@@ -42,7 +43,10 @@ export default function CalendarPage() {
   // Get symptoms for selected date
   const selectedDateSymptoms = useMemo(() => {
     const dateKey = formatDate(selectedDate);
-    return symptoms.filter(s => formatDate(s.timestamp) === dateKey);
+    return symptoms.filter(s => {
+      const sTimestamp = s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp);
+      return formatDate(sTimestamp) === dateKey;
+    });
   }, [symptoms, selectedDate]);
 
   // Calendar month view
@@ -243,7 +247,11 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-4">
                 {selectedDateLogs
-                  .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                  .sort((a, b) => {
+                    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+                    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+                    return aTime.getTime() - bTime.getTime();
+                  })
                   .map((log) => (
                     <div
                       key={log.id}
@@ -323,7 +331,11 @@ export default function CalendarPage() {
               </h3>
               <div className="space-y-2">
                 {selectedDateSymptoms
-                  .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                  .sort((a, b) => {
+                    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+                    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+                    return aTime.getTime() - bTime.getTime();
+                  })
                   .map((symptom) => (
                     <div
                       key={symptom.id}

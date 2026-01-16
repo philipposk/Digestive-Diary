@@ -16,7 +16,8 @@ export default function MacrosPage() {
     today.setHours(0, 0, 0, 0);
     
     const todayLogs = foodLogs.filter((log) => {
-      const logDate = new Date(log.timestamp);
+      const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+      const logDate = new Date(logTimestamp);
       logDate.setHours(0, 0, 0, 0);
       return logDate.getTime() === today.getTime();
     });

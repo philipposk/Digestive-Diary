@@ -122,7 +122,11 @@ export default function SettingsPage() {
                 <button
                   onClick={() => {
                     const lastMeal = useAppStore.getState().foodLogs
-                      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+                      .sort((a, b) => {
+                        const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+                        const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+                        return bTime.getTime() - aTime.getTime();
+                      })[0];
                     if (lastMeal) {
                       setFastingSettings({ ...fastingSettings, lastMealTime: lastMeal.timestamp });
                     }
