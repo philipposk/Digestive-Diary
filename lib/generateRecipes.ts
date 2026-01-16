@@ -89,8 +89,7 @@ export function generateSampleRecipes(): Recipe[] {
         ...baseRecipe.estimatedMacros,
         calories: (baseRecipe.estimatedMacros.calories || 0) + (Math.floor(Math.random() * 100) - 50),
       } : undefined,
-      sourceName: ['AllRecipes', 'BBC Good Food', 'Food Network'][i % 3],
-      sourceUrl: `https://example.com/recipe/${recipes.length + i + 1}`,
+      sourceUrl: ['https://www.allrecipes.com', 'https://www.bbcgoodfood.com', 'https://www.foodnetwork.com'][i % 3] + `/recipe/${recipes.length + i + 1}`,
     });
   }
   

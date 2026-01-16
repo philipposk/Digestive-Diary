@@ -204,11 +204,19 @@ export interface Recipe {
 }
 
 export interface RecipeSource {
-  name: string;
   url: string;
   enabled: boolean;
 }
 
 export interface RecipeSourcesSettings {
   sources: RecipeSource[];
+}
+
+export interface AdminNotification {
+  id: string;
+  type: 'recipe_source_error' | 'api_error' | 'other';
+  message: string;
+  details?: any;
+  timestamp: Date;
+  resolved: boolean;
 }

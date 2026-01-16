@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings, Recipe, RecipeSourcesSettings } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings, Recipe, RecipeSourcesSettings, AdminNotification } from '@/types';
 
 interface AppState {
   foodLogs: FoodLog[];
@@ -16,6 +16,7 @@ interface AppState {
   autoScanSettings: AutoScanSettings;
   recipes: Recipe[];
   recipeSourcesSettings: RecipeSourcesSettings;
+  adminNotifications: AdminNotification[];
   
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
@@ -52,6 +53,9 @@ interface AppState {
   setAutoScanSettings: (settings: AutoScanSettings) => void;
   setRecipes: (recipes: Recipe[]) => void;
   setRecipeSourcesSettings: (settings: RecipeSourcesSettings) => void;
+  addAdminNotification: (notification: Omit<AdminNotification, 'id' | 'timestamp'>) => void;
+  resolveAdminNotification: (id: string) => void;
+  clearAdminNotifications: () => void;
 }
 
 // Helper function to safely parse dates
@@ -261,11 +265,12 @@ export const useAppStore = create<AppState>()(
       recipes: [],
       recipeSourcesSettings: {
         sources: [
-          { name: 'AllRecipes', url: 'https://www.allrecipes.com', enabled: true },
-          { name: 'BBC Good Food', url: 'https://www.bbcgoodfood.com', enabled: true },
-          { name: 'Food Network', url: 'https://www.foodnetwork.com', enabled: true },
+          { url: 'https://www.allrecipes.com', enabled: true },
+          { url: 'https://www.bbcgoodfood.com', enabled: true },
+          { url: 'https://www.foodnetwork.com', enabled: true },
         ],
       },
+      adminNotifications: [],
 
       addFoodLog: (log) => {
         const newLog: FoodLog = {
@@ -527,6 +532,30 @@ export const useAppStore = create<AppState>()(
       setAutoScanSettings: (settings) => set({ autoScanSettings: settings }),
       setRecipes: (recipes) => set({ recipes }),
       setRecipeSourcesSettings: (settings) => set({ recipeSourcesSettings: settings }),
+      addAdminNotification: (notification) => {
+        const newNotification: AdminNotification = {
+          ...notification,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+        set((state) => ({
+          adminNotifications: [...state.adminNotifications, newNotification].sort(
+            (a, b) => {
+              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+              return bTime.getTime() - aTime.getTime();
+            }
+          ),
+        }));
+      },
+      resolveAdminNotification: (id) => {
+        set((state) => ({
+          adminNotifications: state.adminNotifications.map((n) =>
+            n.id === id ? { ...n, resolved: true } : n
+          ),
+        }));
+      },
+      clearAdminNotifications: () => set({ adminNotifications: [] }),
     }),
     {
       name: 'digestive-diary-storage',

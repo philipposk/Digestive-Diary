@@ -52,11 +52,19 @@ export default function RecipesPage() {
   // Filter recipes based on selected tag and enabled sources
   const filteredRecipes = useMemo(() => {
     let filtered = recipes.filter(recipe => {
-      // Filter by enabled sources
-      if (recipe.sourceName) {
-        const sourceEnabled = recipeSourcesSettings.sources.some(
-          s => s.name === recipe.sourceName && s.enabled
-        );
+      // Filter by enabled sources (match by URL domain)
+      if (recipe.sourceUrl) {
+        const sourceUrl = recipe.sourceUrl; // Type narrowing
+        const sourceEnabled = recipeSourcesSettings.sources.some(s => {
+          if (!s.enabled) return false;
+          try {
+            const recipeDomain = new URL(sourceUrl).hostname;
+            const sourceDomain = new URL(s.url).hostname;
+            return recipeDomain === sourceDomain || sourceUrl.startsWith(s.url);
+          } catch {
+            return sourceUrl.startsWith(s.url);
+          }
+        });
         if (!sourceEnabled) return false;
       }
       // Filter by selected tag
@@ -131,7 +139,7 @@ export default function RecipesPage() {
         instructions: r.instructions || [],
         tags: r.tags || [],
         estimatedMacros: r.estimatedMacros,
-        sourceName: 'AI Generated',
+        sourceUrl: undefined, // AI generated, no source
       }));
       
       setRecipes([...recipes, ...aiRecipes]);
@@ -270,9 +278,15 @@ export default function RecipesPage() {
             >
               <div className="flex justify-between items-start mb-2">
                 <h2 className="text-xl font-semibold">{recipe.name}</h2>
-                {recipe.sourceName && (
+                {recipe.sourceUrl && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {recipe.sourceName}
+                    {(() => {
+                      try {
+                        return new URL(recipe.sourceUrl!).hostname;
+                      } catch {
+                        return recipe.sourceUrl;
+                      }
+                    })()}
                   </span>
                 )}
               </div>

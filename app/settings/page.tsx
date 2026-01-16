@@ -309,70 +309,86 @@ export default function SettingsPage() {
           <h2 className="text-lg font-medium mb-3">Recipe Sources</h2>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Configure recipe sources. Recipes from enabled sources will be shown in the recipes page.
+              Add recipe source URLs (one per line or comma-separated). The AI will try to read recipes from these sources.
             </p>
             
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recipeSourcesSettings.sources.map((source, index) => (
-                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={source.enabled}
-                        onChange={(e) => {
-                          const updatedSources = [...recipeSourcesSettings.sources];
-                          updatedSources[index] = { ...source, enabled: e.target.checked };
-                          setRecipeSourcesSettings({ sources: updatedSources });
-                        }}
-                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Enable {source.name}
-                      </span>
-                    </label>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Source Name
-                      </label>
-                      <input
-                        type="text"
-                        value={source.name}
-                        onChange={(e) => {
-                          const updatedSources = [...recipeSourcesSettings.sources];
-                          updatedSources[index] = { ...source, name: e.target.value };
-                          setRecipeSourcesSettings({ sources: updatedSources });
-                        }}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        placeholder="e.g., AllRecipes"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        URL
-                      </label>
-                      <input
-                        type="url"
-                        value={source.url}
-                        onChange={(e) => {
-                          const updatedSources = [...recipeSourcesSettings.sources];
-                          updatedSources[index] = { ...source, url: e.target.value };
-                          setRecipeSourcesSettings({ sources: updatedSources });
-                        }}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        placeholder="https://example.com"
-                      />
-                    </div>
-                  </div>
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={source.enabled}
+                    onChange={(e) => {
+                      const updatedSources = [...recipeSourcesSettings.sources];
+                      updatedSources[index] = { ...source, enabled: e.target.checked };
+                      setRecipeSourcesSettings({ sources: updatedSources });
+                    }}
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <input
+                    type="url"
+                    value={source.url}
+                    onChange={(e) => {
+                      const updatedSources = [...recipeSourcesSettings.sources];
+                      updatedSources[index] = { url: e.target.value, enabled: source.enabled };
+                      setRecipeSourcesSettings({ sources: updatedSources });
+                    }}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                    placeholder="https://example.com/recipes"
+                  />
+                  <button
+                    onClick={() => {
+                      const updatedSources = recipeSourcesSettings.sources.filter((_, i) => i !== index);
+                      setRecipeSourcesSettings({ sources: updatedSources });
+                    }}
+                    className="px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>
             
-            <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setRecipeSourcesSettings({
+                    sources: [...recipeSourcesSettings.sources, { url: '', enabled: true }]
+                  });
+                }}
+                className="w-full px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+              >
+                + Add Source URL
+              </button>
+              
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Or paste multiple URLs (one per line or comma-separated):
+                </label>
+                <textarea
+                  placeholder="https://example1.com&#10;https://example2.com&#10;or comma-separated: https://example1.com, https://example2.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  rows={3}
+                  onBlur={(e) => {
+                    const text = e.target.value.trim();
+                    if (text) {
+                      // Split by newlines or commas
+                      const urls = text.split(/[\n,]+/)
+                        .map(url => url.trim())
+                        .filter(url => url && url.startsWith('http'));
+                      
+                      if (urls.length > 0) {
+                        const newSources = urls.map(url => ({ url, enabled: true }));
+                        setRecipeSourcesSettings({
+                          sources: [...recipeSourcesSettings.sources, ...newSources]
+                        });
+                        e.target.value = '';
+                      }
+                    }
+                  }}
+                />
+              </div>
+              
               <button
                 onClick={() => {
                   const allEnabled = recipeSourcesSettings.sources.every(s => s.enabled);
@@ -406,8 +422,11 @@ export default function SettingsPage() {
             <Link href="/macros" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               Macronutrients & Goals
             </Link>
-            <Link href="/recipes" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <Link href="/recipes" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               Recipe Suggestions
+            </Link>
+            <Link href="/admin" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              Admin Notifications
             </Link>
             <button
               onClick={() => {
