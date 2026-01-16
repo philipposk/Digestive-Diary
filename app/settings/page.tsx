@@ -302,6 +302,9 @@ export default function SettingsPage() {
         <div>
           <h2 className="text-lg font-medium mb-3">Data</h2>
           <div className="space-y-2">
+            <Link href="/timeline" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              Timeline View
+            </Link>
             <Link href="/realizations" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               My Realizations
             </Link>

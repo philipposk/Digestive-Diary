@@ -57,61 +57,99 @@ const storage = {
     try {
       const parsed = JSON.parse(str);
       if (parsed?.state) {
-        // Convert date strings back to Date objects
+        // Helper function to safely parse dates
+        const safeDate = (dateStr: any): Date | undefined => {
+          if (!dateStr) return undefined;
+          try {
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? undefined : date;
+          } catch {
+            return undefined;
+          }
+        };
+
+        // Convert date strings back to Date objects with error handling
         parsed.state.foodLogs = (parsed.state.foodLogs || []).map((log: any) => ({
           ...log,
-          timestamp: new Date(log.timestamp),
+          timestamp: safeDate(log.timestamp) || new Date(),
         }));
+
         parsed.state.symptoms = (parsed.state.symptoms || []).map((s: any) => ({
           ...s,
-          timestamp: new Date(s.timestamp),
+          timestamp: safeDate(s.timestamp) || new Date(),
           aiAnalysis: s.aiAnalysis
             ? {
                 ...s.aiAnalysis,
-                analysisTimestamp: new Date(s.aiAnalysis.analysisTimestamp),
+                analysisTimestamp: safeDate(s.aiAnalysis.analysisTimestamp) || new Date(),
               }
             : undefined,
         }));
+
         parsed.state.contexts = (parsed.state.contexts || []).map((c: any) => ({
           ...c,
-          timestamp: new Date(c.timestamp),
+          timestamp: safeDate(c.timestamp) || new Date(),
+          sleepStartTime: safeDate(c.sleepStartTime),
+          sleepEndTime: safeDate(c.sleepEndTime),
         }));
+
         parsed.state.experiments = (parsed.state.experiments || []).map((e: any) => ({
           ...e,
-          startDate: new Date(e.startDate),
-          endDate: e.endDate ? new Date(e.endDate) : undefined,
+          startDate: safeDate(e.startDate) || new Date(),
+          endDate: safeDate(e.endDate),
           logs: (e.logs || []).map((log: any) => ({
             ...log,
-            timestamp: new Date(log.timestamp),
+            timestamp: safeDate(log.timestamp) || new Date(),
           })),
         }));
+
         parsed.state.realizations = (parsed.state.realizations || []).map((r: any) => ({
           ...r,
-          timestamp: new Date(r.timestamp),
+          timestamp: safeDate(r.timestamp) || new Date(),
         }));
+
         parsed.state.sources = (parsed.state.sources || []).map((s: any) => ({
           ...s,
-          addedAt: new Date(s.addedAt),
+          addedAt: safeDate(s.addedAt) || new Date(),
         }));
+
         parsed.state.photoUploads = (parsed.state.photoUploads || []).map((p: any) => ({
           ...p,
-          uploadedAt: new Date(p.uploadedAt),
+          uploadedAt: safeDate(p.uploadedAt) || new Date(),
         }));
+
+        // Handle fastingSettings dates
+        if (parsed.state.fastingSettings) {
+          parsed.state.fastingSettings = {
+            ...parsed.state.fastingSettings,
+            lastMealTime: safeDate(parsed.state.fastingSettings.lastMealTime),
+          };
+        }
+
+        // Handle autoScanSettings dates
+        if (parsed.state.autoScanSettings) {
+          parsed.state.autoScanSettings = {
+            ...parsed.state.autoScanSettings,
+            lastScanTime: safeDate(parsed.state.autoScanSettings.lastScanTime),
+          };
+        }
+
         if (parsed.state.chatSession) {
           parsed.state.chatSession = {
             ...parsed.state.chatSession,
-            createdAt: new Date(parsed.state.chatSession.createdAt),
-            updatedAt: new Date(parsed.state.chatSession.updatedAt),
+            createdAt: safeDate(parsed.state.chatSession.createdAt) || new Date(),
+            updatedAt: safeDate(parsed.state.chatSession.updatedAt) || new Date(),
             messages: (parsed.state.chatSession.messages || []).map((m: any) => ({
               ...m,
-              timestamp: new Date(m.timestamp),
+              timestamp: safeDate(m.timestamp) || new Date(),
             })),
           };
         }
       }
       return JSON.stringify(parsed);
-    } catch {
-      return str;
+    } catch (error) {
+      console.error('Error parsing localStorage data:', error);
+      // Return null to let Zustand use default state
+      return null;
     }
   },
   setItem: (name: string, value: string): void => {
