@@ -12,6 +12,8 @@ export default function SettingsPage() {
   const setFastingSettings = useAppStore((state) => state.setFastingSettings);
   const autoScanSettings = useAppStore((state) => state.autoScanSettings);
   const setAutoScanSettings = useAppStore((state) => state.setAutoScanSettings);
+  const recipeSourcesSettings = useAppStore((state) => state.recipeSourcesSettings);
+  const setRecipeSourcesSettings = useAppStore((state) => state.setRecipeSourcesSettings);
   const addFoodLog = useAppStore((state) => state.addFoodLog);
 
   useEffect(() => {
@@ -300,6 +302,89 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-medium mb-3">Recipe Sources</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Configure recipe sources. Recipes from enabled sources will be shown in the recipes page.
+            </p>
+            
+            <div className="space-y-3">
+              {recipeSourcesSettings.sources.map((source, index) => (
+                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={source.enabled}
+                        onChange={(e) => {
+                          const updatedSources = [...recipeSourcesSettings.sources];
+                          updatedSources[index] = { ...source, enabled: e.target.checked };
+                          setRecipeSourcesSettings({ sources: updatedSources });
+                        }}
+                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Enable {source.name}
+                      </span>
+                    </label>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Source Name
+                      </label>
+                      <input
+                        type="text"
+                        value={source.name}
+                        onChange={(e) => {
+                          const updatedSources = [...recipeSourcesSettings.sources];
+                          updatedSources[index] = { ...source, name: e.target.value };
+                          setRecipeSourcesSettings({ sources: updatedSources });
+                        }}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                        placeholder="e.g., AllRecipes"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        URL
+                      </label>
+                      <input
+                        type="url"
+                        value={source.url}
+                        onChange={(e) => {
+                          const updatedSources = [...recipeSourcesSettings.sources];
+                          updatedSources[index] = { ...source, url: e.target.value };
+                          setRecipeSourcesSettings({ sources: updatedSources });
+                        }}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  const allEnabled = recipeSourcesSettings.sources.every(s => s.enabled);
+                  setRecipeSourcesSettings({
+                    sources: recipeSourcesSettings.sources.map(s => ({ ...s, enabled: !allEnabled }))
+                  });
+                }}
+                className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                {recipeSourcesSettings.sources.every(s => s.enabled) ? 'Disable All' : 'Enable All'}
+              </button>
+            </div>
           </div>
         </div>
 

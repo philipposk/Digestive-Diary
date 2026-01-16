@@ -185,3 +185,30 @@ export interface PhotoUpload {
   foodLogId?: string; // If converted to food log
 }
 
+export interface Recipe {
+  id: string;
+  name: string;
+  description?: string;
+  ingredients: string[];
+  instructions: string[];
+  tags: string[];
+  estimatedMacros?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber?: number;
+  };
+  sourceUrl?: string;
+  sourceName?: string;
+}
+
+export interface RecipeSource {
+  name: string;
+  url: string;
+  enabled: boolean;
+}
+
+export interface RecipeSourcesSettings {
+  sources: RecipeSource[];
+}

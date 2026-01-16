@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings, Recipe, RecipeSourcesSettings } from '@/types';
 
 interface AppState {
   foodLogs: FoodLog[];
@@ -14,6 +14,8 @@ interface AppState {
   fastingSettings: FastingSettings;
   macroGoals: MacroGoals | null;
   autoScanSettings: AutoScanSettings;
+  recipes: Recipe[];
+  recipeSourcesSettings: RecipeSourcesSettings;
   
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
@@ -48,6 +50,8 @@ interface AppState {
   setFastingSettings: (settings: FastingSettings) => void;
   setMacroGoals: (goals: MacroGoals | null) => void;
   setAutoScanSettings: (settings: AutoScanSettings) => void;
+  setRecipes: (recipes: Recipe[]) => void;
+  setRecipeSourcesSettings: (settings: RecipeSourcesSettings) => void;
 }
 
 // Helper function to safely parse dates
@@ -253,6 +257,14 @@ export const useAppStore = create<AppState>()(
         enabled: false,
         frequency: 'manual',
         processedPhotos: [],
+      },
+      recipes: [],
+      recipeSourcesSettings: {
+        sources: [
+          { name: 'AllRecipes', url: 'https://www.allrecipes.com', enabled: true },
+          { name: 'BBC Good Food', url: 'https://www.bbcgoodfood.com', enabled: true },
+          { name: 'Food Network', url: 'https://www.foodnetwork.com', enabled: true },
+        ],
       },
 
       addFoodLog: (log) => {
@@ -513,6 +525,8 @@ export const useAppStore = create<AppState>()(
       setFastingSettings: (settings) => set({ fastingSettings: settings }),
       setMacroGoals: (goals) => set({ macroGoals: goals }),
       setAutoScanSettings: (settings) => set({ autoScanSettings: settings }),
+      setRecipes: (recipes) => set({ recipes }),
+      setRecipeSourcesSettings: (settings) => set({ recipeSourcesSettings: settings }),
     }),
     {
       name: 'digestive-diary-storage',
