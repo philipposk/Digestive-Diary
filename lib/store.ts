@@ -65,6 +65,16 @@ const safeDate = (dateStr: any): Date | undefined => {
 const storage = {
   getItem: (name: string): string | null => {
     if (typeof window === 'undefined') return null;
+    
+    // One-time migration: Check for corrupted data version marker
+    const dataVersion = localStorage.getItem('digestive-diary-data-version');
+    if (!dataVersion || dataVersion !== '2') {
+      // Clear old potentially corrupted data
+      localStorage.removeItem('digestive-diary-storage');
+      localStorage.setItem('digestive-diary-data-version', '2');
+      return null;
+    }
+    
     const str = localStorage.getItem(name);
     if (!str) return null;
     try {
