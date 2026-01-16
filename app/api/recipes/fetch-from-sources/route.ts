@@ -31,10 +31,12 @@ export async function POST(request: NextRequest) {
         });
 
         if (!fetchResponse.ok) {
-          errors.push({
+          const error = {
             url: source.url,
             error: `HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`,
-          });
+          };
+          errors.push(error);
+          // Return error info that can be used to create admin notification
           continue;
         }
 
