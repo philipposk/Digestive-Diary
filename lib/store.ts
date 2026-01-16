@@ -49,6 +49,18 @@ interface AppState {
   setAutoScanSettings: (settings: AutoScanSettings) => void;
 }
 
+// Helper function to safely parse dates
+const safeDate = (dateStr: any): Date | undefined => {
+  if (!dateStr) return undefined;
+  if (dateStr instanceof Date) return dateStr;
+  try {
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? undefined : date;
+  } catch {
+    return undefined;
+  }
+};
+
 // Custom storage with Date serialization
 const storage = {
   getItem: (name: string): string | null => {
@@ -57,66 +69,83 @@ const storage = {
     if (!str) return null;
     try {
       const parsed = JSON.parse(str);
-      if (parsed?.state) {
-        // Helper function to safely parse dates
-        const safeDate = (dateStr: any): Date | undefined => {
-          if (!dateStr) return undefined;
-          try {
-            const date = new Date(dateStr);
-            return isNaN(date.getTime()) ? undefined : date;
-          } catch {
-            return undefined;
-          }
-        };
+      if (!parsed?.state) return null;
+      
+      // Validate and fix all date fields
 
         // Convert date strings back to Date objects with error handling
-        parsed.state.foodLogs = (parsed.state.foodLogs || []).map((log: any) => ({
-          ...log,
-          timestamp: safeDate(log.timestamp) || new Date(),
-        }));
-
-        parsed.state.symptoms = (parsed.state.symptoms || []).map((s: any) => ({
-          ...s,
-          timestamp: safeDate(s.timestamp) || new Date(),
-          aiAnalysis: s.aiAnalysis
-            ? {
-                ...s.aiAnalysis,
-                analysisTimestamp: safeDate(s.aiAnalysis.analysisTimestamp) || new Date(),
-              }
-            : undefined,
-        }));
-
-        parsed.state.contexts = (parsed.state.contexts || []).map((c: any) => ({
-          ...c,
-          timestamp: safeDate(c.timestamp) || new Date(),
-          sleepStartTime: safeDate(c.sleepStartTime),
-          sleepEndTime: safeDate(c.sleepEndTime),
-        }));
-
-        parsed.state.experiments = (parsed.state.experiments || []).map((e: any) => ({
-          ...e,
-          startDate: safeDate(e.startDate) || new Date(),
-          endDate: safeDate(e.endDate),
-          logs: (e.logs || []).map((log: any) => ({
+        // Filter out any items with invalid dates to prevent errors
+        parsed.state.foodLogs = (parsed.state.foodLogs || [])
+          .filter((log: any) => log && log.timestamp)
+          .map((log: any) => ({
             ...log,
             timestamp: safeDate(log.timestamp) || new Date(),
-          })),
-        }));
+          }))
+          .filter((log: any) => log.timestamp instanceof Date);
 
-        parsed.state.realizations = (parsed.state.realizations || []).map((r: any) => ({
-          ...r,
-          timestamp: safeDate(r.timestamp) || new Date(),
-        }));
+        parsed.state.symptoms = (parsed.state.symptoms || [])
+          .filter((s: any) => s && s.timestamp)
+          .map((s: any) => ({
+            ...s,
+            timestamp: safeDate(s.timestamp) || new Date(),
+            aiAnalysis: s.aiAnalysis && s.aiAnalysis.analysisTimestamp
+              ? {
+                  ...s.aiAnalysis,
+                  analysisTimestamp: safeDate(s.aiAnalysis.analysisTimestamp) || new Date(),
+                }
+              : s.aiAnalysis,
+          }))
+          .filter((s: any) => s.timestamp instanceof Date);
 
-        parsed.state.sources = (parsed.state.sources || []).map((s: any) => ({
-          ...s,
-          addedAt: safeDate(s.addedAt) || new Date(),
-        }));
+        parsed.state.contexts = (parsed.state.contexts || [])
+          .filter((c: any) => c && c.timestamp)
+          .map((c: any) => ({
+            ...c,
+            timestamp: safeDate(c.timestamp) || new Date(),
+            sleepStartTime: safeDate(c.sleepStartTime),
+            sleepEndTime: safeDate(c.sleepEndTime),
+          }))
+          .filter((c: any) => c.timestamp instanceof Date);
 
-        parsed.state.photoUploads = (parsed.state.photoUploads || []).map((p: any) => ({
-          ...p,
-          uploadedAt: safeDate(p.uploadedAt) || new Date(),
-        }));
+        parsed.state.experiments = (parsed.state.experiments || [])
+          .filter((e: any) => e && e.startDate)
+          .map((e: any) => ({
+            ...e,
+            startDate: safeDate(e.startDate) || new Date(),
+            endDate: safeDate(e.endDate),
+            logs: (e.logs || [])
+              .filter((log: any) => log && log.timestamp)
+              .map((log: any) => ({
+                ...log,
+                timestamp: safeDate(log.timestamp) || new Date(),
+              }))
+              .filter((log: any) => log.timestamp instanceof Date),
+          }))
+          .filter((e: any) => e.startDate instanceof Date);
+
+        parsed.state.realizations = (parsed.state.realizations || [])
+          .filter((r: any) => r && r.timestamp)
+          .map((r: any) => ({
+            ...r,
+            timestamp: safeDate(r.timestamp) || new Date(),
+          }))
+          .filter((r: any) => r.timestamp instanceof Date);
+
+        parsed.state.sources = (parsed.state.sources || [])
+          .filter((s: any) => s && s.addedAt)
+          .map((s: any) => ({
+            ...s,
+            addedAt: safeDate(s.addedAt) || new Date(),
+          }))
+          .filter((s: any) => s.addedAt instanceof Date);
+
+        parsed.state.photoUploads = (parsed.state.photoUploads || [])
+          .filter((p: any) => p && p.uploadedAt)
+          .map((p: any) => ({
+            ...p,
+            uploadedAt: safeDate(p.uploadedAt) || new Date(),
+          }))
+          .filter((p: any) => p.uploadedAt instanceof Date);
 
         // Handle fastingSettings dates
         if (parsed.state.fastingSettings) {
@@ -135,20 +164,47 @@ const storage = {
         }
 
         if (parsed.state.chatSession) {
+          const validMessages = (parsed.state.chatSession.messages || [])
+            .filter((m: any) => m && m.timestamp)
+            .map((m: any) => ({
+              ...m,
+              timestamp: safeDate(m.timestamp) || new Date(),
+            }))
+            .filter((m: any) => m.timestamp instanceof Date);
+
           parsed.state.chatSession = {
             ...parsed.state.chatSession,
             createdAt: safeDate(parsed.state.chatSession.createdAt) || new Date(),
             updatedAt: safeDate(parsed.state.chatSession.updatedAt) || new Date(),
-            messages: (parsed.state.chatSession.messages || []).map((m: any) => ({
-              ...m,
-              timestamp: safeDate(m.timestamp) || new Date(),
-            })),
+            messages: validMessages,
           };
         }
       }
+      // Validate that critical date fields are actually Date objects
+      // If they're not, something went wrong - return null to reset state
+      const hasInvalidDates = 
+        parsed.state.foodLogs?.some((log: any) => !(log.timestamp instanceof Date)) ||
+        parsed.state.symptoms?.some((s: any) => !(s.timestamp instanceof Date)) ||
+        parsed.state.contexts?.some((c: any) => !(c.timestamp instanceof Date));
+      
+      if (hasInvalidDates) {
+        console.warn('Invalid date format detected in localStorage, resetting state');
+        // Clear corrupted data
+        localStorage.removeItem(name);
+        return null;
+      }
+
       return JSON.stringify(parsed);
     } catch (error) {
       console.error('Error parsing localStorage data:', error);
+      // Clear corrupted localStorage data
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(name);
+        } catch (e) {
+          // Ignore removal errors
+        }
+      }
       // Return null to let Zustand use default state
       return null;
     }
