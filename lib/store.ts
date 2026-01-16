@@ -179,22 +179,27 @@ const storage = {
             messages: validMessages,
           };
         }
-      }
-      // Validate that critical date fields are actually Date objects
-      // If they're not, something went wrong - return null to reset state
-      const hasInvalidDates = 
-        parsed.state.foodLogs?.some((log: any) => !(log.timestamp instanceof Date)) ||
-        parsed.state.symptoms?.some((s: any) => !(s.timestamp instanceof Date)) ||
-        parsed.state.contexts?.some((c: any) => !(c.timestamp instanceof Date));
-      
-      if (hasInvalidDates) {
-        console.warn('Invalid date format detected in localStorage, resetting state');
-        // Clear corrupted data
-        localStorage.removeItem(name);
-        return null;
-      }
 
-      return JSON.stringify(parsed);
+        // Validate that critical date fields are actually Date objects
+        // If they're not, something went wrong - return null to reset state
+        const hasInvalidDates = 
+          parsed.state.foodLogs?.some((log: any) => !(log.timestamp instanceof Date)) ||
+          parsed.state.symptoms?.some((s: any) => !(s.timestamp instanceof Date)) ||
+          parsed.state.contexts?.some((c: any) => !(c.timestamp instanceof Date));
+        
+        if (hasInvalidDates) {
+          console.warn('Invalid date format detected in localStorage, resetting state');
+          // Clear corrupted data
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(name);
+          }
+          return null;
+        }
+
+        return JSON.stringify(parsed);
+      }
+      
+      return null;
     } catch (error) {
       console.error('Error parsing localStorage data:', error);
       // Clear corrupted localStorage data
