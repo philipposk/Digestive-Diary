@@ -4,9 +4,12 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { getTheme, setTheme, applyTheme, type Theme } from '@/lib/theme';
 import { useAppStore } from '@/lib/store';
+import { FastingSettings } from '@/types';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
+  const fastingSettings = useAppStore((state) => state.fastingSettings);
+  const setFastingSettings = useAppStore((state) => state.setFastingSettings);
 
   useEffect(() => {
     setCurrentTheme(getTheme());
@@ -61,6 +64,78 @@ export default function SettingsPage() {
                 System
               </button>
             </div>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-medium mb-3">Intermittent Fasting</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-gray-700 dark:text-gray-300">Enable Fasting Alerts</span>
+              <input
+                type="checkbox"
+                checked={fastingSettings.enabled}
+                onChange={(e) => setFastingSettings({ ...fastingSettings, enabled: e.target.checked })}
+                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
+              />
+            </label>
+            
+            {fastingSettings.enabled && (
+              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fasting Window (hours)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="24"
+                    value={fastingSettings.fastingWindow}
+                    onChange={(e) => setFastingSettings({ ...fastingSettings, fastingWindow: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Eating Window (hours)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="24"
+                    value={fastingSettings.eatingWindow}
+                    onChange={(e) => setFastingSettings({ ...fastingSettings, eatingWindow: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Preferred Fasting Start Time (HH:MM)</label>
+                  <input
+                    type="time"
+                    value={fastingSettings.preferredFastingStart || '20:00'}
+                    onChange={(e) => setFastingSettings({ ...fastingSettings, preferredFastingStart: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+                
+                <button
+                  onClick={() => {
+                    const lastMeal = useAppStore.getState().foodLogs
+                      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+                    if (lastMeal) {
+                      setFastingSettings({ ...fastingSettings, lastMealTime: lastMeal.timestamp });
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm"
+                >
+                  Set Last Meal Time to Most Recent Food Log
+                </button>
+                
+                {fastingSettings.lastMealTime && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Last meal: {new Date(fastingSettings.lastMealTime).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

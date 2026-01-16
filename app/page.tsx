@@ -17,7 +17,6 @@ export default function HomePage() {
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showClearDemoButton, setShowClearDemoButton] = useState(false);
   
-  const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
   const setFoodLogs = useAppStore((state) => state.setFoodLogs);
   const setSymptoms = useAppStore((state) => state.setSymptoms);
@@ -27,6 +26,8 @@ export default function HomePage() {
   const setChatSession = useAppStore((state) => state.setChatSession);
   const experiments = useAppStore((state) => state.experiments);
   const contexts = useAppStore((state) => state.contexts);
+  const fastingSettings = useAppStore((state) => state.fastingSettings);
+  const foodLogs = useAppStore((state) => state.foodLogs);
 
   // Check if welcome banner was dismissed
   useEffect(() => {
@@ -299,6 +300,57 @@ export default function HomePage() {
             })}
           </p>
         </div>
+
+        {/* Fasting Alerts */}
+        {fastingSettings.enabled && (() => {
+          const now = new Date();
+          const lastMealTime = fastingSettings.lastMealTime ? new Date(fastingSettings.lastMealTime) : null;
+          const lastMeal = foodLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+          const effectiveLastMeal = lastMealTime || (lastMeal ? lastMeal.timestamp : null);
+          
+          if (!effectiveLastMeal) return null;
+          
+          const hoursSinceLastMeal = (now.getTime() - effectiveLastMeal.getTime()) / (1000 * 60 * 60);
+          const hoursUntilFastBreak = fastingSettings.fastingWindow - hoursSinceLastMeal;
+          const isFasting = hoursSinceLastMeal < fastingSettings.fastingWindow;
+          
+          if (isFasting && hoursUntilFastBreak > 0) {
+            const hours = Math.floor(hoursUntilFastBreak);
+            const minutes = Math.floor((hoursUntilFastBreak - hours) * 60);
+            return (
+              <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                  🕐 Fasting in Progress
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  You can break your fast in {hours > 0 ? `${hours}h ` : ''}{minutes}m
+                </p>
+              </div>
+            );
+          } else if (!isFasting) {
+            const eatingWindowStart = new Date(effectiveLastMeal);
+            eatingWindowStart.setHours(eatingWindowStart.getHours() + fastingSettings.fastingWindow);
+            const eatingWindowEnd = new Date(eatingWindowStart);
+            eatingWindowEnd.setHours(eatingWindowEnd.getHours() + fastingSettings.eatingWindow);
+            const hoursRemaining = (eatingWindowEnd.getTime() - now.getTime()) / (1000 * 60 * 60);
+            
+            if (hoursRemaining > 0) {
+              const hours = Math.floor(hoursRemaining);
+              const minutes = Math.floor((hoursRemaining - hours) * 60);
+              return (
+                <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+                    🍽️ Eating Window Open
+                  </p>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    {hours > 0 ? `${hours}h ` : ''}{minutes}m remaining in eating window
+                  </p>
+                </div>
+              );
+            }
+          }
+          return null;
+        })()}
 
         <div className="grid grid-cols-1 gap-4 mb-8">
           <button 
