@@ -52,9 +52,11 @@ export default function TimelinePage() {
 
     // Sort by timestamp
     items.sort((a, b) => {
+      const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+      const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
       return sortOrder === 'newest' 
-        ? b.timestamp.getTime() - a.timestamp.getTime()
-        : a.timestamp.getTime() - b.timestamp.getTime();
+        ? bTime.getTime() - aTime.getTime()
+        : aTime.getTime() - bTime.getTime();
     });
 
     return items;

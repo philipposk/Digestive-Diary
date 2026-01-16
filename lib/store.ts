@@ -194,7 +194,11 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           foodLogs: [...state.foodLogs, newLog].sort(
-            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            (a, b) => {
+              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+              return bTime.getTime() - aTime.getTime();
+            }
           ),
         }));
       },
@@ -207,7 +211,11 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           symptoms: [...state.symptoms, newSymptom].sort(
-            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            (a, b) => {
+              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+              return bTime.getTime() - aTime.getTime();
+            }
           ),
         }));
       },

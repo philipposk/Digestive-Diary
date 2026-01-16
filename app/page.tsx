@@ -102,7 +102,11 @@ export default function HomePage() {
       }
     });
 
-    return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return items.sort((a, b) => {
+      const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+      const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+      return bTime.getTime() - aTime.getTime();
+    });
   }, [foodLogs, symptoms, today]);
 
   // Search functionality
