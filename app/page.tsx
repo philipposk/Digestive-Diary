@@ -5,6 +5,7 @@ import { formatTime } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
 import LogFoodModal from '@/components/modals/LogFoodModal';
 import LogSymptomModal from '@/components/modals/LogSymptomModal';
+import LogContextModal from '@/components/modals/LogContextModal';
 import { generateSampleData } from '@/lib/generateSampleData';
 import { FoodLog, Symptom } from '@/types';
 
@@ -12,6 +13,7 @@ export default function HomePage() {
   const [today] = useState(new Date());
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [showSymptomModal, setShowSymptomModal] = useState(false);
+  const [showContextModal, setShowContextModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
@@ -365,6 +367,12 @@ export default function HomePage() {
           >
             + Log Symptom
           </button>
+          <button 
+            onClick={() => setShowContextModal(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-4 px-6 rounded-lg text-lg transition-colors"
+          >
+            + Log Context (Sleep, Stress, Activity)
+          </button>
         </div>
 
         <div className="mt-8">
@@ -447,6 +455,7 @@ export default function HomePage() {
 
       <LogFoodModal isOpen={showFoodModal} onClose={() => setShowFoodModal(false)} />
       <LogSymptomModal isOpen={showSymptomModal} onClose={() => setShowSymptomModal(false)} />
+      <LogContextModal isOpen={showContextModal} onClose={() => setShowContextModal(false)} />
     </>
   );
 }
