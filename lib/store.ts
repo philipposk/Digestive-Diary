@@ -69,10 +69,10 @@ const storage = {
     
     // One-time migration: Check for corrupted data version marker
     const dataVersion = localStorage.getItem('digestive-diary-data-version');
-    if (!dataVersion || dataVersion !== '2') {
+    if (!dataVersion || dataVersion !== '3') {
       // Clear old potentially corrupted data
       localStorage.removeItem('digestive-diary-storage');
-      localStorage.setItem('digestive-diary-data-version', '2');
+      localStorage.setItem('digestive-diary-data-version', '3');
       return null;
     }
     
