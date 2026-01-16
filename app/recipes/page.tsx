@@ -129,7 +129,7 @@ export default function RecipesPage() {
 
         {commonTags.length > 0 && (
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            <span>Based on your logged foods, we'll suggest recipes with: </span>
+            <span>Based on your logged foods, we&apos;ll suggest recipes with: </span>
             {commonTags.map((tag, idx) => (
               <span key={tag}>
                 <span className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">{tag}</span>

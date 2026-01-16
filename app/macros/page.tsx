@@ -95,7 +95,7 @@ export default function MacrosPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow-sm">
-        <h2 className="text-lg font-medium mb-4">Today's Progress</h2>
+        <h2 className="text-lg font-medium mb-4">Today&apos;s Progress</h2>
         
         <MacroProgressBar
           label="Calories"
