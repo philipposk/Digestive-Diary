@@ -148,6 +148,110 @@ export function generateInsights(foodLogs: FoodLog[], symptoms: Symptom[]): Patt
     });
   });
 
+  // Detect psychological/emotional eating patterns
+  // Check for binge eating patterns: multiple large meals in short time
+  const foodLogsByDay = new Map<string, FoodLog[]>();
+  foodLogs.forEach((log) => {
+    const dayKey = new Date(log.timestamp).toDateString();
+    if (!foodLogsByDay.has(dayKey)) {
+      foodLogsByDay.set(dayKey, []);
+    }
+    foodLogsByDay.get(dayKey)!.push(log);
+  });
+
+  foodLogsByDay.forEach((dayLogs, dayKey) => {
+    // Check for multiple eating sessions in a short time (e.g., 3+ meals within 3 hours)
+    dayLogs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    
+    for (let i = 0; i < dayLogs.length - 2; i++) {
+      const sessionLogs: FoodLog[] = [dayLogs[i]];
+      const startTime = dayLogs[i].timestamp.getTime();
+      
+      for (let j = i + 1; j < dayLogs.length; j++) {
+        const timeDiff = (dayLogs[j].timestamp.getTime() - startTime) / (1000 * 60 * 60); // hours
+        if (timeDiff <= 3) {
+          sessionLogs.push(dayLogs[j]);
+        } else {
+          break;
+        }
+      }
+      
+      // If 3+ food logs within 3 hours, flag as potential binge
+      if (sessionLogs.length >= 3) {
+        const totalCalories = sessionLogs.reduce((sum, log) => sum + (log.macros?.calories || 0), 0);
+        const hasHighSugar = sessionLogs.some(log => 
+          log.tags.includes('sugar') || 
+          log.food.toLowerCase().includes('sugar') ||
+          log.food.toLowerCase().includes('dessert') ||
+          log.food.toLowerCase().includes('sweet')
+        );
+        
+        // Check for sugar cravings symptoms during this period
+        const sugarCravings = symptoms.filter(s => {
+          if (s.type !== 'sugar craving') return false;
+          const sTime = s.timestamp.getTime();
+          return sTime >= startTime && sTime <= startTime + (3 * 60 * 60 * 1000);
+        });
+        
+        if (hasHighSugar || sugarCravings.length > 0) {
+          const existing = insights.find(i => 
+            i.description.includes('eating pattern') && 
+            i.psychologicalFlag
+          );
+          
+          if (!existing && sessionLogs.length >= 3) {
+            insights.push({
+              id: crypto.randomUUID(),
+              description: `Multiple eating sessions detected within a short time window (${sessionLogs.length} logs within 3 hours). This pattern may indicate emotional or psychological eating behaviors, particularly around sugar/high-sugar foods.`,
+              confidence: sessionLogs.length >= 5 ? 'high' : sessionLogs.length >= 4 ? 'medium' : 'low',
+              dataPoints: sessionLogs.length,
+              psychologicalFlag: true,
+              pattern: {
+                symptom: 'eating pattern',
+                followsFood: 'multiple sessions',
+              },
+            });
+          }
+        }
+        break; // Only create one insight per day
+      }
+    }
+  });
+
+  // Check for sugar craving patterns
+  const sugarCravings = symptoms.filter(s => s.type === 'sugar craving');
+  if (sugarCravings.length >= 3) {
+    const followedByEating = sugarCravings.filter(craving => {
+      const cravingTime = craving.timestamp.getTime();
+      return foodLogs.some(log => {
+        const logTime = log.timestamp.getTime();
+        const timeDiff = (logTime - cravingTime) / (1000 * 60); // minutes
+        return timeDiff >= 0 && timeDiff <= 60; // Eating within 1 hour of craving
+      });
+    });
+    
+    if (followedByEating.length >= 2) {
+      const existing = insights.find(i => 
+        i.description.includes('sugar craving') && 
+        i.psychologicalFlag
+      );
+      
+      if (!existing) {
+        insights.push({
+          id: crypto.randomUUID(),
+          description: `Sugar cravings are frequently followed by eating (${followedByEating.length} occurrences). This pattern may indicate psychological or emotional connections to sugar consumption.`,
+          confidence: followedByEating.length >= 5 ? 'high' : followedByEating.length >= 3 ? 'medium' : 'low',
+          dataPoints: followedByEating.length,
+          psychologicalFlag: true,
+          pattern: {
+            symptom: 'sugar craving',
+            followsFood: 'eating response',
+          },
+        });
+      }
+    }
+  }
+
   return insights.sort((a, b) => {
     // Sort by confidence (high > medium > low), then by data points
     const confOrder = { high: 3, medium: 2, low: 1 };

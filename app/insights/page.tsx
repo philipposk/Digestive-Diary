@@ -96,9 +96,16 @@ export default function InsightsPage() {
             >
               <div className="flex justify-between items-start mb-2">
                 <p className="font-medium flex-1">{insight.description}</p>
-                <span className="ml-2 px-2 py-1 text-xs rounded bg-white dark:bg-gray-800 bg-opacity-50 dark:bg-opacity-50">
-                  {insight.confidence}
-                </span>
+                <div className="flex gap-2 ml-2">
+                  {insight.psychologicalFlag && (
+                    <span className="px-2 py-1 text-xs rounded bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
+                      🧠 Psychological
+                    </span>
+                  )}
+                  <span className="px-2 py-1 text-xs rounded bg-white dark:bg-gray-800 bg-opacity-50 dark:bg-opacity-50">
+                    {insight.confidence}
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <div className="text-xs opacity-75">
@@ -253,6 +260,36 @@ export default function InsightsPage() {
                   </div>
                 </div>
 
+                {/* Psychological Flag Information */}
+                {selectedInsight.psychologicalFlag && (
+                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-3">
+                      🧠 Psychological/Emotional Pattern Detected
+                    </h3>
+                    <div className="space-y-3 text-sm text-purple-700 dark:text-purple-300">
+                      <p>
+                        This pattern has been flagged as potentially having psychological or emotional components. This means the eating behavior may be connected to emotions, stress, or psychological factors rather than purely physical hunger.
+                      </p>
+                      <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-3 mt-3">
+                        <h4 className="font-medium mb-2">What This Means:</h4>
+                        <ul className="text-xs space-y-1 list-disc list-inside">
+                          <li>Patterns like multiple eating sessions in short periods, or sugar cravings followed by eating, can indicate emotional eating</li>
+                          <li>These patterns may be related to stress, anxiety, boredom, or other emotional states</li>
+                          <li>Understanding these patterns can help you make more conscious choices about eating</li>
+                        </ul>
+                      </div>
+                      <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-3">
+                        <h4 className="font-medium mb-2">Suggested Resources:</h4>
+                        <ul className="text-xs space-y-1">
+                          <li>• Consider tracking your emotional state when eating (stress, mood, etc.)</li>
+                          <li>• Patterns in your sources/library may have relevant information about emotional eating</li>
+                          <li>• Consulting with a mental health professional or nutritionist can provide additional support</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Methodology */}
                 <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">How Patterns Are Detected</h3>
@@ -261,6 +298,7 @@ export default function InsightsPage() {
                     <li>A pattern is identified when the same symptom appears after the same food (or food tag) multiple times</li>
                     <li>Confidence increases with the number of occurrences</li>
                     <li>Time windows are calculated as the average time between food and symptom</li>
+                    <li>Psychological patterns are flagged when multiple eating sessions occur in short periods or when cravings are followed by eating</li>
                     <li>These are observations from your data only - not medical diagnoses</li>
                   </ul>
                 </div>
