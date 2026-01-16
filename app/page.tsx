@@ -187,7 +187,7 @@ export default function HomePage() {
         )}
 
         {/* Search Bar */}
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           <input
             type="text"
             value={searchQuery}
@@ -198,6 +198,32 @@ export default function HomePage() {
             placeholder="Search foods, symptoms, experiments..."
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
           />
+          
+          {/* Recipe Suggestions Prompt */}
+          {!showSearchResults && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                🍽️ Looking for recipe ideas?
+              </p>
+              <p className="text-xs text-green-700 dark:text-green-300 mb-3">
+                Chat with AI to get personalized recipe suggestions based on your dietary preferences and active experiments.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href="/recipes"
+                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Browse Recipes
+                </a>
+                <a
+                  href="/chat?query=What should I eat today? Suggest recipes based on my diet."
+                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Ask AI: What to eat today?
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Search Results */}
@@ -274,25 +300,57 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Ask AI about search */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                {/* AI Suggestions */}
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
                   <a
                     href={`/chat?query=${encodeURIComponent(searchQuery)}`}
                     className="block text-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
                   >
                     💬 Ask AI about &quot;{searchQuery}&quot;
                   </a>
+                  <a
+                    href={`/chat?query=Suggest recipes for ${encodeURIComponent(searchQuery)}`}
+                    className="block text-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
+                  >
+                    🍽️ Get recipe suggestions for &quot;{searchQuery}&quot;
+                  </a>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                <p className="mb-2">No results found for &quot;{searchQuery}&quot;</p>
-                <a
-                  href={`/chat?query=${encodeURIComponent(searchQuery)}`}
-                  className="inline-block px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors text-sm"
-                >
-                  💬 Ask AI about &quot;{searchQuery}&quot;
-                </a>
+              <div className="text-center py-4 space-y-4">
+                <div className="text-gray-500 dark:text-gray-400">
+                  <p className="mb-4">No results found for &quot;{searchQuery}&quot;</p>
+                  
+                  <div className="space-y-3">
+                    <a
+                      href={`/chat?query=${encodeURIComponent(searchQuery)}`}
+                      className="inline-block px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors text-sm font-medium"
+                    >
+                      💬 Ask AI about &quot;{searchQuery}&quot;
+                    </a>
+                    
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                        Looking for recipes?
+                      </p>
+                      <a
+                        href={`/chat?query=Suggest recipes for ${encodeURIComponent(searchQuery)}`}
+                        className="inline-block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
+                      >
+                        🍽️ Get recipe suggestions for &quot;{searchQuery}&quot;
+                      </a>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <a
+                        href="/chat?query=What should I eat today? Suggest recipes based on my logged foods and dietary preferences."
+                        className="inline-block px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium"
+                      >
+                        🤖 AI: What should I eat today?
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
