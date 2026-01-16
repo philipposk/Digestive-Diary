@@ -277,7 +277,11 @@ export const useAppStore = create<AppState>()(
           experiments: state.experiments.map((exp) =>
             exp.id === experimentId
               ? { ...exp, logs: [...(exp.logs || []), newLog].sort(
-                  (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+                  (a, b) => {
+                    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+                    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+                    return bTime.getTime() - aTime.getTime();
+                  }
                 ) }
               : exp
           ),
@@ -380,7 +384,11 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           sources: [...state.sources, newSource].sort(
-            (a, b) => b.addedAt.getTime() - a.addedAt.getTime()
+            (a, b) => {
+              const aTime = a.addedAt instanceof Date ? a.addedAt : new Date(a.addedAt);
+              const bTime = b.addedAt instanceof Date ? b.addedAt : new Date(b.addedAt);
+              return bTime.getTime() - aTime.getTime();
+            }
           ),
         }));
       },
