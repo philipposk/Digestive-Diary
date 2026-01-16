@@ -27,6 +27,7 @@ const symptomTypes = [
   'rash',
   'pimple',
   'skin irritation',
+  'sugar craving',
   'other'
 ];
 const severityLevels: SeverityLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

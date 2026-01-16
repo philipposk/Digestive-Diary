@@ -8,7 +8,7 @@ interface LogFoodModalProps {
   onClose: () => void;
 }
 
-const commonTags = ['dairy', 'gluten', 'spicy', 'raw', 'processed', 'fiber-rich', 'fatty'];
+const commonTags = ['dairy', 'gluten', 'spicy', 'raw', 'processed', 'fiber-rich', 'fatty', 'alcohol'];
 
 export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
   const [food, setFood] = useState('');

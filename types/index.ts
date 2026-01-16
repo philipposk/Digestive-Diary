@@ -37,12 +37,23 @@ export interface Symptom {
 export interface Context {
   id: string;
   sleepQuality?: SleepQuality;
+  sleepDuration?: number; // Hours of sleep (e.g., 7.5)
+  sleepStartTime?: Date; // When you went to bed
+  sleepEndTime?: Date; // When you woke up
   stressLevel?: StressLevel;
   activityLevel?: ActivityLevel;
   bowelMovement?: boolean;
   bowelType?: BowelType;
   timestamp: Date;
   notes?: string;
+}
+
+export interface FastingSettings {
+  enabled: boolean;
+  fastingWindow: number; // Hours of fasting (e.g., 16)
+  eatingWindow: number; // Hours of eating (e.g., 8)
+  lastMealTime?: Date; // Last time you ate (to calculate when fasting starts)
+  preferredFastingStart?: string; // Preferred time to start fasting (e.g., "20:00")
 }
 
 export type ExperimentLogType = 'text' | 'audio' | 'image' | 'video';
@@ -87,6 +98,7 @@ export interface Pattern {
   confidence: 'low' | 'medium' | 'high';
   dataPoints: number;
   category?: string; // Optional category for insights
+  psychologicalFlag?: boolean; // Flag for patterns that may have psychological/emotional components
   pattern: {
     symptom: string;
     followsFood?: string;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings } from '@/types';
 
 interface AppState {
   foodLogs: FoodLog[];
@@ -11,6 +11,7 @@ interface AppState {
   chatSession: ChatSession | null;
   sources: Source[];
   photoUploads: PhotoUpload[];
+  fastingSettings: FastingSettings;
   
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
@@ -41,6 +42,7 @@ interface AppState {
   setExperiments: (experiments: Experiment[]) => void;
   setRealizations: (realizations: Realization[]) => void;
   setChatSession: (chatSession: ChatSession | null) => void;
+  setFastingSettings: (settings: FastingSettings) => void;
 }
 
 // Custom storage with Date serialization
@@ -127,6 +129,11 @@ export const useAppStore = create<AppState>()(
       chatSession: null,
       sources: [],
       photoUploads: [],
+      fastingSettings: {
+        enabled: false,
+        fastingWindow: 16,
+        eatingWindow: 8,
+      },
 
       addFoodLog: (log) => {
         const newLog: FoodLog = {
@@ -350,6 +357,7 @@ export const useAppStore = create<AppState>()(
       setExperiments: (experiments) => set({ experiments }),
       setRealizations: (realizations) => set({ realizations }),
       setChatSession: (chatSession) => set({ chatSession }),
+      setFastingSettings: (settings) => set({ fastingSettings: settings }),
     }),
     {
       name: 'digestive-diary-storage',
