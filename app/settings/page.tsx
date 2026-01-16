@@ -76,6 +76,9 @@ export default function SettingsPage() {
             <Link href="/sources" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               Knowledge Sources
             </Link>
+            <Link href="/macros" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              Macronutrients & Goals
+            </Link>
             <button
               onClick={() => {
                 const store = useAppStore.getState();

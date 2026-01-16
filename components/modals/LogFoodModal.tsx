@@ -17,6 +17,9 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
   const [notes, setNotes] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [macros, setMacros] = useState<{ calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number; } | null>(null);
+  const [portionWeight, setPortionWeight] = useState<number | undefined>(undefined);
+  const [showMacros, setShowMacros] = useState(false);
   const addFoodLog = useAppStore((state) => state.addFoodLog);
 
   if (!isOpen) return null;
@@ -30,6 +33,8 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
       quantity: quantity.trim() || undefined,
       tags: selectedTags,
       notes: notes.trim() || undefined,
+      macros: macros || undefined,
+      portionWeight: portionWeight,
     });
 
     // Reset form
@@ -38,6 +43,9 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
     setSelectedTags([]);
     setNotes('');
     setImagePreview(null);
+    setMacros(null);
+    setPortionWeight(undefined);
+    setShowMacros(false);
     onClose();
   };
 
@@ -97,6 +105,43 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
         setSelectedTags(data.tags.filter((tag: string) => commonTags.includes(tag.toLowerCase())));
       }
       if (data.notes) setNotes(data.notes);
+      if (data.macros) {
+        setMacros(data.macros);
+        setShowMacros(true);
+      }
+
+      // Also analyze for macro estimation if no macros from label
+      if (!data.macros || !data.macros.calories) {
+        try {
+          const macroResponse = await fetch('/api/openai/analyze-food-macros', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              imageBase64: base64,
+              foodName: data.food || food,
+              quantity: data.quantity || quantity,
+            }),
+          });
+
+          if (macroResponse.ok) {
+            const macroData = await macroResponse.json();
+            if (macroData.portionWeight || macroData.calories) {
+              setMacros({
+                calories: macroData.calories || 0,
+                protein: macroData.protein || 0,
+                carbs: macroData.carbs || 0,
+                fat: macroData.fat || 0,
+                fiber: macroData.fiber || 0,
+              });
+              setPortionWeight(macroData.portionWeight || undefined);
+              setShowMacros(true);
+            }
+          }
+        } catch (macroError) {
+          // Silent fail - macros optional
+          console.log('Macro analysis not available');
+        }
+      }
     } catch (error) {
       console.error('Image analysis error:', error);
       alert('Failed to analyze image. Please enter food manually.');
@@ -204,6 +249,106 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
                 rows={3}
               />
             </div>
+
+            {showMacros && (
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium">Macronutrients (estimated)</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowMacros(false)}
+                    className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    Hide
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Calories</label>
+                    <input
+                      type="number"
+                      value={macros?.calories || ''}
+                      onChange={(e) => setMacros({ ...macros, calories: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                      placeholder="kcal"
+                    />
+                  </div>
+                  {portionWeight !== undefined && (
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Weight (g)</label>
+                      <input
+                        type="number"
+                        value={portionWeight}
+                        onChange={(e) => setPortionWeight(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                        placeholder="grams"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Protein (g)</label>
+                    <input
+                      type="number"
+                      value={macros?.protein || ''}
+                      onChange={(e) => setMacros({ ...macros, protein: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                      placeholder="g"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Carbs (g)</label>
+                    <input
+                      type="number"
+                      value={macros?.carbs || ''}
+                      onChange={(e) => setMacros({ ...macros, carbs: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                      placeholder="g"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Fat (g)</label>
+                    <input
+                      type="number"
+                      value={macros?.fat || ''}
+                      onChange={(e) => setMacros({ ...macros, fat: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                      placeholder="g"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Fiber (g)</label>
+                    <input
+                      type="number"
+                      value={macros?.fiber || ''}
+                      onChange={(e) => setMacros({ ...macros, fiber: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                      placeholder="g"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMacros(false);
+                    setMacros(null);
+                    setPortionWeight(undefined);
+                  }}
+                  className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  Clear macros
+                </button>
+              </div>
+            )}
+
+            {!showMacros && (
+              <button
+                type="button"
+                onClick={() => setShowMacros(true)}
+                className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                + Add macronutrients manually
+              </button>
+            )}
 
             <div className="flex gap-3 pt-4">
               <button

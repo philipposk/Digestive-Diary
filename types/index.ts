@@ -14,6 +14,14 @@ export interface FoodLog {
   tags: string[]; // e.g., ['dairy', 'gluten', 'spicy']
   timestamp: Date;
   notes?: string;
+  macros?: {
+    calories?: number;
+    protein?: number; // grams
+    carbs?: number; // grams
+    fat?: number; // grams
+    fiber?: number; // grams
+  };
+  portionWeight?: number; // grams - estimated from photo
 }
 
 export interface Symptom {
@@ -84,12 +92,21 @@ export interface TimelineItem {
   timestamp: Date;
 }
 
+export interface MacroGoals {
+  calories?: number;
+  protein?: number; // grams
+  carbs?: number; // grams
+  fat?: number; // grams
+  fiber?: number; // grams
+}
+
 export interface UserSettings {
   theme: 'light' | 'dark' | 'system';
   units?: string;
   privacy: {
     shareData: boolean;
   };
+  macroGoals?: MacroGoals; // Daily macro targets
 }
 
 export interface Pattern {
