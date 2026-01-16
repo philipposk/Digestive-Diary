@@ -52,6 +52,7 @@ interface AppState {
 // Custom storage with Date serialization
 const storage = {
   getItem: (name: string): string | null => {
+    if (typeof window === 'undefined') return null;
     const str = localStorage.getItem(name);
     if (!str) return null;
     try {
@@ -153,9 +154,11 @@ const storage = {
     }
   },
   setItem: (name: string, value: string): void => {
+    if (typeof window === 'undefined') return;
     localStorage.setItem(name, value);
   },
   removeItem: (name: string): void => {
+    if (typeof window === 'undefined') return;
     localStorage.removeItem(name);
   },
 };
