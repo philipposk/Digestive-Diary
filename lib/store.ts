@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings } from '@/types';
 
 interface AppState {
   foodLogs: FoodLog[];
@@ -13,6 +13,7 @@ interface AppState {
   photoUploads: PhotoUpload[];
   fastingSettings: FastingSettings;
   macroGoals: MacroGoals | null;
+  autoScanSettings: AutoScanSettings;
   
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
@@ -45,6 +46,7 @@ interface AppState {
   setChatSession: (chatSession: ChatSession | null) => void;
   setFastingSettings: (settings: FastingSettings) => void;
   setMacroGoals: (goals: MacroGoals | null) => void;
+  setAutoScanSettings: (settings: AutoScanSettings) => void;
 }
 
 // Custom storage with Date serialization
@@ -137,6 +139,11 @@ export const useAppStore = create<AppState>()(
         eatingWindow: 8,
       },
       macroGoals: null,
+      autoScanSettings: {
+        enabled: false,
+        frequency: 'manual',
+        processedPhotos: [],
+      },
 
       addFoodLog: (log) => {
         const newLog: FoodLog = {
@@ -362,6 +369,7 @@ export const useAppStore = create<AppState>()(
       setChatSession: (chatSession) => set({ chatSession }),
       setFastingSettings: (settings) => set({ fastingSettings: settings }),
       setMacroGoals: (goals) => set({ macroGoals: goals }),
+      setAutoScanSettings: (settings) => set({ autoScanSettings: settings }),
     }),
     {
       name: 'digestive-diary-storage',

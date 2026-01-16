@@ -4,12 +4,15 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { getTheme, setTheme, applyTheme, type Theme } from '@/lib/theme';
 import { useAppStore } from '@/lib/store';
-import { FastingSettings } from '@/types';
+import { FastingSettings, AutoScanSettings } from '@/types';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
   const fastingSettings = useAppStore((state) => state.fastingSettings);
   const setFastingSettings = useAppStore((state) => state.setFastingSettings);
+  const autoScanSettings = useAppStore((state) => state.autoScanSettings);
+  const setAutoScanSettings = useAppStore((state) => state.setAutoScanSettings);
+  const addFoodLog = useAppStore((state) => state.addFoodLog);
 
   useEffect(() => {
     setCurrentTheme(getTheme());
@@ -134,6 +137,163 @@ export default function SettingsPage() {
                     Last meal: {new Date(fastingSettings.lastMealTime).toLocaleString()}
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-medium mb-3">Auto Photo Scanning</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Automatically scan your photo album for food photos and log them. Select multiple photos at once to batch process.
+            </p>
+            
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-gray-700 dark:text-gray-300">Enable Auto-Scan</span>
+              <input
+                type="checkbox"
+                checked={autoScanSettings.enabled}
+                onChange={(e) => setAutoScanSettings({ ...autoScanSettings, enabled: e.target.checked })}
+                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
+              />
+            </label>
+            
+            {autoScanSettings.enabled && (
+              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Scan Frequency</label>
+                  <select
+                    value={autoScanSettings.frequency}
+                    onChange={(e) => setAutoScanSettings({ ...autoScanSettings, frequency: e.target.value as 'hourly' | 'daily' | 'manual' })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  >
+                    <option value="manual">Manual Only</option>
+                    <option value="hourly">Every Hour</option>
+                    <option value="daily">Daily</option>
+                  </select>
+                </div>
+                
+                <button
+                  onClick={async () => {
+                    // Create file input for multiple photos
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.multiple = true;
+                    
+                    input.onchange = async (e) => {
+                      const files = (e.target as HTMLInputElement).files;
+                      if (!files || files.length === 0) return;
+                      
+                      let processed = 0;
+                      let skipped = 0;
+                      
+                      for (const file of Array.from(files)) {
+                        // Generate simple hash from file name + size + last modified
+                        const fileHash = `${file.name}-${file.size}-${file.lastModified}`;
+                        
+                        // Skip if already processed
+                        if (autoScanSettings.processedPhotos.includes(fileHash)) {
+                          skipped++;
+                          continue;
+                        }
+                        
+                        try {
+                          // Convert to base64
+                          const base64 = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const base64String = (reader.result as string).split(',')[1];
+                              resolve(base64String);
+                            };
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                          });
+                          
+                          // Detect if it's a food photo
+                          const detectResponse = await fetch('/api/openai/detect-food-photo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageBase64: base64 }),
+                          });
+                          
+                          if (!detectResponse.ok) continue;
+                          
+                          const detection = await detectResponse.json();
+                          
+                          if (detection.isFood && detection.confidence > 0.7) {
+                            // Analyze food and macros
+                            const foodResponse = await fetch('/api/openai/analyze-image', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ imageBase64: base64 }),
+                            });
+                            
+                            const macroResponse = await fetch('/api/openai/analyze-food-macros', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ 
+                                imageBase64: base64,
+                                foodName: detection.foodDetected || '',
+                              }),
+                            });
+                            
+                            const foodData = foodResponse.ok ? await foodResponse.json() : {};
+                            const macroData = macroResponse.ok ? await macroResponse.json() : {};
+                            
+                            // Estimate timestamp from file date or use now
+                            const photoDate = file.lastModified ? new Date(file.lastModified) : new Date();
+                            
+                            // Add food log
+                            addFoodLog({
+                              food: foodData.food || detection.foodDetected || 'Food from photo',
+                              quantity: foodData.quantity || detection.portionSize,
+                              tags: foodData.tags || [],
+                              notes: `Auto-detected from photo (${detection.setting || 'album'})`,
+                              macros: macroData.calories ? {
+                                calories: macroData.calories,
+                                protein: macroData.protein || 0,
+                                carbs: macroData.carbs || 0,
+                                fat: macroData.fat || 0,
+                                fiber: macroData.fiber || 0,
+                              } : undefined,
+                              portionWeight: macroData.portionWeight,
+                            });
+                            
+                            // Mark as processed
+                            setAutoScanSettings({
+                              ...autoScanSettings,
+                              processedPhotos: [...autoScanSettings.processedPhotos, fileHash],
+                              lastScanTime: new Date(),
+                            });
+                            
+                            processed++;
+                          }
+                        } catch (error) {
+                          console.error('Error processing photo:', error);
+                        }
+                      }
+                      
+                      alert(`Processed ${processed} food photos. Skipped ${skipped} duplicates.`);
+                    };
+                    
+                    input.click();
+                  }}
+                  className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm"
+                >
+                  Scan Album for Food Photos
+                </button>
+                
+                {autoScanSettings.lastScanTime && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Last scanned: {new Date(autoScanSettings.lastScanTime).toLocaleString()}
+                  </p>
+                )}
+                
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Processed {autoScanSettings.processedPhotos.length} photos
+                </p>
               </div>
             )}
           </div>

@@ -173,11 +173,12 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
                   autoFocus
                   required
                 />
-                <label className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer">
+                <label className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer" title="Upload photo from camera or album">
                   📷
                   <input
                     type="file"
                     accept="image/*"
+                    capture="environment"
                     onChange={handleImageUpload}
                     className="hidden"
                     disabled={isAnalyzing}

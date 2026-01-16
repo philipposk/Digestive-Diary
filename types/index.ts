@@ -64,6 +64,13 @@ export interface FastingSettings {
   preferredFastingStart?: string; // Preferred time to start fasting (e.g., "20:00")
 }
 
+export interface AutoScanSettings {
+  enabled: boolean;
+  frequency: 'hourly' | 'daily' | 'manual'; // How often to scan
+  lastScanTime?: Date; // Last time album was scanned
+  processedPhotos: string[]; // Array of photo hashes/IDs that have been processed
+}
+
 export type ExperimentLogType = 'text' | 'audio' | 'image' | 'video';
 
 export interface ExperimentLog {
