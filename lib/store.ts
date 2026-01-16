@@ -197,9 +197,6 @@ const storage = {
         }
 
         return JSON.stringify(parsed);
-      }
-      
-      return null;
     } catch (error) {
       console.error('Error parsing localStorage data:', error);
       // Clear corrupted localStorage data
