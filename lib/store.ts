@@ -236,7 +236,11 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           contexts: [...state.contexts, newContext].sort(
-            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            (a, b) => {
+              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+              return bTime.getTime() - aTime.getTime();
+            }
           ),
         }));
       },
@@ -318,7 +322,11 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           realizations: [...state.realizations, newRealization].sort(
-            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            (a, b) => {
+              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+              return bTime.getTime() - aTime.getTime();
+            }
           ),
         }));
       },
