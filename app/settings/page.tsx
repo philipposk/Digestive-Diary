@@ -389,17 +389,75 @@ export default function SettingsPage() {
                 />
               </div>
               
-              <button
-                onClick={() => {
-                  const allEnabled = recipeSourcesSettings.sources.every(s => s.enabled);
-                  setRecipeSourcesSettings({
-                    sources: recipeSourcesSettings.sources.map(s => ({ ...s, enabled: !allEnabled }))
-                  });
-                }}
-                className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-              >
-                {recipeSourcesSettings.sources.every(s => s.enabled) ? 'Disable All' : 'Enable All'}
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => {
+                    const allEnabled = recipeSourcesSettings.sources.every(s => s.enabled);
+                    setRecipeSourcesSettings({
+                      sources: recipeSourcesSettings.sources.map(s => ({ ...s, enabled: !allEnabled }))
+                    });
+                  }}
+                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  {recipeSourcesSettings.sources.every(s => s.enabled) ? 'Disable All' : 'Enable All'}
+                </button>
+                <button
+                  onClick={async () => {
+                    const enabledSources = recipeSourcesSettings.sources.filter(s => s.enabled);
+                    if (enabledSources.length === 0) {
+                      alert('Please enable at least one source to fetch recipes');
+                      return;
+                    }
+                    
+                    try {
+                      const response = await fetch('/api/recipes/fetch-from-sources', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sources: enabledSources }),
+                      });
+                      
+                      const data = await response.json();
+                      
+                      // Create admin notifications for errors
+                      if (data.errors && data.errors.length > 0) {
+                        const addAdminNotification = useAppStore.getState().addAdminNotification;
+                        data.errors.forEach((error: any) => {
+                          addAdminNotification({
+                            type: 'recipe_source_error',
+                            message: `Failed to fetch recipes from ${error.url}`,
+                            details: { error: error.error, url: error.url },
+                            resolved: false,
+                          });
+                        });
+                      }
+                      
+                      // Add fetched recipes to store
+                      if (data.recipes && data.recipes.length > 0) {
+                        const setRecipes = useAppStore.getState().setRecipes;
+                        const currentRecipes = useAppStore.getState().recipes;
+                        setRecipes([...currentRecipes, ...data.recipes]);
+                        alert(`Fetched ${data.recipes.length} recipes from sources${data.errors?.length > 0 ? ` (${data.errors.length} errors - check Admin Notifications)` : ''}`);
+                      } else if (data.errors && data.errors.length > 0) {
+                        alert(`No recipes fetched. Check Admin Notifications for details about ${data.errors.length} error(s).`);
+                      } else {
+                        alert('No recipes found in the enabled sources.');
+                      }
+                    } catch (error: any) {
+                      const addAdminNotification = useAppStore.getState().addAdminNotification;
+                      addAdminNotification({
+                        type: 'api_error',
+                        message: 'Failed to fetch recipes from sources',
+                        details: { error: error.message },
+                        resolved: false,
+                      });
+                      alert('Error fetching recipes. Check Admin Notifications for details.');
+                    }
+                  }}
+                  className="px-4 py-1.5 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                >
+                  🤖 Fetch Recipes from Enabled Sources
+                </button>
+              </div>
             </div>
           </div>
         </div>
