@@ -218,13 +218,39 @@ export default function RecipesPage() {
       )}
 
       {recipes.length === 0 && !isLoading && (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center space-y-4">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
             Search for recipes based on your dietary preferences and active experiments.
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500">
             The AI will suggest recipes that match your logged food tags and experiment restrictions.
           </p>
+          
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Or chat with AI for personalized suggestions:
+            </p>
+            <Link
+              href={`/chat?query=${encodeURIComponent('Suggest recipes for me based on my dietary preferences and logged foods')}`}
+              className="inline-block px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              🤖 Ask AI: What recipes should I try?
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {recipes.length > 0 && (
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+            Need more recipe ideas?
+          </p>
+          <Link
+            href={`/chat?query=${encodeURIComponent('Suggest more recipes for me')}`}
+            className="inline-block px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
+          >
+            🤖 Chat with AI for more suggestions
+          </Link>
         </div>
       )}
 

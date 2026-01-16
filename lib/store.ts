@@ -44,6 +44,7 @@ interface AppState {
   setExperiments: (experiments: Experiment[]) => void;
   setRealizations: (realizations: Realization[]) => void;
   setChatSession: (chatSession: ChatSession | null) => void;
+  setSources: (sources: Source[]) => void;
   setFastingSettings: (settings: FastingSettings) => void;
   setMacroGoals: (goals: MacroGoals | null) => void;
   setAutoScanSettings: (settings: AutoScanSettings) => void;
@@ -508,6 +509,7 @@ export const useAppStore = create<AppState>()(
       setExperiments: (experiments) => set({ experiments }),
       setRealizations: (realizations) => set({ realizations }),
       setChatSession: (chatSession) => set({ chatSession }),
+      setSources: (sources) => set({ sources }),
       setFastingSettings: (settings) => set({ fastingSettings: settings }),
       setMacroGoals: (goals) => set({ macroGoals: goals }),
       setAutoScanSettings: (settings) => set({ autoScanSettings: settings }),

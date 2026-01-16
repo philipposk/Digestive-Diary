@@ -1,4 +1,4 @@
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatSession, ChatMessage, ExperimentLog } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatSession, ChatMessage, ExperimentLog, Source } from '@/types';
 
 // Helper to create a simple placeholder image data URL (tiny colored square)
 function createPlaceholderImage(color: string = '#e5e7eb'): string {
@@ -85,12 +85,13 @@ const symptomTypes = [
 ];
 const durations = ['30 minutes', '1 hour', '2 hours', '3 hours', '4 hours', 'half day'];
 
-export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]; contexts: Context[]; experiments: Experiment[]; realizations: Realization[]; chatSession: ChatSession | null } {
+export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]; contexts: Context[]; experiments: Experiment[]; realizations: Realization[]; chatSession: ChatSession | null; sources: Source[] } {
   const foodLogs: FoodLog[] = [];
   const symptoms: Symptom[] = [];
   const contexts: Context[] = [];
   const experiments: Experiment[] = [];
   const realizations: Realization[] = [];
+  const sources: Source[] = [];
   
   const now = new Date();
   const twoWeeksAgo = new Date(now);
@@ -299,7 +300,7 @@ export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]
     }
 
     const linkedFoodId = Math.random() > 0.4 ? foodLog.id : undefined;
-    
+
     // Some symptoms have photos (especially skin-related)
     const hasPhoto = (symptomType === 'rash' || symptomType === 'pimple' || symptomType === 'skin irritation') && Math.random() > 0.3;
     
@@ -509,12 +510,94 @@ export function generateSampleData(): { foodLogs: FoodLog[]; symptoms: Symptom[]
     updatedAt: chatMessages[chatMessages.length - 1].timestamp,
   } : null;
 
-  // Sort all by timestamp
-  foodLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  symptoms.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  contexts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  experiments.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
-  realizations.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  // Add sample knowledge sources (good digestive health resources)
+  const sourcesData: Omit<Source, 'id' | 'addedAt'>[] = [
+    {
+      title: 'The Mind-Gut Connection',
+      type: 'book',
+      author: 'Emeran Mayer',
+      description: 'How the hidden conversation within our bodies impacts our mood, our choices, and our overall health.',
+      url: 'https://www.emersonmayer.com/mind-gut-connection',
+      content: 'The gut-brain axis is a bidirectional communication system between the central nervous system and the enteric nervous system. This connection influences mood, digestion, and overall health. Key concepts: microbiome diversity, stress impact on digestion, food-mood connections.',
+      tags: ['gut-brain axis', 'microbiome', 'digestive health', 'mental health'],
+    },
+    {
+      title: 'The Gut Balance Revolution',
+      type: 'book',
+      author: 'Gerard Mullin',
+      description: 'A comprehensive guide to healing your digestive system and improving overall health through diet and lifestyle.',
+      url: 'https://www.drgerardmullin.com/books',
+      content: 'Restoring gut balance through dietary changes, probiotics, and lifestyle modifications. Covers elimination diets, food sensitivities, inflammatory foods, and healing protocols for digestive disorders.',
+      tags: ['gut health', 'elimination diet', 'probiotics', 'inflammation'],
+    },
+    {
+      title: 'IBS: The Complete Guide to Managing Irritable Bowel Syndrome',
+      type: 'article',
+      author: 'Monash University FODMAP Team',
+      description: 'Evidence-based guide to the low FODMAP diet for IBS management.',
+      url: 'https://www.monashfodmap.com',
+      content: 'FODMAPs (Fermentable Oligosaccharides, Disaccharides, Monosaccharides and Polyols) are short-chain carbohydrates that can trigger digestive symptoms in sensitive individuals. The low FODMAP diet involves elimination and reintroduction phases to identify trigger foods.',
+      tags: ['IBS', 'FODMAP', 'diet', 'symptoms'],
+    },
+    {
+      title: 'The Elimination Diet',
+      type: 'book',
+      author: 'Tom Malterre & Alissa Segersten',
+      description: 'Discover the foods that are making you sick and tired.',
+      url: 'https://www.nourishingmeals.com/elimination-diet',
+      content: 'Systematic approach to identifying food sensitivities through elimination and reintroduction. Common trigger foods include dairy, gluten, soy, corn, eggs, and nightshades. The process typically takes 4-6 weeks.',
+      tags: ['elimination diet', 'food sensitivities', 'inflammation', 'autoimmune'],
+    },
+    {
+      title: 'Harvard Health: Understanding Your Digestive System',
+      type: 'article',
+      author: 'Harvard Medical School',
+      description: 'Educational resource about how the digestive system works and common disorders.',
+      url: 'https://www.health.harvard.edu/topics/digestive-health',
+      content: 'Overview of digestive anatomy and function, common digestive disorders (IBS, IBD, GERD), and evidence-based treatment approaches. Covers the role of fiber, hydration, and regular eating patterns in digestive health.',
+      tags: ['digestive system', 'education', 'disorders', 'nutrition'],
+    },
+    {
+      title: 'Nourishing Traditions',
+      type: 'book',
+      author: 'Sally Fallon Morell',
+      description: 'The cookbook that challenges politically correct nutrition and the diet dictocrats.',
+      url: 'https://www.westonaprice.org',
+      content: 'Traditional food preparation methods, fermentation, and nutrient-dense foods. Emphasis on whole foods, bone broths, fermented foods, and avoiding processed foods. Focus on digestive health through proper food preparation.',
+      tags: ['traditional foods', 'fermentation', 'nutrition', 'whole foods'],
+    },
+  ];
 
-  return { foodLogs, symptoms, contexts, experiments, realizations, chatSession };
+  sourcesData.forEach((source) => {
+    sources.push({
+      id: crypto.randomUUID(),
+      ...source,
+      addedAt: new Date(now.getTime() - Math.random() * 14 * 24 * 60 * 60 * 1000), // Random time in last 2 weeks
+    });
+  });
+
+  // Sort all by timestamp
+  foodLogs.sort((a, b) => {
+    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+    return bTime.getTime() - aTime.getTime();
+  });
+  symptoms.sort((a, b) => {
+    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+    return bTime.getTime() - aTime.getTime();
+  });
+  contexts.sort((a, b) => {
+    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+    return bTime.getTime() - aTime.getTime();
+  });
+  experiments.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+  realizations.sort((a, b) => {
+    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+    return bTime.getTime() - aTime.getTime();
+  });
+
+  return { foodLogs, symptoms, contexts, experiments, realizations, chatSession, sources };
 }

@@ -152,7 +152,8 @@ export function generateInsights(foodLogs: FoodLog[], symptoms: Symptom[]): Patt
   // Check for binge eating patterns: multiple large meals in short time
   const foodLogsByDay = new Map<string, FoodLog[]>();
   foodLogs.forEach((log) => {
-    const dayKey = new Date(log.timestamp).toDateString();
+    const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+    const dayKey = logTimestamp.toDateString();
     if (!foodLogsByDay.has(dayKey)) {
       foodLogsByDay.set(dayKey, []);
     }
@@ -161,14 +162,20 @@ export function generateInsights(foodLogs: FoodLog[], symptoms: Symptom[]): Patt
 
   foodLogsByDay.forEach((dayLogs, dayKey) => {
     // Check for multiple eating sessions in a short time (e.g., 3+ meals within 3 hours)
-    dayLogs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    dayLogs.sort((a, b) => {
+      const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+      const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+      return aTime.getTime() - bTime.getTime();
+    });
     
     for (let i = 0; i < dayLogs.length - 2; i++) {
       const sessionLogs: FoodLog[] = [dayLogs[i]];
-      const startTime = dayLogs[i].timestamp.getTime();
+      const firstTimestamp = dayLogs[i].timestamp instanceof Date ? dayLogs[i].timestamp : new Date(dayLogs[i].timestamp);
+      const startTime = firstTimestamp.getTime();
       
       for (let j = i + 1; j < dayLogs.length; j++) {
-        const timeDiff = (dayLogs[j].timestamp.getTime() - startTime) / (1000 * 60 * 60); // hours
+        const jTimestamp = dayLogs[j].timestamp instanceof Date ? dayLogs[j].timestamp : new Date(dayLogs[j].timestamp);
+        const timeDiff = (jTimestamp.getTime() - startTime) / (1000 * 60 * 60); // hours
         if (timeDiff <= 3) {
           sessionLogs.push(dayLogs[j]);
         } else {
@@ -189,7 +196,8 @@ export function generateInsights(foodLogs: FoodLog[], symptoms: Symptom[]): Patt
         // Check for sugar cravings symptoms during this period
         const sugarCravings = symptoms.filter(s => {
           if (s.type !== 'sugar craving') return false;
-          const sTime = s.timestamp.getTime();
+          const sTimestamp = s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp);
+          const sTime = sTimestamp.getTime();
           return sTime >= startTime && sTime <= startTime + (3 * 60 * 60 * 1000);
         });
         
@@ -222,9 +230,11 @@ export function generateInsights(foodLogs: FoodLog[], symptoms: Symptom[]): Patt
   const sugarCravings = symptoms.filter(s => s.type === 'sugar craving');
   if (sugarCravings.length >= 3) {
     const followedByEating = sugarCravings.filter(craving => {
-      const cravingTime = craving.timestamp.getTime();
+      const cravingTimestamp = craving.timestamp instanceof Date ? craving.timestamp : new Date(craving.timestamp);
+      const cravingTime = cravingTimestamp.getTime();
       return foodLogs.some(log => {
-        const logTime = log.timestamp.getTime();
+        const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+        const logTime = logTimestamp.getTime();
         const timeDiff = (logTime - cravingTime) / (1000 * 60); // minutes
         return timeDiff >= 0 && timeDiff <= 60; // Eating within 1 hour of craving
       });
