@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { SeverityLevel, Symptom } from '@/types';
 import { FoodLog } from '@/types';
+import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 
 interface LogSymptomModalProps {
   isOpen: boolean;
@@ -50,6 +51,22 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
   const updateSymptom = useAppStore((state) => state.updateSymptom);
   const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
+  const voice = useVoiceCapture();
+
+  const handleVoiceClick = async () => {
+    if (voice.recording) {
+      const transcript = await voice.stop();
+      if (!transcript) return;
+      setNotes((prev) => (prev.trim() ? `${prev.trim()}\n${transcript}` : transcript));
+      if (!type) {
+        const lower = transcript.toLowerCase();
+        const matched = symptomTypes.find((s) => s !== 'other' && lower.includes(s.toLowerCase()));
+        if (matched) setType(matched);
+      }
+    } else {
+      await voice.start();
+    }
+  };
 
   // Get recent food logs (last 24 hours) for linking
   const recentFoodLogs = foodLogs
@@ -413,13 +430,40 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
 
             <div>
               <label className="block text-sm font-medium mb-2">Notes (optional)</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                placeholder="Any additional notes..."
-                rows={3}
-              />
+              <div className="flex gap-2 items-start">
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  placeholder="Any additional notes..."
+                  rows={3}
+                />
+                {voice.supported && (
+                  <button
+                    type="button"
+                    onClick={handleVoiceClick}
+                    disabled={voice.transcribing}
+                    title={voice.recording ? 'Stop recording' : 'Dictate notes'}
+                    aria-label={voice.recording ? 'Stop recording' : 'Start voice notes'}
+                    className={`px-3 py-2 border rounded-lg ${
+                      voice.recording
+                        ? 'bg-red-500 text-white border-red-500 animate-pulse'
+                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    } disabled:opacity-50`}
+                  >
+                    {voice.recording ? '■' : '🎤'}
+                  </button>
+                )}
+              </div>
+              {voice.recording && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Recording… tap ■ when done.</p>
+              )}
+              {voice.transcribing && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Transcribing…</p>
+              )}
+              {voice.error && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{voice.error}</p>
+              )}
             </div>
 
             <div className="flex gap-3 pt-4">

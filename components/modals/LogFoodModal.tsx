@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 
 interface LogFoodModalProps {
   isOpen: boolean;
@@ -20,9 +21,45 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
   const [macros, setMacros] = useState<{ calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number; } | null>(null);
   const [portionWeight, setPortionWeight] = useState<number | undefined>(undefined);
   const [showMacros, setShowMacros] = useState(false);
+  const [voiceParsing, setVoiceParsing] = useState(false);
   const addFoodLog = useAppStore((state) => state.addFoodLog);
+  const voice = useVoiceCapture();
 
   if (!isOpen) return null;
+
+  const handleVoiceClick = async () => {
+    if (voice.recording) {
+      const transcript = await voice.stop();
+      if (!transcript) return;
+      setFood(transcript);
+      setVoiceParsing(true);
+      try {
+        const res = await fetch('/api/openai/parse-food', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: transcript }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const first = Array.isArray(data?.foods) && data.foods.length > 0 ? data.foods[0] : null;
+          if (first?.name) setFood(first.name);
+          if (first?.quantity) setQuantity(first.quantity);
+          const tagPool = [
+            ...(Array.isArray(first?.tags) ? first.tags : []),
+            ...(Array.isArray(data?.suggested_tags) ? data.suggested_tags : []),
+          ].map((t: any) => String(t).toLowerCase());
+          const matched = Array.from(new Set(tagPool.filter((t) => commonTags.includes(t))));
+          if (matched.length > 0) setSelectedTags(matched);
+        }
+      } catch {
+        // Silent — transcript already in food field
+      } finally {
+        setVoiceParsing(false);
+      }
+    } else {
+      await voice.start();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,11 +221,39 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
                     disabled={isAnalyzing}
                   />
                 </label>
+                {voice.supported && (
+                  <button
+                    type="button"
+                    onClick={handleVoiceClick}
+                    disabled={voice.transcribing || voiceParsing}
+                    title={voice.recording ? 'Stop recording' : 'Dictate food name'}
+                    aria-label={voice.recording ? 'Stop recording' : 'Start voice logging'}
+                    className={`px-4 py-2 border rounded-lg ${
+                      voice.recording
+                        ? 'bg-red-500 text-white border-red-500 animate-pulse'
+                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    } disabled:opacity-50`}
+                  >
+                    {voice.recording ? '■' : '🎤'}
+                  </button>
+                )}
               </div>
               {isAnalyzing && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Analyzing image...
                 </p>
+              )}
+              {voice.recording && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Recording… tap ■ when done.</p>
+              )}
+              {voice.transcribing && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Transcribing audio…</p>
+              )}
+              {voiceParsing && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Parsing food details…</p>
+              )}
+              {voice.error && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{voice.error}</p>
               )}
               {imagePreview && (
                 <div className="mt-2 relative">
