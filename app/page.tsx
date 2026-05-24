@@ -19,6 +19,9 @@ export default function HomePage() {
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showClearDemoButton, setShowClearDemoButton] = useState(false);
   
+  const [smartTip, setSmartTip] = useState<string | null>(null);
+  const [smartTipLoading, setSmartTipLoading] = useState(false);
+
   const symptoms = useAppStore((state) => state.symptoms);
   const setFoodLogs = useAppStore((state) => state.setFoodLogs);
   const setSymptoms = useAppStore((state) => state.setSymptoms);
@@ -65,6 +68,63 @@ export default function HomePage() {
     setShowWelcomeBanner(false);
     localStorage.setItem('welcomeBannerDismissed', 'true');
   };
+
+  // Smart suggestions (Groq) — refetch at most every 15 minutes
+  useEffect(() => {
+    const CACHE_KEY = 'smartTip';
+    const CACHE_AT = 'smartTipAt';
+    const TTL = 15 * 60 * 1000;
+    try {
+      const cachedAt = Number(sessionStorage.getItem(CACHE_AT) || '0');
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (cached && Date.now() - cachedAt < TTL) {
+        setSmartTip(cached);
+        return;
+      }
+    } catch { /* sessionStorage unavailable */ }
+
+    const lastFood = foodLogs[0];
+    const lastSymptom = symptoms[0];
+    const lastFoodTime = lastFood?.timestamp ? new Date(lastFood.timestamp) : null;
+    const lastSymptomTime = lastSymptom?.timestamp ? new Date(lastSymptom.timestamp) : null;
+    const now = new Date();
+    const hoursSinceFood = lastFoodTime ? (now.getTime() - lastFoodTime.getTime()) / 3.6e6 : null;
+    const hoursSinceSymptom = lastSymptomTime ? (now.getTime() - lastSymptomTime.getTime()) / 3.6e6 : null;
+    const hour = now.getHours();
+    const partOfDay = hour < 5 ? 'late night' : hour < 11 ? 'morning' : hour < 15 ? 'midday' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'night';
+    const activeExperiments = experiments.filter((e) => e.active).map((e) => e.name);
+
+    const context = `Time of day: ${partOfDay}. ` +
+      (hoursSinceFood !== null ? `Hours since last food log: ${hoursSinceFood.toFixed(1)}. ` : 'No food logged yet. ') +
+      (hoursSinceSymptom !== null ? `Hours since last symptom: ${hoursSinceSymptom.toFixed(1)}. ` : '') +
+      (activeExperiments.length > 0 ? `Active diet experiments: ${activeExperiments.join(', ')}.` : '');
+
+    setSmartTipLoading(true);
+    fetch('/api/groq/suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context,
+        userData: {
+          lastFood: lastFood ? { food: lastFood.food, tags: lastFood.tags } : null,
+          lastSymptom: lastSymptom ? { type: lastSymptom.type, severity: lastSymptom.severity } : null,
+        },
+      }),
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        const tip = typeof data?.suggestion === 'string' ? data.suggestion.trim() : '';
+        if (tip) {
+          setSmartTip(tip);
+          try {
+            sessionStorage.setItem(CACHE_KEY, tip);
+            sessionStorage.setItem(CACHE_AT, String(Date.now()));
+          } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { /* silent */ })
+      .finally(() => setSmartTipLoading(false));
+  }, [foodLogs, symptoms, experiments]);
 
   const handleClearDemoData = () => {
     if (confirm('Are you sure you want to clear all demo data and start fresh? This cannot be undone.')) {
@@ -186,6 +246,20 @@ export default function HomePage() {
                 Clear Demo Data
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Smart suggestion (Groq) */}
+        {(smartTip || smartTipLoading) && (
+          <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+            <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-1">
+              💡 Smart suggestion
+            </p>
+            {smartTipLoading && !smartTip ? (
+              <p className="text-sm text-indigo-700 dark:text-indigo-300">Thinking…</p>
+            ) : (
+              <p className="text-sm text-indigo-900 dark:text-indigo-100">{smartTip}</p>
+            )}
           </div>
         )}
 

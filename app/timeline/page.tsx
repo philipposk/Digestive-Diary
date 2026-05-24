@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { formatTime, formatDate } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
 import { FoodLog, Symptom } from '@/types';
@@ -8,14 +8,24 @@ import { FoodLog, Symptom } from '@/types';
 type SortOrder = 'newest' | 'oldest';
 type ViewStyle = 'list' | 'compact';
 
+interface SummaryResult {
+  summary: string;
+  highlights: string[];
+}
+
 export default function TimelinePage() {
   const [filter, setFilter] = useState<'all' | 'food' | 'symptom'>('all');
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   const [viewStyle, setViewStyle] = useState<ViewStyle>('list');
+  const [summary, setSummary] = useState<SummaryResult | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const summaryCacheRef = useRef<Map<string, SummaryResult>>(new Map());
 
   const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
+  const experiments = useAppStore((state) => state.experiments);
 
   const filteredItems = useMemo(() => {
     const now = new Date();
@@ -62,10 +72,107 @@ export default function TimelinePage() {
     return items;
   }, [foodLogs, symptoms, filter, dateRange, sortOrder]);
 
+  const handleSummarize = async () => {
+    const daysAgo = dateRange === '7d' ? 7 : dateRange === '14d' ? 14 : 30;
+    const startMs = Date.now() - daysAgo * 86_400_000;
+    const inRangeFoods = foodLogs.filter((f) => {
+      const t = f.timestamp instanceof Date ? f.timestamp.getTime() : new Date(f.timestamp).getTime();
+      return t >= startMs;
+    });
+    const inRangeSymptoms = symptoms.filter((s) => {
+      const t = s.timestamp instanceof Date ? s.timestamp.getTime() : new Date(s.timestamp).getTime();
+      return t >= startMs;
+    });
+    const cacheKey = `${dateRange}|${inRangeFoods.length}|${inRangeSymptoms.length}|${inRangeFoods[0]?.id ?? ''}|${inRangeSymptoms[0]?.id ?? ''}`;
+    const cached = summaryCacheRef.current.get(cacheKey);
+    if (cached) {
+      setSummary(cached);
+      setSummaryError(null);
+      return;
+    }
+
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const res = await fetch('/api/openai/generate-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timelineData: {
+            rangeDays: daysAgo,
+            foodLogs: inRangeFoods.map((f) => ({
+              food: f.food,
+              tags: f.tags,
+              timestamp: (f.timestamp instanceof Date ? f.timestamp : new Date(f.timestamp)).toISOString(),
+            })),
+            symptoms: inRangeSymptoms.map((s) => ({
+              type: s.type,
+              severity: s.severity,
+              timestamp: (s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp)).toISOString(),
+            })),
+            experiments: experiments.map((e) => ({ name: e.name, active: e.active })),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Summary failed: ${res.status}`);
+      }
+      const data = (await res.json()) as SummaryResult;
+      const result: SummaryResult = {
+        summary: typeof data?.summary === 'string' ? data.summary : '',
+        highlights: Array.isArray(data?.highlights) ? data.highlights : [],
+      };
+      summaryCacheRef.current.set(cacheKey, result);
+      setSummary(result);
+    } catch (err: any) {
+      setSummaryError(err?.message || 'Failed to summarize');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6 max-w-2xl">
       <h1 className="text-2xl font-semibold mb-6">Timeline</h1>
-      
+
+      <div className="mb-6 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+        <div className="flex justify-between items-center mb-2 gap-3">
+          <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+            AI Summary — last {dateRange === '7d' ? '7 days' : dateRange === '14d' ? '14 days' : '30 days'}
+          </p>
+          <button
+            onClick={handleSummarize}
+            disabled={summaryLoading}
+            className="px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 text-white rounded-lg disabled:opacity-50"
+          >
+            {summaryLoading ? 'Summarizing…' : summary ? 'Refresh summary' : 'Summarize'}
+          </button>
+        </div>
+        {summaryError && (
+          <p className="text-xs text-red-600 dark:text-red-400">{summaryError}</p>
+        )}
+        {summary && (
+          <div className="space-y-2">
+            {summary.summary && (
+              <p className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-line">{summary.summary}</p>
+            )}
+            {summary.highlights.length > 0 && (
+              <ul className="list-disc list-inside text-sm text-purple-800 dark:text-purple-200 space-y-1">
+                {summary.highlights.map((h, i) => (
+                  <li key={i}>{h}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {!summary && !summaryError && !summaryLoading && (
+          <p className="text-xs text-purple-700 dark:text-purple-300">
+            Generates a short narrative + bullet observations from the selected range. No medical advice.
+          </p>
+        )}
+      </div>
+
       <div className="mb-6 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-2">Filter by type</label>
