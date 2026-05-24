@@ -9,13 +9,14 @@ import { Pattern } from '@/types';
 export default function InsightsPage() {
   const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
+  const experiments = useAppStore((state) => state.experiments);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedInsight, setSelectedInsight] = useState<Pattern | null>(null);
 
   const insights = useMemo(() => {
-    return generateInsights(foodLogs, symptoms);
-  }, [foodLogs, symptoms]);
+    return generateInsights(foodLogs, symptoms, experiments);
+  }, [foodLogs, symptoms, experiments]);
 
   // Extract categories separately
   useEffect(() => {
