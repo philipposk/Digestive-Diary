@@ -59,6 +59,34 @@ export default function RecipesPage() {
     return Array.from(tagSet).sort();
   }, [recipes]);
 
+  // Parse active experiments into structured dietary restrictions.
+  const activeExperiments = useMemo(() => {
+    const RESTRICTION_PATTERNS: Array<{ re: RegExp; produce: (m: RegExpMatchArray) => string[] }> = [
+      { re: /no\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
+      { re: /avoid\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
+      { re: /low[-\s]?fodmap/i, produce: () => ['high-fodmap', 'onion', 'garlic'] },
+      { re: /dairy[-\s]?free/i, produce: () => ['dairy'] },
+      { re: /gluten[-\s]?free/i, produce: () => ['gluten'] },
+      { re: /vegan/i, produce: () => ['meat', 'dairy', 'egg'] },
+    ];
+    return experiments
+      .filter((e) => e.active)
+      .map((e) => {
+        const lower = e.name.toLowerCase();
+        const restrictions = new Set<string>();
+        for (const { re, produce } of RESTRICTION_PATTERNS) {
+          const m = lower.match(re);
+          if (m) produce(m).forEach((r) => restrictions.add(r));
+        }
+        return { name: lower, restrictions: Array.from(restrictions) };
+      });
+  }, [experiments]);
+
+  const allRestrictions = useMemo(
+    () => Array.from(new Set(activeExperiments.flatMap((e) => e.restrictions))),
+    [activeExperiments]
+  );
+
   // Filter recipes based on selected tag, enabled sources, and active-experiment restrictions
   const filteredRecipes = useMemo(() => {
     let filtered = recipes.filter(recipe => {
@@ -103,34 +131,6 @@ export default function RecipesPage() {
 
     return filtered;
   }, [recipes, selectedTag, query, recipeSourcesSettings, allRestrictions]);
-
-  // Parse active experiments into structured dietary restrictions.
-  const activeExperiments = useMemo(() => {
-    const RESTRICTION_PATTERNS: Array<{ re: RegExp; produce: (m: RegExpMatchArray) => string[] }> = [
-      { re: /no\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
-      { re: /avoid\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
-      { re: /low[-\s]?fodmap/i, produce: () => ['high-fodmap', 'onion', 'garlic'] },
-      { re: /dairy[-\s]?free/i, produce: () => ['dairy'] },
-      { re: /gluten[-\s]?free/i, produce: () => ['gluten'] },
-      { re: /vegan/i, produce: () => ['meat', 'dairy', 'egg'] },
-    ];
-    return experiments
-      .filter((e) => e.active)
-      .map((e) => {
-        const lower = e.name.toLowerCase();
-        const restrictions = new Set<string>();
-        for (const { re, produce } of RESTRICTION_PATTERNS) {
-          const m = lower.match(re);
-          if (m) produce(m).forEach((r) => restrictions.add(r));
-        }
-        return { name: lower, restrictions: Array.from(restrictions) };
-      });
-  }, [experiments]);
-
-  const allRestrictions = useMemo(
-    () => Array.from(new Set(activeExperiments.flatMap((e) => e.restrictions))),
-    [activeExperiments]
-  );
 
   const handleSearch = async () => {
     if (!query.trim() && commonTags.length === 0 && activeExperiments.length === 0) {

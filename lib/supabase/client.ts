@@ -31,9 +31,10 @@ export function getSupabaseClient(): SupabaseLike | null {
   if (!url || !anon) return null;
 
   try {
-    // Dynamic import keeps the bundle clean until cloud mode is enabled.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { createClient } = require('@supabase/supabase-js');
+    // Runtime-only resolve keeps the bundle clean until cloud mode is enabled.
+    const req = (0, eval)('typeof require !== "undefined" ? require : null');
+    if (!req) return null;
+    const { createClient } = req('@supabase/supabase-js');
     cached = createClient(url, anon) as SupabaseLike;
     return cached;
   } catch {

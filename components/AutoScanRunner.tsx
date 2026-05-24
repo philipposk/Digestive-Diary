@@ -71,7 +71,7 @@ export default function AutoScanRunner() {
       {showPrompt && (
         <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg p-3 mb-2">
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Scan recent photos?</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Auto-scan is on. Pick the latest album photos and we'll log any food we recognize.</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Auto-scan is on. Pick the latest album photos and we&apos;ll log any food we recognize.</p>
           <div className="flex gap-2">
             <button onClick={handlePick} className="flex-1 px-3 py-1.5 text-sm bg-primary-500 text-white rounded hover:bg-primary-600">Pick photos</button>
             <button onClick={() => setShowPrompt(false)} className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600">Later</button>

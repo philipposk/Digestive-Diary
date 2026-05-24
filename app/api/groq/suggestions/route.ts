@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
+import { guard } from '@/lib/apiGuard';
+import { GroqSuggestionsSchema } from '@/lib/validation';
+import { escapeForPrompt } from '@/lib/promptSafe';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-const sanitize = (s: unknown, max = 300): string =>
-  typeof s === 'string'
-    ? s.slice(0, max).replace(/```/g, "''").replace(/\bIGNORE\b/gi, 'ign-ore').replace(/\bSYSTEM\b/gi, 'sys-tem')
-    : '';
+const sanitize = (s: unknown, max = 300) => escapeForPrompt(s, max);
 
 export async function POST(request: NextRequest) {
-  try {
-    const { context, userData } = await request.json();
+  const g = await guard(request, GroqSuggestionsSchema, { bucket: 'groq-suggest', capacity: 20, refillPerMinute: 20 });
+  if (!g.ok) return g.response;
+  const { context, userData } = g.data as { context: string; userData?: unknown };
 
+  try {
     if (!context || typeof context !== 'string') {
       return NextResponse.json({ error: 'No context provided' }, { status: 400 });
     }

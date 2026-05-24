@@ -19,8 +19,9 @@ export function getServiceRoleClient(): SupabaseLike | null {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) return null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { createClient } = require('@supabase/supabase-js');
+    const req = (0, eval)('typeof require !== "undefined" ? require : null');
+    if (!req) return null;
+    const { createClient } = req('@supabase/supabase-js');
     return createClient(url, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     }) as SupabaseLike;
@@ -35,8 +36,9 @@ export function getServiceRoleClient(): SupabaseLike | null {
 export function getServerSupabaseClient(_cookieStore?: unknown): SupabaseLike | null {
   if (!isCloudEnabledServer()) return null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { createServerClient } = require('@supabase/ssr');
+    const req = (0, eval)('typeof require !== "undefined" ? require : null');
+    if (!req) return null;
+    const { createServerClient } = req('@supabase/ssr');
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     return createServerClient(url, anon, {

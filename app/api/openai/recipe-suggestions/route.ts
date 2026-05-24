@@ -1,28 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard } from '@/lib/apiGuard';
+import { RecipeSuggestionsSchema } from '@/lib/validation';
+import { escapeForPrompt } from '@/lib/promptSafe';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const sanitize = (s: unknown, max = 300): string =>
-  typeof s === 'string'
-    ? s.slice(0, max).replace(/```/g, "''").replace(/\bIGNORE\b/gi, 'ign-ore').replace(/\bSYSTEM\b/gi, 'sys-tem')
-    : '';
-
 export async function POST(request: NextRequest) {
+  const g = await guard(request, RecipeSuggestionsSchema, { bucket: 'recipe-suggest', capacity: 10, refillPerMinute: 10 });
+  if (!g.ok) return g.response;
+  const body = g.data as any;
   try {
-    const body = await request.json();
-    const query = sanitize(body?.query, 300);
-    const context = sanitize(body?.context, 600);
-    const restrictions = Array.isArray(body?.restrictions) ? body.restrictions.slice(0, 20).map((r: unknown) => sanitize(r, 40)).filter(Boolean) : [];
-    const dietary = Array.isArray(body?.dietaryRestrictions) ? body.dietaryRestrictions.slice(0, 20).map((r: unknown) => sanitize(r, 40)).filter(Boolean) : [];
+    const query = escapeForPrompt(body?.query, 300);
+    const context = escapeForPrompt(body?.context, 600);
+    const restrictions = Array.isArray(body?.restrictions) ? body.restrictions.map((r: unknown) => escapeForPrompt(r, 40)).filter(Boolean) : [];
+    const dietary = Array.isArray(body?.dietaryRestrictions) ? body.dietaryRestrictions.map((r: unknown) => escapeForPrompt(r, 40)).filter(Boolean) : [];
     const allRestrictions = Array.from(new Set([...restrictions, ...dietary]));
-    const preferredTags = Array.isArray(body?.preferredTags) ? body.preferredTags.slice(0, 20).map((t: unknown) => sanitize(t, 40)).filter(Boolean) : [];
+    const preferredTags = Array.isArray(body?.preferredTags) ? body.preferredTags.map((t: unknown) => escapeForPrompt(t, 40)).filter(Boolean) : [];
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
     }
+
 
     const fenced = '```USER_DATA\n' + JSON.stringify({ query, context, restrictions: allRestrictions, preferredTags }) + '\n```';
 

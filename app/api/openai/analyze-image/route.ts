@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard, safeJsonParse } from '@/lib/apiGuard';
+import { AnalyzeImageSchema } from '@/lib/validation';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
+  const g = await guard(request, AnalyzeImageSchema, { bucket: 'analyze-image', capacity: 15, refillPerMinute: 15 });
+  if (!g.ok) return g.response;
+  const { imageBase64 } = g.data as { imageBase64: string };
+
   try {
-    const { imageBase64 } = await request.json();
-
-    if (!imageBase64) {
-      return NextResponse.json(
-        { error: 'No image provided' },
-        { status: 400 }
-      );
-    }
-
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: 'OpenAI API key not configured' },
@@ -70,7 +67,7 @@ Only extract what you can clearly see. Don't make assumptions.`,
       max_tokens: 500,
     });
 
-    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    const result = safeJsonParse(completion.choices[0]?.message?.content, {});
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Image analysis error:', error);

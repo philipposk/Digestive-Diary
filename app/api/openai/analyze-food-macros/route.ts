@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard, safeJsonParse } from '@/lib/apiGuard';
+import { AnalyzeFoodMacrosSchema } from '@/lib/validation';
+import { escapeForPrompt } from '@/lib/promptSafe';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
+  const g = await guard(request, AnalyzeFoodMacrosSchema, { bucket: 'analyze-macros', capacity: 15, refillPerMinute: 15 });
+  if (!g.ok) return g.response;
+  const { imageBase64, foodName: rawFoodName, quantity: rawQuantity } = g.data as { imageBase64: string; foodName?: string; quantity?: string };
+  const foodName = escapeForPrompt(rawFoodName, 200);
+  const quantity = escapeForPrompt(rawQuantity, 100);
+
   try {
-    const { imageBase64, foodName, quantity } = await request.json();
-
-    if (!imageBase64) {
-      return NextResponse.json(
-        { error: 'No image provided' },
-        { status: 400 }
-      );
-    }
-
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: 'OpenAI API key not configured' },
@@ -72,7 +72,7 @@ Only provide numbers. Use 0 if you cannot estimate.`,
       max_tokens: 300,
     });
 
-    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    const result = safeJsonParse(completion.choices[0]?.message?.content, {});
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Macro analysis error:', error);

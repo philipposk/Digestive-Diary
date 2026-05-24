@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard } from '@/lib/apiGuard';
+import { SummarySchema } from '@/lib/validation';
+import { escapeForPrompt } from '@/lib/promptSafe';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -15,15 +18,13 @@ interface SummaryRequest {
   };
 }
 
-const sanitize = (s: unknown, max = 200): string =>
-  typeof s === 'string'
-    ? s.slice(0, max).replace(/```/g, "''").replace(/\bIGNORE\b/gi, 'ign-ore').replace(/\bSYSTEM\b/gi, 'sys-tem')
-    : '';
+const sanitize = (s: unknown, max = 200) => escapeForPrompt(s, max);
 
 export async function POST(request: NextRequest) {
+  const g = await guard(request, SummarySchema, { bucket: 'summary', capacity: 6, refillPerMinute: 6 });
+  if (!g.ok) return g.response;
+  const { timelineData } = g.data as SummaryRequest;
   try {
-    const { timelineData } = (await request.json()) as SummaryRequest;
-
     if (!timelineData || typeof timelineData !== 'object') {
       return NextResponse.json({ error: 'No timeline data provided' }, { status: 400 });
     }

@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard } from '@/lib/apiGuard';
+import { RecipeFetchSchema } from '@/lib/validation';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
+  const g = await guard(request, RecipeFetchSchema, { bucket: 'recipe-fetch', capacity: 5, refillPerMinute: 5 });
+  if (!g.ok) return g.response;
+  const { sources } = g.data as { sources: Array<{ url: string; enabled: boolean }> };
+
   try {
-    const { sources } = await request.json();
-
-    if (!sources || !Array.isArray(sources)) {
-      return NextResponse.json(
-        { error: 'Invalid sources array' },
-        { status: 400 }
-      );
-    }
-
-    const enabledSources = sources.filter((s: any) => s.enabled);
+    const enabledSources = sources.filter((s) => s.enabled);
     const recipes: any[] = [];
     const errors: any[] = [];
 

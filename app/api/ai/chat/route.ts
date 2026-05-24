@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard } from '@/lib/apiGuard';
+import { ChatRequestSchema } from '@/lib/validation';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
+  const g = await guard(request, ChatRequestSchema, { bucket: 'ai-chat', capacity: 10, refillPerMinute: 10 });
+  if (!g.ok) return g.response;
+  const { message, userData, chatHistory, sources } = g.data as any;
   try {
-    const { message, userData, chatHistory, sources } = await request.json();
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
