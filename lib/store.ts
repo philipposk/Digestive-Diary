@@ -58,6 +58,27 @@ interface AppState {
   clearAdminNotifications: () => void;
 }
 
+// O(log n) sorted insertion (descending by key). Used by add* actions so we don't
+// resort the entire array on every mutation. Falls back to a clean reference each call.
+function insertSortedDesc<T>(arr: T[], item: T, key: (t: T) => number): T[] {
+  const ts = key(item);
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (key(arr[mid]) > ts) lo = mid + 1;
+    else hi = mid;
+  }
+  return [...arr.slice(0, lo), item, ...arr.slice(lo)];
+}
+
+const tsMs = (v: Date | string | undefined): number => {
+  if (!v) return 0;
+  if (v instanceof Date) return v.getTime();
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
 // Helper function to safely parse dates
 const safeDate = (dateStr: any): Date | undefined => {
   if (!dateStr) return undefined;
@@ -279,13 +300,7 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date(),
         };
         set((state) => ({
-          foodLogs: [...state.foodLogs, newLog].sort(
-            (a, b) => {
-              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          foodLogs: insertSortedDesc(state.foodLogs, newLog, (l) => tsMs(l.timestamp)),
         }));
       },
 
@@ -296,13 +311,7 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date(),
         };
         set((state) => ({
-          symptoms: [...state.symptoms, newSymptom].sort(
-            (a, b) => {
-              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          symptoms: insertSortedDesc(state.symptoms, newSymptom, (s) => tsMs(s.timestamp)),
         }));
       },
 
@@ -321,13 +330,7 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date(),
         };
         set((state) => ({
-          contexts: [...state.contexts, newContext].sort(
-            (a, b) => {
-              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          contexts: insertSortedDesc(state.contexts, newContext, (c) => tsMs(c.timestamp)),
         }));
       },
 
@@ -338,13 +341,7 @@ export const useAppStore = create<AppState>()(
           logs: experiment.logs || [],
         };
         set((state) => ({
-          experiments: [...state.experiments, newExperiment].sort(
-            (a, b) => {
-              const aTime = a.startDate instanceof Date ? a.startDate : new Date(a.startDate);
-              const bTime = b.startDate instanceof Date ? b.startDate : new Date(b.startDate);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          experiments: insertSortedDesc(state.experiments, newExperiment, (e) => tsMs(e.startDate)),
         }));
       },
 
@@ -366,13 +363,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           experiments: state.experiments.map((exp) =>
             exp.id === experimentId
-              ? { ...exp, logs: [...(exp.logs || []), newLog].sort(
-                  (a, b) => {
-                    const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-                    const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-                    return bTime.getTime() - aTime.getTime();
-                  }
-                ) }
+              ? { ...exp, logs: insertSortedDesc(exp.logs || [], newLog, (l) => tsMs(l.timestamp)) }
               : exp
           ),
         }));
@@ -415,13 +406,7 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date(),
         };
         set((state) => ({
-          realizations: [...state.realizations, newRealization].sort(
-            (a, b) => {
-              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          realizations: insertSortedDesc(state.realizations, newRealization, (r) => tsMs(r.timestamp)),
         }));
       },
 
@@ -473,13 +458,7 @@ export const useAppStore = create<AppState>()(
           addedAt: new Date(),
         };
         set((state) => ({
-          sources: [...state.sources, newSource].sort(
-            (a, b) => {
-              const aTime = a.addedAt instanceof Date ? a.addedAt : new Date(a.addedAt);
-              const bTime = b.addedAt instanceof Date ? b.addedAt : new Date(b.addedAt);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          sources: insertSortedDesc(state.sources, newSource, (s) => tsMs(s.addedAt)),
         }));
       },
 
@@ -504,13 +483,7 @@ export const useAppStore = create<AppState>()(
           uploadedAt: new Date(),
         };
         set((state) => ({
-          photoUploads: [...state.photoUploads, newUpload].sort(
-            (a, b) => {
-              const aTime = a.uploadedAt instanceof Date ? a.uploadedAt : new Date(a.uploadedAt);
-              const bTime = b.uploadedAt instanceof Date ? b.uploadedAt : new Date(b.uploadedAt);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          photoUploads: insertSortedDesc(state.photoUploads, newUpload, (p) => tsMs(p.uploadedAt)),
         }));
       },
 
@@ -539,13 +512,7 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date(),
         };
         set((state) => ({
-          adminNotifications: [...state.adminNotifications, newNotification].sort(
-            (a, b) => {
-              const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-              const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-              return bTime.getTime() - aTime.getTime();
-            }
-          ),
+          adminNotifications: insertSortedDesc(state.adminNotifications, newNotification, (n) => tsMs(n.timestamp)),
         }));
       },
       resolveAdminNotification: (id) => {
