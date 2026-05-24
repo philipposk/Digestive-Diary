@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: 'system',
-              content: `You are a recipe extraction system. Extract recipe information from HTML content. 
-              Return a JSON array of recipes found in the content. Each recipe should have: name, description, ingredients (array), instructions (array), tags (array), estimatedMacros (optional).
-              If no recipes are found, return an empty array [].
+              content: `You are a recipe extraction system. Extract recipe information from HTML content.
+              Return a JSON object with a "recipes" array. Each recipe should have: name (string), description (string), ingredients (array of strings), instructions (array of strings), tags (array of strings), estimatedMacros (optional object with calories, protein, carbs, fat).
+              If no recipes are found, return {"recipes": []}.
               Maximum 10 recipes per source.`,
             },
             {
@@ -65,12 +65,35 @@ export async function POST(request: NextRequest) {
           max_tokens: 2000,
         });
 
-        const result = JSON.parse(completion.choices[0].message.content || '{}');
-        const extractedRecipes = result.recipes || [];
+        const raw = completion.choices[0]?.message?.content || '{}';
+        let result: any;
+        try {
+          result = JSON.parse(raw);
+        } catch (parseErr: any) {
+          errors.push({
+            url: source.url,
+            error: `Malformed AI JSON: ${parseErr.message || 'parse failed'}`,
+          });
+          continue;
+        }
+
+        const extractedRecipes = Array.isArray(result?.recipes) ? result.recipes : [];
+        if (!Array.isArray(result?.recipes)) {
+          errors.push({
+            url: source.url,
+            error: 'AI response missing recipes array',
+          });
+        }
 
         extractedRecipes.forEach((recipe: any) => {
+          if (!recipe || typeof recipe.name !== 'string') return;
           recipes.push({
-            ...recipe,
+            name: recipe.name,
+            description: typeof recipe.description === 'string' ? recipe.description : undefined,
+            ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.filter((i: any) => typeof i === 'string') : [],
+            instructions: Array.isArray(recipe.instructions) ? recipe.instructions.filter((i: any) => typeof i === 'string') : [],
+            tags: Array.isArray(recipe.tags) ? recipe.tags.filter((t: any) => typeof t === 'string') : [],
+            estimatedMacros: recipe.estimatedMacros && typeof recipe.estimatedMacros === 'object' ? recipe.estimatedMacros : undefined,
             sourceUrl: source.url,
           });
         });
