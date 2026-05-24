@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { SeverityLevel, Symptom } from '@/types';
 import { FoodLog } from '@/types';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
+import { rankSuspectFoods } from '@/lib/suspectFoods';
+import { generateInsights } from '@/lib/generateInsights';
 
 interface LogSymptomModalProps {
   isOpen: boolean;
@@ -51,7 +53,20 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
   const updateSymptom = useAppStore((state) => state.updateSymptom);
   const foodLogs = useAppStore((state) => state.foodLogs);
   const symptoms = useAppStore((state) => state.symptoms);
+  const experiments = useAppStore((state) => state.experiments);
   const voice = useVoiceCapture();
+
+  const effectiveType = type === 'other' ? customType : type;
+  const suspectFoods = useMemo(() => {
+    if (!effectiveType) return [];
+    const recent48h = foodLogs.filter((f) => {
+      const t = f.timestamp instanceof Date ? f.timestamp.getTime() : new Date(f.timestamp).getTime();
+      return (Date.now() - t) / 3.6e6 <= 48;
+    });
+    if (recent48h.length === 0) return [];
+    const insights = generateInsights(foodLogs, symptoms, experiments);
+    return rankSuspectFoods(effectiveType, recent48h, insights, symptoms);
+  }, [effectiveType, foodLogs, symptoms, experiments]);
 
   const handleVoiceClick = async () => {
     if (voice.recording) {
@@ -414,6 +429,35 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 Did a specific food cause this symptom?
               </p>
+
+              {suspectFoods.length > 0 && (
+                <div className="mb-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+                  <p className="text-xs font-medium text-orange-800 dark:text-orange-200 mb-2">
+                    Likely culprits (based on your history)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {suspectFoods.map((suspect) => (
+                      <button
+                        key={suspect.foodLogId}
+                        type="button"
+                        onClick={() => setLinkedFoodId(suspect.foodLogId)}
+                        title={suspect.reasons.join(' • ')}
+                        className={`text-left px-3 py-1.5 rounded text-xs border ${
+                          linkedFoodId === suspect.foodLogId
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'bg-white dark:bg-gray-800 border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-200 hover:bg-orange-100 dark:hover:bg-orange-900/40'
+                        }`}
+                      >
+                        <div className="font-medium">{suspect.food}</div>
+                        <div className="opacity-75">
+                          {suspect.hoursAgo.toFixed(1)}h ago • score {Math.round(suspect.score)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <select
                 value={linkedFoodId}
                 onChange={(e) => setLinkedFoodId(e.target.value)}

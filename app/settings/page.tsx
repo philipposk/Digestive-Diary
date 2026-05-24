@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { getTheme, setTheme, applyTheme, type Theme } from '@/lib/theme';
 import { useAppStore } from '@/lib/store';
 import { FastingSettings, AutoScanSettings } from '@/types';
+import { runScan } from '@/lib/autoScanScheduler';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
@@ -15,6 +16,8 @@ export default function SettingsPage() {
   const recipeSourcesSettings = useAppStore((state) => state.recipeSourcesSettings);
   const setRecipeSourcesSettings = useAppStore((state) => state.setRecipeSourcesSettings);
   const addFoodLog = useAppStore((state) => state.addFoodLog);
+  const addPhotoUpload = useAppStore((state) => state.addPhotoUpload);
+  const photoUploads = useAppStore((state) => state.photoUploads);
 
   useEffect(() => {
     setCurrentTheme(getTheme());
@@ -181,109 +184,21 @@ export default function SettingsPage() {
                 </div>
                 
                 <button
-                  onClick={async () => {
-                    // Create file input for multiple photos
+                  onClick={() => {
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = 'image/*';
                     input.multiple = true;
-                    
                     input.onchange = async (e) => {
-                      const files = (e.target as HTMLInputElement).files;
-                      if (!files || files.length === 0) return;
-                      
-                      let processed = 0;
-                      let skipped = 0;
-                      
-                      for (const file of Array.from(files)) {
-                        // Generate simple hash from file name + size + last modified
-                        const fileHash = `${file.name}-${file.size}-${file.lastModified}`;
-                        
-                        // Skip if already processed
-                        if (autoScanSettings.processedPhotos.includes(fileHash)) {
-                          skipped++;
-                          continue;
-                        }
-                        
-                        try {
-                          // Convert to base64
-                          const base64 = await new Promise<string>((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              const base64String = (reader.result as string).split(',')[1];
-                              resolve(base64String);
-                            };
-                            reader.onerror = reject;
-                            reader.readAsDataURL(file);
-                          });
-                          
-                          // Detect if it's a food photo
-                          const detectResponse = await fetch('/api/openai/detect-food-photo', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ imageBase64: base64 }),
-                          });
-                          
-                          if (!detectResponse.ok) continue;
-                          
-                          const detection = await detectResponse.json();
-                          
-                          if (detection.isFood && detection.confidence > 0.7) {
-                            // Analyze food and macros
-                            const foodResponse = await fetch('/api/openai/analyze-image', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ imageBase64: base64 }),
-                            });
-                            
-                            const macroResponse = await fetch('/api/openai/analyze-food-macros', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ 
-                                imageBase64: base64,
-                                foodName: detection.foodDetected || '',
-                              }),
-                            });
-                            
-                            const foodData = foodResponse.ok ? await foodResponse.json() : {};
-                            const macroData = macroResponse.ok ? await macroResponse.json() : {};
-                            
-                            // Estimate timestamp from file date or use now
-                            const photoDate = file.lastModified ? new Date(file.lastModified) : new Date();
-                            
-                            // Add food log
-                            addFoodLog({
-                              food: foodData.food || detection.foodDetected || 'Food from photo',
-                              quantity: foodData.quantity || detection.portionSize,
-                              tags: foodData.tags || [],
-                              notes: `Auto-detected from photo (${detection.setting || 'album'})`,
-                              macros: macroData.calories ? {
-                                calories: macroData.calories,
-                                protein: macroData.protein || 0,
-                                carbs: macroData.carbs || 0,
-                                fat: macroData.fat || 0,
-                                fiber: macroData.fiber || 0,
-                              } : undefined,
-                              portionWeight: macroData.portionWeight,
-                            });
-                            
-                            // Mark as processed
-                            setAutoScanSettings({
-                              ...autoScanSettings,
-                              processedPhotos: [...autoScanSettings.processedPhotos, fileHash],
-                              lastScanTime: new Date(),
-                            });
-                            
-                            processed++;
-                          }
-                        } catch (error) {
-                          console.error('Error processing photo:', error);
-                        }
-                      }
-                      
-                      alert(`Processed ${processed} food photos. Skipped ${skipped} duplicates.`);
+                      const files = Array.from((e.target as HTMLInputElement).files || []);
+                      if (files.length === 0) return;
+                      const r = await runScan(files, autoScanSettings, photoUploads, {
+                        addFoodLog,
+                        addPhotoUpload,
+                        setAutoScanSettings,
+                      });
+                      alert(`Logged ${r.processed} food photos. Skipped ${r.skipped} duplicates. ${r.notFood} not food. ${r.failed} failed.`);
                     };
-                    
                     input.click();
                   }}
                   className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm"

@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/navigation/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
 import FloatingChatButton from "@/components/chat/FloatingChatButton";
+import AutoScanRunner from "@/components/AutoScanRunner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,11 +25,11 @@ export default function RootLayout({
           <main className="min-h-screen pb-20 bg-white dark:bg-gray-950 w-full">
             {children}
           </main>
-                <BottomNav />
-                <FloatingChatButton />
-              </ThemeProvider>
-            </body>
-          </html>
-        );
-      }
-
+          <BottomNav />
+          <FloatingChatButton />
+          <AutoScanRunner />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

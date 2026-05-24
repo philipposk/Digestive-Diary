@@ -18,13 +18,23 @@ export default function RecipesPage() {
   const experiments = useAppStore((state) => state.experiments);
   const foodLogs = useAppStore((state) => state.foodLogs);
 
-  // Initialize recipes on first load
+  // Initialize recipes on first load. Also re-seed if the persisted set is the old
+  // placeholder dataset (Sample Recipe Collection / "Main ingredient" boilerplate).
   useEffect(() => {
-    if (recipes.length === 0) {
-      const sampleRecipes = generateSampleRecipes();
-      setRecipes(sampleRecipes);
+    const looksStale = recipes.length > 0 && recipes.some(
+      (r) =>
+        r.sourceName === 'Sample Recipe Collection' ||
+        (Array.isArray(r.ingredients) && r.ingredients.some((i) => typeof i === 'string' && i.startsWith('Main ingredient')))
+    );
+    if (recipes.length === 0 || looksStale) {
+      const curated = generateSampleRecipes();
+      const keepUserRecipes = recipes.filter((r) =>
+        r.sourceName !== 'Sample Recipe Collection' &&
+        !(Array.isArray(r.ingredients) && r.ingredients.some((i) => typeof i === 'string' && i.startsWith('Main ingredient')))
+      );
+      setRecipes([...curated, ...keepUserRecipes]);
     }
-  }, [recipes.length, setRecipes]);
+  }, [recipes, setRecipes]);
 
   // Extract common tags from food logs
   const commonTags = useMemo(() => {
@@ -49,12 +59,20 @@ export default function RecipesPage() {
     return Array.from(tagSet).sort();
   }, [recipes]);
 
-  // Filter recipes based on selected tag and enabled sources
+  // Filter recipes based on selected tag, enabled sources, and active-experiment restrictions
   const filteredRecipes = useMemo(() => {
     let filtered = recipes.filter(recipe => {
-      // Filter by enabled sources (match by URL domain)
+      // Drop recipes whose tags or name contain any restricted ingredient
+      if (allRestrictions.length > 0) {
+        const haystack = [recipe.name, ...(recipe.tags || [])].join(' ').toLowerCase();
+        for (const r of allRestrictions) {
+          if (!r) continue;
+          if (haystack.includes(r)) return false;
+        }
+      }
+      // Filter by enabled sources (match by URL domain). Curated recipes have no sourceUrl and always pass.
       if (recipe.sourceUrl) {
-        const sourceUrl = recipe.sourceUrl; // Type narrowing
+        const sourceUrl = recipe.sourceUrl;
         const sourceEnabled = recipeSourcesSettings.sources.some(s => {
           if (!s.enabled) return false;
           try {
@@ -67,7 +85,6 @@ export default function RecipesPage() {
         });
         if (!sourceEnabled) return false;
       }
-      // Filter by selected tag
       if (selectedTag) {
         return recipe.tags.includes(selectedTag);
       }
@@ -85,17 +102,35 @@ export default function RecipesPage() {
     }
 
     return filtered;
-  }, [recipes, selectedTag, query, recipeSourcesSettings]);
+  }, [recipes, selectedTag, query, recipeSourcesSettings, allRestrictions]);
 
-  // Get active experiment restrictions
+  // Parse active experiments into structured dietary restrictions.
   const activeExperiments = useMemo(() => {
-    return experiments.filter(e => e.active).map(e => ({
-      name: e.name.toLowerCase(),
-      restrictions: e.name.toLowerCase().includes('no') || e.name.toLowerCase().includes('avoid')
-        ? e.name.toLowerCase().replace(/no|avoid|test/gi, '').trim().split(/\s+/)
-        : []
-    }));
+    const RESTRICTION_PATTERNS: Array<{ re: RegExp; produce: (m: RegExpMatchArray) => string[] }> = [
+      { re: /no\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
+      { re: /avoid\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
+      { re: /low[-\s]?fodmap/i, produce: () => ['high-fodmap', 'onion', 'garlic'] },
+      { re: /dairy[-\s]?free/i, produce: () => ['dairy'] },
+      { re: /gluten[-\s]?free/i, produce: () => ['gluten'] },
+      { re: /vegan/i, produce: () => ['meat', 'dairy', 'egg'] },
+    ];
+    return experiments
+      .filter((e) => e.active)
+      .map((e) => {
+        const lower = e.name.toLowerCase();
+        const restrictions = new Set<string>();
+        for (const { re, produce } of RESTRICTION_PATTERNS) {
+          const m = lower.match(re);
+          if (m) produce(m).forEach((r) => restrictions.add(r));
+        }
+        return { name: lower, restrictions: Array.from(restrictions) };
+      });
   }, [experiments]);
+
+  const allRestrictions = useMemo(
+    () => Array.from(new Set(activeExperiments.flatMap((e) => e.restrictions))),
+    [activeExperiments]
+  );
 
   const handleSearch = async () => {
     if (!query.trim() && commonTags.length === 0 && activeExperiments.length === 0) {
@@ -120,7 +155,8 @@ export default function RecipesPage() {
         body: JSON.stringify({
           query: query.trim() || 'healthy recipes',
           context: context.join('. '),
-          restrictions: activeExperiments.flatMap(e => e.restrictions),
+          restrictions: allRestrictions,
+          dietaryRestrictions: allRestrictions,
           preferredTags: commonTags,
         }),
       });
