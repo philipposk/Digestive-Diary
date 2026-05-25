@@ -1,434 +1,409 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
+import Tag from '@/components/ui/Tag';
+import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
 
-interface LogFoodModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const commonTags = ['dairy', 'gluten', 'spicy', 'raw', 'processed', 'fiber-rich', 'fatty', 'alcohol'];
+const commonTags = ['dairy', 'gluten', 'spicy', 'raw', 'processed', 'fiber-rich', 'fatty', 'alcohol', 'sugar'];
 
-export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
+interface ParsedItem {
+  name: string;
+  quantity?: string;
+  tags: string[];
+}
+
+export default function LogFoodModal({ isOpen, onClose }: Props) {
   const [food, setFood] = useState('');
   const [quantity, setQuantity] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [macros, setMacros] = useState<{ calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number; } | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [macros, setMacros] = useState<{ calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number } | null>(null);
   const [portionWeight, setPortionWeight] = useState<number | undefined>(undefined);
-  const [showMacros, setShowMacros] = useState(false);
-  const [voiceParsing, setVoiceParsing] = useState(false);
-  const addFoodLog = useAppStore((state) => state.addFoodLog);
+  const [parsed, setParsed] = useState<ParsedItem[] | null>(null);
+  const [parseMs, setParseMs] = useState<number | null>(null);
+  const [parsing, setParsing] = useState(false);
+
+  const addFoodLog = useAppStore((s) => s.addFoodLog);
   const voice = useVoiceCapture();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFood(''); setQuantity(''); setSelectedTags([]); setNotes('');
+      setImagePreview(null); setMacros(null); setPortionWeight(undefined);
+      setParsed(null); setParseMs(null); setAnalyzing(false); setParsing(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const toggleTag = (t: string) =>
+    setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+
+  const parseFood = async (text: string) => {
+    if (!text.trim()) return;
+    setParsing(true);
+    const t0 = Date.now();
+    try {
+      const res = await fetch('/api/openai/parse-food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const foods: ParsedItem[] = Array.isArray(data?.foods) ? data.foods.map((f: any) => ({
+        name: String(f?.name ?? '').trim(),
+        quantity: f?.quantity ? String(f.quantity) : undefined,
+        tags: Array.isArray(f?.tags) ? f.tags.filter((x: any) => typeof x === 'string') : [],
+      })).filter((f: ParsedItem) => f.name) : [];
+      if (foods.length > 0) {
+        setParsed(foods);
+        setParseMs(Date.now() - t0);
+        if (foods[0]?.name) setFood((cur) => cur || foods[0].name);
+        if (foods[0]?.quantity) setQuantity((cur) => cur || foods[0].quantity || '');
+        const tagPool = Array.from(new Set([
+          ...foods.flatMap((f) => f.tags),
+          ...(Array.isArray(data?.suggested_tags) ? data.suggested_tags : []),
+        ].map((t: any) => String(t).toLowerCase())));
+        const matched = tagPool.filter((t) => commonTags.includes(t));
+        if (matched.length > 0) setSelectedTags((prev) => Array.from(new Set([...prev, ...matched])));
+      }
+    } catch {
+      // silent
+    } finally {
+      setParsing(false);
+    }
+  };
 
   const handleVoiceClick = async () => {
     if (voice.recording) {
       const transcript = await voice.stop();
       if (!transcript) return;
       setFood(transcript);
-      setVoiceParsing(true);
-      try {
-        const res = await fetch('/api/openai/parse-food', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: transcript }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const first = Array.isArray(data?.foods) && data.foods.length > 0 ? data.foods[0] : null;
-          if (first?.name) setFood(first.name);
-          if (first?.quantity) setQuantity(first.quantity);
-          const tagPool = [
-            ...(Array.isArray(first?.tags) ? first.tags : []),
-            ...(Array.isArray(data?.suggested_tags) ? data.suggested_tags : []),
-          ].map((t: any) => String(t).toLowerCase());
-          const matched = Array.from(new Set(tagPool.filter((t) => commonTags.includes(t))));
-          if (matched.length > 0) setSelectedTags(matched);
-        }
-      } catch {
-        // Silent — transcript already in food field
-      } finally {
-        setVoiceParsing(false);
-      }
+      await parseFood(transcript);
     } else {
       await voice.start();
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!food.trim()) return;
-
-    addFoodLog({
-      food: food.trim(),
-      quantity: quantity.trim() || undefined,
-      tags: selectedTags,
-      notes: notes.trim() || undefined,
-      macros: macros || undefined,
-      portionWeight: portionWeight,
-    });
-
-    // Reset form
-    setFood('');
-    setQuantity('');
-    setSelectedTags([]);
-    setNotes('');
-    setImagePreview(null);
-    setMacros(null);
-    setPortionWeight(undefined);
-    setShowMacros(false);
-    onClose();
-  };
-
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate image type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
-      return;
-    }
-
-    // Create preview
+    if (!file.type.startsWith('image/')) { alert('Please pick an image.'); return; }
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
+    reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
 
-    // Analyze image
-    setIsAnalyzing(true);
+    setAnalyzing(true);
     try {
-      // Convert to base64
       const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = (reader.result as string).split(',')[1];
-          resolve(base64String);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        const r = new FileReader();
+        r.onloadend = () => resolve((r.result as string).split(',')[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
       });
-
-      const response = await fetch('/api/openai/analyze-image', {
+      const res = await fetch('/api/openai/analyze-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64 }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to analyze image');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.food) setFood(data.food);
+        if (data.quantity) setQuantity(data.quantity);
+        if (Array.isArray(data.tags)) {
+          setSelectedTags(data.tags.filter((t: string) => commonTags.includes(t.toLowerCase())));
+        }
+        if (data.notes) setNotes(data.notes);
+        if (data.macros) setMacros(data.macros);
       }
-
-      const data = await response.json();
-      
-      // Populate form with extracted data
-      if (data.food) setFood(data.food);
-      if (data.quantity) setQuantity(data.quantity);
-      if (data.tags && Array.isArray(data.tags)) {
-        setSelectedTags(data.tags.filter((tag: string) => commonTags.includes(tag.toLowerCase())));
-      }
-      if (data.notes) setNotes(data.notes);
-      if (data.macros) {
-        setMacros(data.macros);
-        setShowMacros(true);
-      }
-
-      // Also analyze for macro estimation if no macros from label
-      if (!data.macros || !data.macros.calories) {
-        try {
-          const macroResponse = await fetch('/api/openai/analyze-food-macros', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              imageBase64: base64,
-              foodName: data.food || food,
-              quantity: data.quantity || quantity,
-            }),
+      // macro estimation pass
+      const mres = await fetch('/api/openai/analyze-food-macros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, foodName: food, quantity }),
+      });
+      if (mres.ok) {
+        const md = await mres.json();
+        if (md.portionWeight || md.calories) {
+          setMacros({
+            calories: md.calories || 0,
+            protein: md.protein || 0,
+            carbs: md.carbs || 0,
+            fat: md.fat || 0,
+            fiber: md.fiber || 0,
           });
-
-          if (macroResponse.ok) {
-            const macroData = await macroResponse.json();
-            if (macroData.portionWeight || macroData.calories) {
-              setMacros({
-                calories: macroData.calories || 0,
-                protein: macroData.protein || 0,
-                carbs: macroData.carbs || 0,
-                fat: macroData.fat || 0,
-                fiber: macroData.fiber || 0,
-              });
-              setPortionWeight(macroData.portionWeight || undefined);
-              setShowMacros(true);
-            }
-          }
-        } catch (macroError) {
-          // Silent fail - macros optional
-          console.log('Macro analysis not available');
+          setPortionWeight(md.portionWeight || undefined);
         }
       }
-    } catch (error) {
-      console.error('Image analysis error:', error);
-      alert('Failed to analyze image. Please enter food manually.');
+    } catch {
+      alert('Image analysis failed. Enter food manually.');
     } finally {
-      setIsAnalyzing(false);
+      setAnalyzing(false);
     }
   };
 
-  const clearImage = () => {
-    setImagePreview(null);
+  const removeParsed = (idx: number) => setParsed((p) => p && p.filter((_, i) => i !== idx));
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parsed && parsed.length > 0) {
+      parsed.forEach((p) => {
+        addFoodLog({
+          food: p.name,
+          quantity: p.quantity,
+          tags: p.tags.length > 0 ? p.tags : selectedTags,
+          notes: notes.trim() || undefined,
+        });
+      });
+    } else {
+      if (!food.trim()) return;
+      addFoodLog({
+        food: food.trim(),
+        quantity: quantity.trim() || undefined,
+        tags: selectedTags,
+        notes: notes.trim() || undefined,
+        macros: macros || undefined,
+        portionWeight,
+      });
+    }
+    onClose();
   };
 
+  const saveLabel = parsed && parsed.length > 0
+    ? `Save ${parsed.length} item${parsed.length === 1 ? '' : 's'}`
+    : 'Save';
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">Log Food</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Food *</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={food}
-                  onChange={(e) => setFood(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-primary-500"
-                  placeholder="e.g., Pasta with cheese"
-                  autoFocus
-                  required
-                />
-                <label className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer" title="Upload photo from camera or album">
-                  📷
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto bg-app"
+        style={{
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderTop: '1px solid var(--border)',
+          boxShadow: '0 -16px 40px rgba(0,0,0,0.18)',
+        }}
+      >
+        <div className="px-5 pt-2.5 pb-6">
+          <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
+
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="m-0 font-heading text-[22px] tracking-head ink">Log food</h2>
+            <button onClick={onClose} aria-label="Close" className="muted hover:text-ink">
+              <IconClose size={18} />
+            </button>
+          </div>
+
+          <form onSubmit={submit} className="space-y-3.5">
+            <div className="card p-3.5 min-h-[100px] relative">
+              <textarea
+                value={food}
+                onChange={(e) => setFood(e.target.value)}
+                onBlur={() => food.trim() && parseFood(food.trim())}
+                placeholder="What did you eat? e.g. 'sourdough toast with avocado and two eggs'"
+                rows={3}
+                className="w-full bg-transparent border-0 outline-none text-[15px] ink resize-none"
+                autoFocus
+              />
+              <div className="absolute right-3 bottom-3 flex gap-1.5">
+                {voice.supported && (
+                  <button
+                    type="button"
+                    onClick={handleVoiceClick}
+                    aria-label={voice.recording ? 'Stop' : 'Dictate'}
+                    className="px-2 py-1 rounded-full"
+                    style={{
+                      border: '1px solid var(--border)',
+                      color: voice.recording ? '#fff' : 'var(--ink-soft)',
+                      background: voice.recording ? '#ef4444' : 'transparent',
+                    }}
+                  >
+                    <IconMic size={13} />
+                  </button>
+                )}
+                <label
+                  className="px-2 py-1 rounded-full cursor-pointer"
+                  style={{ border: '1px solid var(--border)', color: 'var(--ink-soft)' }}
+                  title="Photo"
+                >
+                  <IconCamera size={13} />
                   <input
+                    ref={fileRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
                     onChange={handleImageUpload}
                     className="hidden"
-                    disabled={isAnalyzing}
+                    disabled={analyzing}
                   />
                 </label>
-                {voice.supported && (
-                  <button
-                    type="button"
-                    onClick={handleVoiceClick}
-                    disabled={voice.transcribing || voiceParsing}
-                    title={voice.recording ? 'Stop recording' : 'Dictate food name'}
-                    aria-label={voice.recording ? 'Stop recording' : 'Start voice logging'}
-                    className={`px-4 py-2 border rounded-lg ${
-                      voice.recording
-                        ? 'bg-red-500 text-white border-red-500 animate-pulse'
-                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                    } disabled:opacity-50`}
-                  >
-                    {voice.recording ? '■' : '🎤'}
-                  </button>
+              </div>
+            </div>
+
+            {(parsing || parsed) && (
+              <div
+                className="px-3 py-2.5 rounded-card flex items-center gap-2.5"
+                style={{ background: 'var(--surface-alt)', border: '1px dashed var(--border-strong)' }}
+              >
+                <div
+                  className="w-[18px] h-[18px] rounded-md flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+                >
+                  <IconSpark size={11} stroke={2} />
+                </div>
+                <div className="flex-1 text-[12.5px] ink-soft">
+                  {parsing
+                    ? 'Parsing…'
+                    : <>Parsed as <b className="ink">{parsed!.length} item{parsed!.length === 1 ? '' : 's'}</b> — adjust before saving.</>}
+                </div>
+                {parseMs !== null && (
+                  <span className="font-mono text-[10px] muted">{parseMs}ms</span>
                 )}
               </div>
-              {isAnalyzing && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Analyzing image...
-                </p>
-              )}
-              {voice.recording && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Recording… tap ■ when done.</p>
-              )}
-              {voice.transcribing && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Transcribing audio…</p>
-              )}
-              {voiceParsing && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Parsing food details…</p>
-              )}
-              {voice.error && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{voice.error}</p>
-              )}
-              {imagePreview && (
-                <div className="mt-2 relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="max-w-full max-h-48 rounded-lg border border-gray-300 dark:border-gray-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={clearImage}
-                    className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Quantity (optional)</label>
-              <input
-                type="text"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                placeholder="e.g., Large bowl, 2 slices"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Tags (optional)</label>
-              <div className="flex flex-wrap gap-2">
-                {commonTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      selectedTags.includes(tag)
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
+            {parsed && parsed.length > 0 && (
+              <div className="space-y-1.5">
+                {parsed.map((it, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-card"
+                    style={{ border: '1px solid var(--border)' }}
                   >
-                    {tag}
-                  </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13.5px] ink truncate">{it.name}</div>
+                      {it.tags.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {it.tags.map((t) => <Tag key={t}>{t}</Tag>)}
+                        </div>
+                      )}
+                    </div>
+                    {it.quantity && <span className="font-mono text-[12px] muted">{it.quantity}</span>}
+                    <button
+                      type="button"
+                      onClick={() => removeParsed(i)}
+                      className="muted hover:text-ink"
+                      aria-label="Remove"
+                    >
+                      <IconClose size={14} />
+                    </button>
+                  </div>
                 ))}
               </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Notes (optional)</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                placeholder="Any additional notes..."
-                rows={3}
-              />
-            </div>
-
-            {showMacros && (
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium">Macronutrients (estimated)</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowMacros(false)}
-                    className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    Hide
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Calories</label>
-                    <input
-                      type="number"
-                      value={macros?.calories || ''}
-                      onChange={(e) => setMacros({ ...macros, calories: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                      placeholder="kcal"
-                    />
-                  </div>
-                  {portionWeight !== undefined && (
-                    <div>
-                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Weight (g)</label>
-                      <input
-                        type="number"
-                        value={portionWeight}
-                        onChange={(e) => setPortionWeight(e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                        placeholder="grams"
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Protein (g)</label>
-                    <input
-                      type="number"
-                      value={macros?.protein || ''}
-                      onChange={(e) => setMacros({ ...macros, protein: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                      placeholder="g"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Carbs (g)</label>
-                    <input
-                      type="number"
-                      value={macros?.carbs || ''}
-                      onChange={(e) => setMacros({ ...macros, carbs: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                      placeholder="g"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Fat (g)</label>
-                    <input
-                      type="number"
-                      value={macros?.fat || ''}
-                      onChange={(e) => setMacros({ ...macros, fat: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                      placeholder="g"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Fiber (g)</label>
-                    <input
-                      type="number"
-                      value={macros?.fiber || ''}
-                      onChange={(e) => setMacros({ ...macros, fiber: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                      placeholder="g"
-                    />
-                  </div>
-                </div>
+            {imagePreview && (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imagePreview} alt="" className="w-full rounded-card max-h-48 object-cover" />
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowMacros(false);
-                    setMacros(null);
-                    setPortionWeight(undefined);
-                  }}
-                  className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  onClick={() => setImagePreview(null)}
+                  className="absolute top-2 right-2 px-2 py-1 rounded-full text-white"
+                  style={{ background: 'rgba(0,0,0,0.55)' }}
                 >
-                  Clear macros
+                  ✕
                 </button>
               </div>
             )}
+            {analyzing && <p className="text-[11.5px] muted">Analyzing image…</p>}
 
-            {!showMacros && (
-              <button
-                type="button"
-                onClick={() => setShowMacros(true)}
-                className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-              >
-                + Add macronutrients manually
-              </button>
+            {!parsed && (
+              <div>
+                <div className="eyebrow mb-1.5">Quantity (optional)</div>
+                <input
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="e.g. large bowl, 2 slices"
+                  className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                  style={{ border: '1px solid var(--border)' }}
+                />
+              </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div>
+              <div className="eyebrow mb-1.5">Tags</div>
+              <div className="flex flex-wrap gap-1.5">
+                {commonTags.map((t) => {
+                  const on = selectedTags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => toggleTag(t)}
+                      className="px-2.5 py-1 rounded-full text-[12px] capitalize"
+                      style={{
+                        background: on ? 'var(--ink)' : 'transparent',
+                        color: on ? 'var(--bg)' : 'var(--ink-soft)',
+                        border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                      }}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="eyebrow mb-1.5">Notes (optional)</div>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Anything to remember?"
+                className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </div>
+
+            {macros && (
+              <div className="card p-3">
+                <div className="eyebrow mb-1.5">Macros (estimated)</div>
+                <div className="grid grid-cols-4 gap-2 text-[12.5px] ink-soft">
+                  <div><span className="muted">kcal</span> {macros.calories ?? '—'}</div>
+                  <div><span className="muted">P</span> {macros.protein ?? '—'}g</div>
+                  <div><span className="muted">C</span> {macros.carbs ?? '—'}g</div>
+                  <div><span className="muted">F</span> {macros.fat ?? '—'}g</div>
+                </div>
+                {portionWeight && (
+                  <div className="mt-1.5 font-mono text-[11px] muted">{portionWeight}g portion</div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                className="px-4 py-3 rounded-full text-[13px]"
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                disabled={!food.trim() && (!parsed || parsed.length === 0)}
+                className="flex-1 px-4 py-3 rounded-full text-[14px] font-medium disabled:opacity-50"
+                style={{ background: 'var(--ink)', color: 'var(--bg)' }}
               >
-                Save
+                {saveLabel}
               </button>
             </div>
           </form>
@@ -437,4 +412,3 @@ export default function LogFoodModal({ isOpen, onClose }: LogFoodModalProps) {
     </div>
   );
 }
-

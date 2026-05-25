@@ -1,212 +1,204 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
-import { formatTime } from '@/lib/utils';
+import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
+import { IconChevL, IconMic, IconMore, IconUpRight } from '@/components/ui/Icon';
 
 function ChatPageContent() {
-  const searchParams = useSearchParams();
-  const queryParam = searchParams.get('query');
+  const params = useSearchParams();
+  const router = useRouter();
+  const queryParam = params.get('query');
 
-  const chatSession = useAppStore((state) => state.chatSession);
-  const addChatMessage = useAppStore((state) => state.addChatMessage);
-  const clearChatSession = useAppStore((state) => state.clearChatSession);
-  const foodLogs = useAppStore((state) => state.foodLogs);
-  const symptoms = useAppStore((state) => state.symptoms);
-  const experiments = useAppStore((state) => state.experiments);
-  const realizations = useAppStore((state) => state.realizations);
-  const sources = useAppStore((state) => state.sources);
+  const chatSession = useAppStore((s) => s.chatSession);
+  const addChatMessage = useAppStore((s) => s.addChatMessage);
+  const clearChatSession = useAppStore((s) => s.clearChatSession);
+  const foodLogs = useAppStore((s) => s.foodLogs);
+  const symptoms = useAppStore((s) => s.symptoms);
+  const experiments = useAppStore((s) => s.experiments);
+  const realizations = useAppStore((s) => s.realizations);
+  const sources = useAppStore((s) => s.sources);
 
   const [input, setInput] = useState(queryParam || '');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const [loading, setLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  const voice = useVoiceCapture();
 
   useEffect(() => {
-    scrollToBottom();
-  }, [chatSession?.messages]);
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatSession?.messages.length, loading]);
 
-  // Auto-send query if provided in URL
   useEffect(() => {
     if (queryParam && input && !chatSession?.messages.length) {
       const form = document.querySelector('form');
-      if (form) {
-        form.requestSubmit();
-      }
+      form?.requestSubmit();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryParam]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = input.trim();
+    if (!input.trim() || loading) return;
+    const msg = input.trim();
     setInput('');
-
-    // Add user message
-    addChatMessage({
-      role: 'user',
-      content: userMessage,
-    });
-
-    setIsLoading(true);
-
+    addChatMessage({ role: 'user', content: msg });
+    setLoading(true);
     try {
-      // Prepare user data
-      const userData = {
-        foodLogs: foodLogs.slice(0, 50), // Last 50 entries
-        symptoms: symptoms.slice(0, 50),
-        experiments: experiments,
-        realizations: realizations,
-      };
-
-      // Prepare chat history
-      const chatHistory = chatSession?.messages || [];
-      const updatedHistory = [
-        ...chatHistory,
-        { role: 'user' as const, content: userMessage },
-      ];
-
-      // Call API
-      const response = await fetch('/api/ai/chat', {
+      const history = chatSession?.messages || [];
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: userMessage,
-          userData,
-          chatHistory: chatHistory.slice(-10), // Last 10 messages for context
-          sources: sources.filter(s => s.content).slice(0, 10), // Only send sources with content
+          message: msg,
+          userData: {
+            foodLogs: foodLogs.slice(0, 50),
+            symptoms: symptoms.slice(0, 50),
+            experiments,
+            realizations,
+          },
+          chatHistory: history.slice(-10),
+          sources: sources.filter((s) => s.content).slice(0, 10),
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const data = await response.json();
-
-      // Add assistant message
-      addChatMessage({
-        role: 'assistant',
-        content: data.response,
-      });
-    } catch (error: any) {
-      console.error('Chat error:', error);
-      addChatMessage({
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-      });
+      if (!res.ok) throw new Error('Chat failed');
+      const data = await res.json();
+      addChatMessage({ role: 'assistant', content: data.response });
+    } catch {
+      addChatMessage({ role: 'assistant', content: 'Sorry, I hit an error. Try again.' });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  const handleMic = async () => {
+    if (voice.recording) {
+      const transcript = await voice.stop();
+      if (transcript) setInput((prev) => (prev.trim() ? `${prev.trim()} ${transcript}` : transcript));
+    } else {
+      await voice.start();
+    }
+  };
+
+  const messages = chatSession?.messages ?? [];
+
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 max-w-2xl flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold">AI Chat</h1>
-        {chatSession && chatSession.messages.length > 0 && (
+    <div className="w-full max-w-2xl mx-auto flex flex-col" style={{ minHeight: 'calc(100vh - 100px)' }}>
+      <div
+        className="flex items-center justify-between px-5 py-3.5"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-1 muted hover:text-ink text-[13px]"
+        >
+          <IconChevL size={16} /> Back
+        </button>
+        <div className="text-center">
+          <div className="font-heading text-[16px] tracking-head ink">Ask the diary</div>
+          <div className="eyebrow">Grounded in your logs</div>
+        </div>
+        <div className="relative">
           <button
-            onClick={clearChatSession}
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="muted hover:text-ink"
+            aria-label="More"
           >
-            Clear Chat
+            <IconMore size={18} />
           </button>
-        )}
+          {menuOpen && (
+            <div
+              className="absolute right-0 top-7 z-20 card p-1 text-[13px] min-w-[140px]"
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              <button
+                onClick={() => { clearChatSession(); setMenuOpen(false); }}
+                className="block w-full text-left px-3 py-2 hover:bg-surf-alt rounded-md ink-soft"
+              >
+                Clear chat
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-xs text-blue-800 dark:text-blue-200">
-          <strong>Note:</strong> This AI has access to all your logged data and remembers our conversation. It can help you understand patterns, but cannot provide medical advice. Always consult healthcare professionals for medical concerns.
-        </p>
-      </div>
-
-      <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-        {(!chatSession || chatSession.messages.length === 0) ? (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Start a conversation! Ask me about:
-            </p>
-            <ul className="text-sm text-gray-500 dark:text-gray-400 list-disc list-inside space-y-1">
-              <li>Patterns in your food and symptom logs</li>
-              <li>&quot;What should I stop eating?&quot; or &quot;What should I start eating?&quot;</li>
-              <li>&quot;Is my digestion relatively good?&quot;</li>
-              <li>Help organizing your realizations</li>
-              <li>Questions about your diet experiments</li>
-              <li>Summary of recent entries</li>
+      <div className="flex-1 px-5 py-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="card p-4">
+            <div className="eyebrow mb-1">Try asking</div>
+            <ul className="text-[13.5px] ink-soft space-y-1.5">
+              <li>· What foods most often precede my bloating?</li>
+              <li>· Did the no-dairy experiment help me?</li>
+              <li>· Summarize the last 7 days.</li>
+              <li>· What should I track more carefully?</li>
             </ul>
           </div>
         ) : (
-          chatSession.messages.map((message) => {
-            // Ensure timestamp is a Date object
-            const timestamp = message.timestamp instanceof Date 
-              ? message.timestamp 
-              : new Date(message.timestamp);
-            
+          messages.map((m) => {
+            const isUser = m.role === 'user';
             return (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  message.role === 'user'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold opacity-75">
-                    {message.role === 'user' ? 'You' : 'AI'}
-                  </span>
-                </div>
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    message.role === 'user'
-                      ? 'text-primary-100'
-                      : 'text-gray-500 dark:text-gray-400'
-                  }`}
+              <div key={m.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                <div
+                  className="max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[14px] leading-relaxed whitespace-pre-wrap"
+                  style={
+                    isUser
+                      ? { background: 'var(--ink)', color: 'var(--bg)' }
+                      : { background: 'transparent', color: 'var(--ink)', border: '1px solid var(--border)' }
+                  }
                 >
-                  {formatTime(timestamp)}
-                </p>
-              </div>
+                  {m.content}
+                </div>
               </div>
             );
           })
         )}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-              <p className="text-gray-500 dark:text-gray-400">Thinking...</p>
+        {loading && (
+          <div className="flex items-start">
+            <div className="px-3.5 py-2.5 rounded-2xl text-[13px] muted" style={{ border: '1px solid var(--border)' }}>
+              Thinking…
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={endRef} />
       </div>
 
-      <form onSubmit={handleSend} className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask me about your data..."
-          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || isLoading}
-          className="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          Send
-        </button>
+      <form onSubmit={handleSend} className="sticky bottom-0 px-4 pb-6 pt-3" style={{ background: 'linear-gradient(to top, var(--bg) 70%, transparent)' }}>
+        <div className="card flex items-center gap-2 pl-3.5 pr-1.5 py-1.5 rounded-full">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask about your patterns…"
+            disabled={loading}
+            className="flex-1 bg-transparent border-0 outline-none text-[14px] ink"
+          />
+          {voice.supported && (
+            <button
+              type="button"
+              onClick={handleMic}
+              disabled={voice.transcribing}
+              aria-label={voice.recording ? 'Stop recording' : 'Voice input'}
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{
+                background: voice.recording ? '#ef4444' : 'var(--surface-alt)',
+                color: voice.recording ? '#fff' : 'var(--ink-soft)',
+              }}
+            >
+              <IconMic size={15} />
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={!input.trim() || loading}
+            aria-label="Send"
+            className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+          >
+            <IconUpRight size={15} />
+          </button>
+        </div>
+        {voice.error && <p className="mt-1 text-[11px]" style={{ color: '#c44' }}>{voice.error}</p>}
       </form>
     </div>
   );
@@ -214,10 +206,8 @@ function ChatPageContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="w-full max-w-2xl mx-auto px-4 py-6"><p>Loading...</p></div>}>
+    <Suspense fallback={<div className="w-full max-w-2xl mx-auto px-5 py-6 muted">Loading…</div>}>
       <ChatPageContent />
     </Suspense>
   );
 }
-
-
