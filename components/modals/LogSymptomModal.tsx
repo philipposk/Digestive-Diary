@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { SeverityLevel, Symptom } from '@/types';
+import { SeverityLevel, Symptom, SymptomLocation } from '@/types';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 import { rankSuspectFoods } from '@/lib/suspectFoods';
 import { generateInsights } from '@/lib/generateInsights';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
+import BodyMapPicker from '@/components/ui/BodyMapPicker';
 
 interface Props {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [locations, setLocations] = useState<SymptomLocation[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const addSymptom = useAppStore((s) => s.addSymptom);
@@ -77,6 +79,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
       setType(''); setCustomType(''); setSeverity(5); setDuration(''); setNotes('');
       setLinkedFoodId(''); setLinkedSymptomId('');
       setPhotoUrl(''); setPhotoFile(null); setAiAnalysis(null); setAnalyzing(false);
+      setLocations([]);
     }
   }, [isOpen]);
 
@@ -143,6 +146,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
       linkedFoodId: linkedFoodId || undefined,
       linkedSymptomId: linkedSymptomId || undefined,
       photoUrl: photoUrl || undefined,
+      locations: locations.length > 0 ? locations : undefined,
       aiAnalysis: aiAnalysis
         ? {
             description: aiAnalysis.description,
@@ -243,6 +247,11 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
                 style={{ border: '1px solid var(--border)' }}
               />
             </label>
+
+            <div>
+              <div className="eyebrow mb-1.5">Location (optional)</div>
+              <BodyMapPicker value={locations} onChange={setLocations} />
+            </div>
 
             {suspectFoods.length > 0 && (
               <div

@@ -6,6 +6,16 @@ export type SleepQuality = 'poor' | 'ok' | 'good';
 export type StressLevel = 'low' | 'medium' | 'high';
 export type ActivityLevel = 'none' | 'light' | 'intense';
 export type BowelType = 'normal' | 'loose' | 'hard' | 'none';
+export type BristolType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type CyclePhase = 'menses' | 'follicular' | 'ovulation' | 'luteal';
+export type FlowLevel = 'spotting' | 'light' | 'medium' | 'heavy';
+
+export interface SymptomLocation {
+  view: 'front' | 'back';
+  x: number; // 0-100, percent of body-map width
+  y: number; // 0-100, percent of body-map height
+  label?: string;
+}
 
 export interface FoodLog {
   id: string;
@@ -34,6 +44,7 @@ export interface Symptom {
   linkedFoodId?: string; // Optional link to a food log that may have caused this
   photoUrl?: string; // URL or base64 data URL for symptom photos (rashes, skin issues, etc.)
   linkedSymptomId?: string; // Link to previous occurrence of same symptom (for evolution tracking)
+  locations?: SymptomLocation[]; // Optional body-map markers for pain/symptom location
   aiAnalysis?: {
     description?: string; // AI-generated description of what the photo shows
     suggestion?: string; // AI suggestion (e.g., "Consider consulting a doctor")
@@ -52,6 +63,10 @@ export interface Context {
   activityLevel?: ActivityLevel;
   bowelMovement?: boolean;
   bowelType?: BowelType;
+  bristolType?: BristolType; // Bristol Stool Scale 1-7
+  cyclePhase?: CyclePhase;   // Optional menstrual cycle phase context
+  cycleFlow?: FlowLevel;     // Flow heaviness if applicable
+  hydrationMl?: number;      // Water intake in millilitres
   timestamp: Date;
   notes?: string;
 }

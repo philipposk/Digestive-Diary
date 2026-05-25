@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { SleepQuality, StressLevel, ActivityLevel, BowelType } from '@/types';
+import { SleepQuality, StressLevel, ActivityLevel, BowelType, BristolType, CyclePhase, FlowLevel } from '@/types';
 import { IconClose } from '@/components/ui/Icon';
+import BristolPicker from '@/components/ui/BristolPicker';
 
 interface Props {
   isOpen: boolean;
@@ -52,6 +53,10 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | undefined>();
   const [bowelMovement, setBowelMovement] = useState<boolean | undefined>();
   const [bowelType, setBowelType] = useState<BowelType | undefined>();
+  const [bristolType, setBristolType] = useState<BristolType | undefined>();
+  const [cyclePhase, setCyclePhase] = useState<CyclePhase | undefined>();
+  const [cycleFlow, setCycleFlow] = useState<FlowLevel | undefined>();
+  const [hydrationMl, setHydrationMl] = useState<number | undefined>();
   const [notes, setNotes] = useState('');
 
   const addContext = useAppStore((s) => s.addContext);
@@ -61,7 +66,9 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
       setSleepQuality(undefined); setSleepDuration(undefined);
       setSleepStart(''); setSleepEnd('');
       setStressLevel(undefined); setActivityLevel(undefined);
-      setBowelMovement(undefined); setBowelType(undefined); setNotes('');
+      setBowelMovement(undefined); setBowelType(undefined);
+      setBristolType(undefined); setCyclePhase(undefined); setCycleFlow(undefined);
+      setHydrationMl(undefined); setNotes('');
     }
   }, [isOpen]);
 
@@ -93,6 +100,10 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
       activityLevel,
       bowelMovement,
       bowelType,
+      bristolType,
+      cyclePhase,
+      cycleFlow,
+      hydrationMl,
       notes: notes.trim() || undefined,
     });
     onClose();
@@ -211,15 +222,53 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             </div>
 
             {bowelMovement === true && (
+              <>
+                <div>
+                  <div className="eyebrow mb-1.5">Bristol stool scale</div>
+                  <BristolPicker value={bristolType} onChange={setBristolType} />
+                </div>
+                <div>
+                  <div className="eyebrow mb-1.5">Quality</div>
+                  <ChipRow<BowelType>
+                    options={['normal', 'loose', 'hard', 'none']}
+                    value={bowelType}
+                    onChange={setBowelType}
+                  />
+                </div>
+              </>
+            )}
+
+            <div>
+              <div className="eyebrow mb-1.5">Cycle phase (optional)</div>
+              <ChipRow<CyclePhase>
+                options={['menses', 'follicular', 'ovulation', 'luteal']}
+                value={cyclePhase}
+                onChange={setCyclePhase}
+              />
+            </div>
+
+            {cyclePhase === 'menses' && (
               <div>
-                <div className="eyebrow mb-1.5">Type</div>
-                <ChipRow<BowelType>
-                  options={['normal', 'loose', 'hard', 'none']}
-                  value={bowelType}
-                  onChange={setBowelType}
+                <div className="eyebrow mb-1.5">Flow</div>
+                <ChipRow<FlowLevel>
+                  options={['spotting', 'light', 'medium', 'heavy']}
+                  value={cycleFlow}
+                  onChange={setCycleFlow}
                 />
               </div>
             )}
+
+            <label className="block">
+              <span className="eyebrow">Hydration (ml)</span>
+              <input
+                type="number" min={0} max={6000} step={50}
+                value={hydrationMl ?? ''}
+                onChange={(e) => setHydrationMl(e.target.value ? Number(e.target.value) : undefined)}
+                placeholder="e.g. 1500"
+                className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </label>
 
             <label className="block">
               <span className="eyebrow">Notes</span>
