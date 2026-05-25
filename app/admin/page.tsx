@@ -1,137 +1,122 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { formatDate, formatTime } from '@/lib/utils';
+import PageHeader from '@/components/ui/PageHeader';
+import { Dot } from '@/components/ui/Icon';
+
+const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
+
+const TYPE_LABEL: Record<string, string> = {
+  recipe_source_error: 'Recipe source error',
+  api_error: 'API error',
+  other: 'Notification',
+};
 
 export default function AdminPage() {
-  const adminNotifications = useAppStore((state) => state.adminNotifications);
-  const resolveAdminNotification = useAppStore((state) => state.resolveAdminNotification);
-  const clearAdminNotifications = useAppStore((state) => state.clearAdminNotifications);
+  const notifs = useAppStore((s) => s.adminNotifications);
+  const resolveOne = useAppStore((s) => s.resolveAdminNotification);
+  const clearAll = useAppStore((s) => s.clearAdminNotifications);
 
-  const unresolvedNotifications = adminNotifications.filter(n => !n.resolved);
-  const resolvedNotifications = adminNotifications.filter(n => n.resolved);
-
-  const getNotificationColor = (type: string) => {
-    switch (type) {
-      case 'recipe_source_error':
-        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
-      case 'api_error':
-        return 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800';
-      default:
-        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800';
-    }
-  };
+  const open = notifs.filter((n) => !n.resolved);
+  const done = notifs.filter((n) => n.resolved);
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-semibold mb-6">Admin Notifications</h1>
-      
-      {adminNotifications.length === 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No notifications. The system will alert you here when recipe sources cannot be read or other issues occur.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {unresolvedNotifications.length > 0 && (
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-lg font-medium">Active Issues ({unresolvedNotifications.length})</h2>
-                {unresolvedNotifications.length > 0 && (
+    <div className="w-full max-w-2xl mx-auto">
+      <PageHeader
+        eyebrow="Diagnostics"
+        title="Admin notifications"
+        subtitle="System messages: failed recipe scrapes, API errors, other issues."
+      />
+
+      <section className="px-5 pb-10">
+        {notifs.length === 0 ? (
+          <div className="card p-4 muted text-[13.5px]">
+            Nothing here. The app will flag system errors as they happen.
+          </div>
+        ) : (
+          <>
+            {open.length > 0 && (
+              <div className="mb-5">
+                <div className="flex items-baseline justify-between mb-2">
+                  <h2 className="m-0 font-heading text-[17px] tracking-head ink">Active · {open.length}</h2>
                   <button
                     onClick={() => {
-                      if (confirm('Mark all as resolved?')) {
-                        unresolvedNotifications.forEach(n => resolveAdminNotification(n.id));
-                      }
+                      if (confirm('Mark all as resolved?')) open.forEach((n) => resolveOne(n.id));
                     }}
-                    className="px-3 py-1 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                    className="text-[12px] text-accent hover:underline"
                   >
-                    Resolve All
+                    Resolve all
                   </button>
-                )}
-              </div>
-              <div className="space-y-3">
-                {unresolvedNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`rounded-lg p-4 border ${getNotificationColor(notification.type)}`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium">
-                            {notification.type === 'recipe_source_error' && '🚨 Recipe Source Error'}
-                            {notification.type === 'api_error' && '⚠️ API Error'}
-                            {notification.type === 'other' && 'ℹ️ Notification'}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatDate(notification.timestamp)} {formatTime(notification.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">{notification.message}</p>
-                        {notification.details && (
-                          <details className="mt-2">
-                            <summary className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
-                              Show details
-                            </summary>
-                            <pre className="mt-2 p-2 bg-white dark:bg-gray-900 rounded text-xs overflow-auto max-h-40">
-                              {JSON.stringify(notification.details, null, 2)}
-                            </pre>
-                          </details>
-                        )}
+                </div>
+                <div className="space-y-2">
+                  {open.map((n) => (
+                    <article key={n.id} className="card p-3.5">
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <Dot size={6} color="var(--accent)" />
+                        <span className="eyebrow">{TYPE_LABEL[n.type] ?? n.type}</span>
+                        <span className="font-mono text-[11px] muted ml-auto">
+                          {toDate(n.timestamp).toLocaleString()}
+                        </span>
                       </div>
-                      <button
-                        onClick={() => resolveAdminNotification(notification.id)}
-                        className="ml-2 px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                      >
-                        Resolve
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                      <p className="m-0 text-[13.5px] ink-soft">{n.message}</p>
+                      {n.details && (
+                        <details className="mt-2">
+                          <summary className="text-[12px] muted cursor-pointer">Show details</summary>
+                          <pre
+                            className="mt-1 p-2 rounded-card text-[11px] overflow-auto max-h-40 font-mono"
+                            style={{ background: 'var(--surface-alt)' }}
+                          >
+{JSON.stringify(n.details, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          onClick={() => resolveOne(n.id)}
+                          className="px-3 py-1 rounded-full text-[12px]"
+                          style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+                        >
+                          Resolve
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {resolvedNotifications.length > 0 && (
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-lg font-medium text-gray-600 dark:text-gray-400">
-                  Resolved ({resolvedNotifications.length})
-                </h2>
-                <button
-                  onClick={() => {
-                    if (confirm('Clear all resolved notifications?')) {
-                      clearAdminNotifications();
-                    }
-                  }}
-                  className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  Clear All
-                </button>
-              </div>
-              <div className="space-y-2">
-                {resolvedNotifications.slice(0, 10).map((notification) => (
-                  <div
-                    key={notification.id}
-                    className="rounded-lg p-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 opacity-60"
+            {done.length > 0 && (
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <h2 className="m-0 font-heading text-[16px] tracking-head muted">Resolved · {done.length}</h2>
+                  <button
+                    onClick={() => {
+                      if (confirm('Clear all resolved notifications?')) clearAll();
+                    }}
+                    className="text-[12px] text-accent hover:underline"
                   >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          {formatDate(notification.timestamp)} {formatTime(notification.timestamp)}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{notification.message}</p>
-                      </div>
+                    Clear all
+                  </button>
+                </div>
+                <div className="space-y-2 opacity-65">
+                  {done.slice(0, 12).map((n) => (
+                    <div
+                      key={n.id}
+                      className="card p-3 flex items-baseline gap-2"
+                    >
+                      <span className="eyebrow">{TYPE_LABEL[n.type] ?? n.type}</span>
+                      <span className="text-[13px] ink-soft flex-1 min-w-0 truncate">{n.message}</span>
+                      <span className="font-mono text-[11px] muted">
+                        {toDate(n.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

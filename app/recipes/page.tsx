@@ -1,67 +1,55 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Recipe } from '@/types';
 import { generateSampleRecipes } from '@/lib/generateRecipes';
+import PageHeader from '@/components/ui/PageHeader';
+import Tag from '@/components/ui/Tag';
+import { IconSearch, IconUpRight } from '@/components/ui/Icon';
 import Link from 'next/link';
 
 export default function RecipesPage() {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [showPreloaded, setShowPreloaded] = useState(true);
-  
-  const recipes = useAppStore((state) => state.recipes);
-  const setRecipes = useAppStore((state) => state.setRecipes);
-  const recipeSourcesSettings = useAppStore((state) => state.recipeSourcesSettings);
-  const experiments = useAppStore((state) => state.experiments);
-  const foodLogs = useAppStore((state) => state.foodLogs);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  // Initialize recipes on first load. Also re-seed if the persisted set is the old
-  // placeholder dataset (Sample Recipe Collection / "Main ingredient" boilerplate).
+  const recipes = useAppStore((s) => s.recipes);
+  const setRecipes = useAppStore((s) => s.setRecipes);
+  const recipeSourcesSettings = useAppStore((s) => s.recipeSourcesSettings);
+  const experiments = useAppStore((s) => s.experiments);
+  const foodLogs = useAppStore((s) => s.foodLogs);
+
   useEffect(() => {
-    const looksStale = recipes.length > 0 && recipes.some(
-      (r) =>
-        r.sourceName === 'Sample Recipe Collection' ||
-        (Array.isArray(r.ingredients) && r.ingredients.some((i) => typeof i === 'string' && i.startsWith('Main ingredient')))
+    const stale = recipes.length > 0 && recipes.some(
+      (r) => r.sourceName === 'Sample Recipe Collection'
+        || (Array.isArray(r.ingredients) && r.ingredients.some((i) => typeof i === 'string' && i.startsWith('Main ingredient')))
     );
-    if (recipes.length === 0 || looksStale) {
+    if (recipes.length === 0 || stale) {
       const curated = generateSampleRecipes();
-      const keepUserRecipes = recipes.filter((r) =>
-        r.sourceName !== 'Sample Recipe Collection' &&
-        !(Array.isArray(r.ingredients) && r.ingredients.some((i) => typeof i === 'string' && i.startsWith('Main ingredient')))
+      const keep = recipes.filter(
+        (r) => r.sourceName !== 'Sample Recipe Collection'
+          && !(Array.isArray(r.ingredients) && r.ingredients.some((i) => typeof i === 'string' && i.startsWith('Main ingredient')))
       );
-      setRecipes([...curated, ...keepUserRecipes]);
+      setRecipes([...curated, ...keep]);
     }
   }, [recipes, setRecipes]);
 
-  // Extract common tags from food logs
   const commonTags = useMemo(() => {
-    const tagCounts = new Map<string, number>();
-    foodLogs.forEach(log => {
-      log.tags.forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-      });
-    });
-    return Array.from(tagCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([tag]) => tag);
+    const counts = new Map<string, number>();
+    foodLogs.forEach((l) => l.tags.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1)));
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t]) => t);
   }, [foodLogs]);
 
-  // Get all unique tags from preloaded recipes
   const allRecipeTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    recipes.forEach(recipe => {
-      recipe.tags.forEach(tag => tagSet.add(tag));
-    });
-    return Array.from(tagSet).sort();
+    const set = new Set<string>();
+    recipes.forEach((r) => r.tags.forEach((t) => set.add(t)));
+    return Array.from(set).sort();
   }, [recipes]);
 
-  // Parse active experiments into structured dietary restrictions.
   const activeExperiments = useMemo(() => {
-    const RESTRICTION_PATTERNS: Array<{ re: RegExp; produce: (m: RegExpMatchArray) => string[] }> = [
+    const patterns: Array<{ re: RegExp; produce: (m: RegExpMatchArray) => string[] }> = [
       { re: /no\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
       { re: /avoid\s+([a-z][a-z\-]+)/i, produce: (m) => [m[1].toLowerCase()] },
       { re: /low[-\s]?fodmap/i, produce: () => ['high-fodmap', 'onion', 'garlic'] },
@@ -74,7 +62,7 @@ export default function RecipesPage() {
       .map((e) => {
         const lower = e.name.toLowerCase();
         const restrictions = new Set<string>();
-        for (const { re, produce } of RESTRICTION_PATTERNS) {
+        for (const { re, produce } of patterns) {
           const m = lower.match(re);
           if (m) produce(m).forEach((r) => restrictions.add(r));
         }
@@ -87,363 +75,237 @@ export default function RecipesPage() {
     [activeExperiments]
   );
 
-  // Filter recipes based on selected tag, enabled sources, and active-experiment restrictions
   const filteredRecipes = useMemo(() => {
-    let filtered = recipes.filter(recipe => {
-      // Drop recipes whose tags or name contain any restricted ingredient
+    let filtered = recipes.filter((r) => {
       if (allRestrictions.length > 0) {
-        const haystack = [recipe.name, ...(recipe.tags || [])].join(' ').toLowerCase();
-        for (const r of allRestrictions) {
-          if (!r) continue;
-          if (haystack.includes(r)) return false;
-        }
+        const haystack = [r.name, ...(r.tags || [])].join(' ').toLowerCase();
+        for (const x of allRestrictions) if (x && haystack.includes(x)) return false;
       }
-      // Filter by enabled sources (match by URL domain). Curated recipes have no sourceUrl and always pass.
-      if (recipe.sourceUrl) {
-        const sourceUrl = recipe.sourceUrl;
-        const sourceEnabled = recipeSourcesSettings.sources.some(s => {
+      if (r.sourceUrl) {
+        const url = r.sourceUrl;
+        const enabled = recipeSourcesSettings.sources.some((s) => {
           if (!s.enabled) return false;
           try {
-            const recipeDomain = new URL(sourceUrl).hostname;
-            const sourceDomain = new URL(s.url).hostname;
-            return recipeDomain === sourceDomain || sourceUrl.startsWith(s.url);
+            return new URL(url).hostname === new URL(s.url).hostname || url.startsWith(s.url);
           } catch {
-            return sourceUrl.startsWith(s.url);
+            return url.startsWith(s.url);
           }
         });
-        if (!sourceEnabled) return false;
+        if (!enabled) return false;
       }
-      if (selectedTag) {
-        return recipe.tags.includes(selectedTag);
-      }
+      if (selectedTag) return r.tags.includes(selectedTag);
       return true;
     });
-
-    // Filter by query if provided
     if (query.trim()) {
-      const queryLower = query.toLowerCase();
-      filtered = filtered.filter(recipe =>
-        recipe.name.toLowerCase().includes(queryLower) ||
-        recipe.description?.toLowerCase().includes(queryLower) ||
-        recipe.tags.some(tag => tag.toLowerCase().includes(queryLower))
+      const q = query.toLowerCase();
+      filtered = filtered.filter((r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.description?.toLowerCase().includes(q) ||
+        r.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
-
     return filtered;
   }, [recipes, selectedTag, query, recipeSourcesSettings, allRestrictions]);
 
   const handleSearch = async () => {
     if (!query.trim() && commonTags.length === 0 && activeExperiments.length === 0) {
-      alert('Please enter a search query or log some foods to get personalized suggestions');
+      alert('Type a search or log foods first.');
       return;
     }
-
     setIsLoading(true);
     try {
-      // Build context from user data
-      const context = [];
-      if (activeExperiments.length > 0) {
-        context.push(`Diet restrictions: ${activeExperiments.map(e => e.name).join(', ')}`);
-      }
-      if (commonTags.length > 0) {
-        context.push(`Commonly used food tags: ${commonTags.join(', ')}`);
-      }
-
-      const response = await fetch('/api/openai/recipe-suggestions', {
+      const ctx: string[] = [];
+      if (activeExperiments.length) ctx.push(`Restrictions: ${activeExperiments.map((e) => e.name).join(', ')}`);
+      if (commonTags.length) ctx.push(`Common tags: ${commonTags.join(', ')}`);
+      const res = await fetch('/api/openai/recipe-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: query.trim() || 'healthy recipes',
-          context: context.join('. '),
+          context: ctx.join('. '),
           restrictions: allRestrictions,
           dietaryRestrictions: allRestrictions,
           preferredTags: commonTags,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to get recipe suggestions');
-      }
-
-      const data = await response.json();
-      // Convert AI recipes to Recipe format and add to store
-      const aiRecipes: Recipe[] = (data.recipes || []).map((r: any, idx: number) => ({
-        id: `ai-recipe-${Date.now()}-${idx}`,
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      const ai: Recipe[] = (data.recipes || []).map((r: any, i: number) => ({
+        id: `ai-recipe-${Date.now()}-${i}`,
         name: r.name,
         description: r.description,
         ingredients: r.ingredients || [],
         instructions: r.instructions || [],
         tags: r.tags || [],
         estimatedMacros: r.estimatedMacros,
-        sourceUrl: undefined, // AI generated, no source
+        sourceName: 'AI',
+        sourceUrl: undefined,
       }));
-      
-      setRecipes([...recipes, ...aiRecipes]);
-      setShowPreloaded(false); // Switch to show AI results
-    } catch (error) {
-      console.error('Recipe search error:', error);
-      alert('Failed to get recipe suggestions. Please try again.');
+      setRecipes([...recipes, ...ai]);
+    } catch {
+      alert('Recipe search failed. Try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-semibold mb-6">Recipe Suggestions</h1>
-      
-      <div className="mb-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Search for Recipes</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSelectedTag(null);
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-              placeholder="e.g., gluten-free pasta, dairy-free desserts"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
-            >
-              {isLoading ? 'Loading...' : 'Search'}
-            </button>
-          </div>
+    <div className="w-full max-w-2xl mx-auto">
+      <PageHeader
+        eyebrow="Kitchen"
+        title="Recipes"
+        subtitle="Curated + AI-generated. Respects your active experiments."
+      />
+
+      <div className="mx-5 mb-4">
+        <div className="card p-2 flex items-center gap-2">
+          <IconSearch size={15} className="muted" style={{ marginLeft: 6, color: 'var(--muted)' }} />
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setSelectedTag(null); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="e.g. gluten-free pasta, low-fodmap breakfast"
+            className="flex-1 bg-transparent border-0 outline-none text-[14px] ink py-1"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={isLoading}
+            className="px-3 py-1.5 rounded-full text-[12.5px] inline-flex items-center gap-1.5 disabled:opacity-50"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+          >
+            {isLoading ? 'Searching…' : <>Ask AI <IconUpRight size={12} /></>}
+          </button>
         </div>
+      </div>
 
-        {activeExperiments.length > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-            <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-              Active Diet Experiments
-            </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              Suggestions will consider: {activeExperiments.map(e => e.name).join(', ')}
-            </p>
-          </div>
-        )}
+      {activeExperiments.length > 0 && (
+        <div className="mx-5 mb-4 card p-3 text-[12.5px] ink-soft">
+          <div className="eyebrow mb-0.5">Active experiments</div>
+          Suggestions filtered for: {activeExperiments.map((e) => e.name).join(', ')}.
+        </div>
+      )}
 
-        {commonTags.length > 0 && (
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            <span>Based on your logged foods, we&apos;ll suggest recipes with: </span>
-            {commonTags.map((tag, idx) => (
-              <button
-                key={tag}
-                onClick={() => {
-                  setSelectedTag(tag);
-                  setQuery('');
-                  setShowPreloaded(true);
-                }}
-                className={`px-2 py-1 rounded transition-colors ${
-                  selectedTag === tag
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+      {allRecipeTags.length > 0 && (
+        <div className="mx-5 mb-4">
+          <div className="eyebrow mb-1.5">Filter by tag</div>
+          <div className="flex flex-wrap gap-1.5">
+            {allRecipeTags.map((t) => {
+              const on = selectedTag === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => { setSelectedTag(on ? null : t); setQuery(''); }}
+                  className="px-2.5 py-1 rounded-full text-[11.5px] capitalize"
+                  style={{
+                    background: on ? 'var(--ink)' : 'transparent',
+                    color: on ? 'var(--bg)' : 'var(--ink-soft)',
+                    border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                  }}
+                >
+                  {t}
+                </button>
+              );
+            })}
             {selectedTag && (
-              <button
-                onClick={() => setSelectedTag(null)}
-                className="ml-2 text-xs text-primary-600 dark:text-primary-400 hover:underline"
-              >
-                (clear filter)
+              <button onClick={() => setSelectedTag(null)} className="text-[12px] text-accent ml-1">
+                clear
               </button>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* All recipe tags for filtering */}
-        {allRecipeTags.length > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Filter by tag:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {allRecipeTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => {
-                    setSelectedTag(tag);
-                    setQuery('');
-                    setShowPreloaded(true);
-                  }}
-                  className={`px-2 py-1 text-xs rounded transition-colors ${
-                    selectedTag === tag
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-              {selectedTag && (
-                <button
-                  onClick={() => setSelectedTag(null)}
-                  className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  Clear filter
-                </button>
-              )}
-            </div>
+      <section className="px-5 pb-10">
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="m-0 font-heading text-[17px] tracking-head ink">Recipes</h2>
+          <span className="eyebrow">{filteredRecipes.length} found</span>
+        </div>
+
+        {filteredRecipes.length === 0 ? (
+          <div className="card p-4 muted text-[13.5px]">
+            No recipes match. Try a different tag or ask the AI.
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredRecipes.map((r) => {
+              const open = expanded === r.id;
+              return (
+                <article key={r.id} className="card overflow-hidden">
+                  <button
+                    onClick={() => setExpanded(open ? null : r.id)}
+                    className="w-full text-left px-4 py-3.5"
+                  >
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-[15px] font-medium ink">{r.name}</span>
+                      {r.sourceName && <span className="eyebrow">{r.sourceName}</span>}
+                    </div>
+                    {r.description && (
+                      <p className="m-0 text-[12.5px] muted line-clamp-2">{r.description}</p>
+                    )}
+                    {r.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {r.tags.slice(0, 6).map((t) => <Tag key={t}>{t}</Tag>)}
+                      </div>
+                    )}
+                  </button>
+                  {open && (
+                    <div className="px-4 pb-4 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                      {r.estimatedMacros && (
+                        <div className="mt-3 mb-2 grid grid-cols-4 gap-2 text-[12.5px] ink-soft">
+                          <div><span className="muted">kcal</span> {r.estimatedMacros.calories}</div>
+                          <div><span className="muted">P</span> {r.estimatedMacros.protein}g</div>
+                          <div><span className="muted">C</span> {r.estimatedMacros.carbs}g</div>
+                          <div><span className="muted">F</span> {r.estimatedMacros.fat}g</div>
+                        </div>
+                      )}
+                      {r.ingredients.length > 0 && (
+                        <div className="mt-3">
+                          <div className="eyebrow mb-1.5">Ingredients</div>
+                          <ul className="list-disc list-inside text-[13px] ink-soft space-y-0.5">
+                            {r.ingredients.map((i, k) => <li key={k}>{i}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {r.instructions.length > 0 && (
+                        <div className="mt-3">
+                          <div className="eyebrow mb-1.5">Steps</div>
+                          <ol className="list-decimal list-inside text-[13px] ink-soft space-y-1">
+                            {r.instructions.map((s, k) => <li key={k}>{s}</li>)}
+                          </ol>
+                        </div>
+                      )}
+                      {r.sourceUrl && (
+                        <a
+                          href={r.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block mt-3 text-[12px] text-accent hover:underline truncate max-w-full"
+                        >
+                          {r.sourceUrl}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
-      </div>
 
-      {/* Show filtered preloaded recipes */}
-      {(showPreloaded || !query.trim()) && filteredRecipes.length > 0 && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            {selectedTag ? `Showing ${filteredRecipes.length} recipes with tag: ${selectedTag}` : `Showing ${filteredRecipes.length} preloaded recipes`}
-          </p>
-        </div>
-      )}
-
-      {filteredRecipes.length > 0 && (
-        <div className="space-y-6">
-          {filteredRecipes.map((recipe) => (
-            <div
-              key={recipe.id}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h2 className="text-xl font-semibold">{recipe.name}</h2>
-                {recipe.sourceUrl && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {(() => {
-                      try {
-                        return new URL(recipe.sourceUrl!).hostname;
-                      } catch {
-                        return recipe.sourceUrl;
-                      }
-                    })()}
-                  </span>
-                )}
-              </div>
-              {recipe.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{recipe.description}</p>
-              )}
-              
-              {recipe.tags && recipe.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {recipe.tags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => {
-                        setSelectedTag(tag);
-                        setQuery('');
-                        setShowPreloaded(true);
-                      }}
-                      className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {recipe.estimatedMacros && (
-                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    Estimated Macronutrients (per serving)
-                  </p>
-                  <div className="grid grid-cols-4 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Calories:</span>
-                      <span className="font-medium ml-1">{recipe.estimatedMacros.calories}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Protein:</span>
-                      <span className="font-medium ml-1">{recipe.estimatedMacros.protein}g</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Carbs:</span>
-                      <span className="font-medium ml-1">{recipe.estimatedMacros.carbs}g</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Fat:</span>
-                      <span className="font-medium ml-1">{recipe.estimatedMacros.fat}g</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {recipe.ingredients && recipe.ingredients.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Ingredients</h3>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                    {recipe.ingredients.map((ingredient, i) => (
-                      <li key={i}>{ingredient}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {recipe.instructions && recipe.instructions.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Instructions</h3>
-                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                    {recipe.instructions.map((instruction, i) => (
-                      <li key={i}>{instruction}</li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {filteredRecipes.length === 0 && !isLoading && (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center space-y-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-            {selectedTag 
-              ? `No recipes found with tag "${selectedTag}". Try selecting a different tag or search for recipes.`
-              : 'No recipes found. Try selecting a tag above or search for recipes.'}
-          </p>
-          
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Or chat with AI for personalized suggestions:
-            </p>
-            <Link
-              href={`/chat?query=${encodeURIComponent('Suggest recipes for me based on my dietary preferences and logged foods')}`}
-              className="inline-block px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors text-sm font-medium"
-            >
-              🤖 Ask AI: What recipes should I try?
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {filteredRecipes.length > 0 && (
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-            Need more recipe ideas?
+        <div className="mt-6 card p-4">
+          <div className="eyebrow mb-1">Ask the diary</div>
+          <p className="m-0 text-[13px] ink-soft mb-2">
+            Want personalized suggestions based on your last 30 days of meals?
           </p>
           <Link
-            href={`/chat?query=${encodeURIComponent('Suggest more recipes for me')}`}
-            className="inline-block px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
+            href="/chat?query=Suggest recipes for me based on what I've been eating and active experiments."
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            🤖 Chat with AI for more suggestions
+            Open chat <IconUpRight size={12} />
           </Link>
         </div>
-      )}
-
-      <div className="mt-6">
-        <Link 
-          href="/"
-          className="text-primary-600 dark:text-primary-400 hover:underline text-sm"
-        >
-          ← Back to Log
-        </Link>
-      </div>
+      </section>
     </div>
   );
 }

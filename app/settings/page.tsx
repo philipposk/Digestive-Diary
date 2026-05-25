@@ -1,475 +1,430 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { getTheme, setTheme, applyTheme, type Theme } from '@/lib/theme';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { FastingSettings, AutoScanSettings } from '@/types';
+import {
+  getTheme, setTheme, applyTheme,
+  getVibeId, setVibe, getAccentHex, setAccent,
+  type Theme,
+} from '@/lib/theme';
+import { VIBES, VibeId } from '@/lib/themeTokens';
 import { runScan } from '@/lib/autoScanScheduler';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
-  const fastingSettings = useAppStore((state) => state.fastingSettings);
-  const setFastingSettings = useAppStore((state) => state.setFastingSettings);
-  const autoScanSettings = useAppStore((state) => state.autoScanSettings);
-  const setAutoScanSettings = useAppStore((state) => state.setAutoScanSettings);
-  const recipeSourcesSettings = useAppStore((state) => state.recipeSourcesSettings);
-  const setRecipeSourcesSettings = useAppStore((state) => state.setRecipeSourcesSettings);
-  const addFoodLog = useAppStore((state) => state.addFoodLog);
-  const addPhotoUpload = useAppStore((state) => state.addPhotoUpload);
-  const photoUploads = useAppStore((state) => state.photoUploads);
+  const [currentVibe, setCurrentVibe] = useState<VibeId>('clinical');
+  const [currentAccent, setCurrentAccent] = useState<string>('#3f5a3c');
+
+  const fastingSettings = useAppStore((s) => s.fastingSettings);
+  const setFastingSettings = useAppStore((s) => s.setFastingSettings);
+  const autoScanSettings = useAppStore((s) => s.autoScanSettings);
+  const setAutoScanSettings = useAppStore((s) => s.setAutoScanSettings);
+  const recipeSourcesSettings = useAppStore((s) => s.recipeSourcesSettings);
+  const setRecipeSourcesSettings = useAppStore((s) => s.setRecipeSourcesSettings);
+  const addFoodLog = useAppStore((s) => s.addFoodLog);
+  const addPhotoUpload = useAppStore((s) => s.addPhotoUpload);
+  const photoUploads = useAppStore((s) => s.photoUploads);
 
   useEffect(() => {
     setCurrentTheme(getTheme());
+    setCurrentVibe(getVibeId());
+    setCurrentAccent(getAccentHex());
   }, []);
 
-  const handleThemeChange = (theme: Theme) => {
-    setTheme(theme);
-    applyTheme(theme);
-    setCurrentTheme(theme);
+  const handleThemeChange = (t: Theme) => {
+    setTheme(t); applyTheme(t); setCurrentTheme(t);
+  };
+  const handleVibeChange = (v: VibeId) => {
+    setVibe(v); setCurrentVibe(v); setCurrentAccent(getAccentHex());
+  };
+  const handleAccentChange = (hex: string) => {
+    setAccent(hex); setCurrentAccent(hex);
   };
 
+  const vibe = VIBES[currentVibe];
+
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-6">Settings</h1>
-      
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-medium mb-3">Appearance</h2>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-gray-700 dark:text-gray-300">Theme</span>
-            </label>
+    <div className="w-full max-w-2xl mx-auto">
+      <PageHeader eyebrow="Profile" title="Settings" />
+
+      <Section title="Appearance" eyebrow="Visual">
+        <Field label="Vibe">
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(VIBES) as VibeId[]).map((id) => {
+              const v = VIBES[id];
+              const on = currentVibe === id;
+              const preview = v.light;
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleVibeChange(id)}
+                  className="text-left px-3 py-2.5 rounded-card transition-colors"
+                  style={{
+                    background: on ? 'var(--ink)' : 'var(--surface)',
+                    color: on ? 'var(--bg)' : 'var(--ink)',
+                    border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                  }}
+                >
+                  <div
+                    className="flex gap-1 mb-1.5"
+                    aria-hidden
+                  >
+                    {[preview.bg, preview.surface, v.accents[0].hex].map((c, i) => (
+                      <span key={i} style={{ width: 14, height: 14, borderRadius: 3, background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
+                    ))}
+                  </div>
+                  <div className="text-[12.5px] font-medium">{v.label}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="Accent">
+          <div className="flex flex-wrap gap-2">
+            {vibe.accents.map((a) => {
+              const on = currentAccent === a.hex;
+              return (
+                <button
+                  key={a.hex}
+                  onClick={() => handleAccentChange(a.hex)}
+                  className="px-2.5 py-1.5 rounded-full text-[12px] inline-flex items-center gap-1.5 transition-colors"
+                  style={{
+                    background: on ? a.hex : 'transparent',
+                    color: on ? '#fff' : 'var(--ink-soft)',
+                    border: `1px solid ${on ? a.hex : 'var(--border)'}`,
+                  }}
+                >
+                  <span style={{ width: 10, height: 10, borderRadius: 10, background: a.hex, display: 'inline-block' }} />
+                  {a.name}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="Mode">
+          <div className="grid grid-cols-3 gap-2">
+            {(['light', 'dark', 'system'] as Theme[]).map((t) => {
+              const on = currentTheme === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => handleThemeChange(t)}
+                  className="px-3 py-2 rounded-card text-[13px] capitalize transition-colors"
+                  style={{
+                    background: on ? 'var(--ink)' : 'transparent',
+                    color: on ? 'var(--bg)' : 'var(--ink)',
+                    border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                  }}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+      </Section>
+
+      <Section title="Fasting" eyebrow="Schedule">
+        <Toggle
+          label="Enable fasting status"
+          checked={fastingSettings.enabled}
+          onChange={(v) => setFastingSettings({ ...fastingSettings, enabled: v })}
+        />
+        {fastingSettings.enabled && (
+          <>
+            <Field label="Fasting window (hours)">
+              <input
+                type="number" min={1} max={24}
+                value={fastingSettings.fastingWindow}
+                onChange={(e) => setFastingSettings({ ...fastingSettings, fastingWindow: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </Field>
+            <Field label="Eating window (hours)">
+              <input
+                type="number" min={1} max={24}
+                value={fastingSettings.eatingWindow}
+                onChange={(e) => setFastingSettings({ ...fastingSettings, eatingWindow: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </Field>
+          </>
+        )}
+      </Section>
+
+      <Section title="Auto-scan photos" eyebrow="Album">
+        <p className="text-[12.5px] muted m-0">
+          When the app is open, prompts you to pick recent album photos on schedule. Dedups against already-processed images.
+        </p>
+        <Toggle
+          label="Enable auto-scan"
+          checked={autoScanSettings.enabled}
+          onChange={(v) => setAutoScanSettings({ ...autoScanSettings, enabled: v })}
+        />
+        {autoScanSettings.enabled && (
+          <Field label="Frequency">
             <div className="flex gap-2">
-              <button
-                onClick={() => handleThemeChange('light')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  currentTheme === 'light'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                Light
-              </button>
-              <button
-                onClick={() => handleThemeChange('dark')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  currentTheme === 'dark'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                Dark
-              </button>
-              <button
-                onClick={() => handleThemeChange('system')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  currentTheme === 'system'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                System
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-medium mb-3">Intermittent Fasting</h2>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-gray-700 dark:text-gray-300">Enable Fasting Alerts</span>
-              <input
-                type="checkbox"
-                checked={fastingSettings.enabled}
-                onChange={(e) => setFastingSettings({ ...fastingSettings, enabled: e.target.checked })}
-                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-              />
-            </label>
-            
-            {fastingSettings.enabled && (
-              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Fasting Window (hours)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="24"
-                    value={fastingSettings.fastingWindow}
-                    onChange={(e) => setFastingSettings({ ...fastingSettings, fastingWindow: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Eating Window (hours)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="24"
-                    value={fastingSettings.eatingWindow}
-                    onChange={(e) => setFastingSettings({ ...fastingSettings, eatingWindow: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Preferred Fasting Start Time (HH:MM)</label>
-                  <input
-                    type="time"
-                    value={fastingSettings.preferredFastingStart || '20:00'}
-                    onChange={(e) => setFastingSettings({ ...fastingSettings, preferredFastingStart: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                  />
-                </div>
-                
-                <button
-                  onClick={() => {
-                    const lastMeal = useAppStore.getState().foodLogs
-                      .sort((a, b) => {
-                        const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-                        const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-                        return bTime.getTime() - aTime.getTime();
-                      })[0];
-                    if (lastMeal) {
-                      setFastingSettings({ ...fastingSettings, lastMealTime: lastMeal.timestamp });
-                    }
-                  }}
-                  className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm"
-                >
-                  Set Last Meal Time to Most Recent Food Log
-                </button>
-                
-                {fastingSettings.lastMealTime && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Last meal: {new Date(fastingSettings.lastMealTime).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-medium mb-3">Auto Photo Scanning</h2>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Automatically scan your photo album for food photos and log them. Select multiple photos at once to batch process.
-            </p>
-            
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-gray-700 dark:text-gray-300">Enable Auto-Scan</span>
-              <input
-                type="checkbox"
-                checked={autoScanSettings.enabled}
-                onChange={(e) => setAutoScanSettings({ ...autoScanSettings, enabled: e.target.checked })}
-                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-              />
-            </label>
-            
-            {autoScanSettings.enabled && (
-              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Scan Frequency</label>
-                  <select
-                    value={autoScanSettings.frequency}
-                    onChange={(e) => setAutoScanSettings({ ...autoScanSettings, frequency: e.target.value as 'hourly' | 'daily' | 'manual' })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                  >
-                    <option value="manual">Manual Only</option>
-                    <option value="hourly">Every Hour</option>
-                    <option value="daily">Daily</option>
-                  </select>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.multiple = true;
-                    input.onchange = async (e) => {
-                      const files = Array.from((e.target as HTMLInputElement).files || []);
-                      if (files.length === 0) return;
-                      const r = await runScan(files, autoScanSettings, photoUploads, {
-                        addFoodLog,
-                        addPhotoUpload,
-                        setAutoScanSettings,
-                      });
-                      alert(`Logged ${r.processed} food photos. Skipped ${r.skipped} duplicates. ${r.notFood} not food. ${r.failed} failed.`);
-                    };
-                    input.click();
-                  }}
-                  className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm"
-                >
-                  Scan Album for Food Photos
-                </button>
-                
-                {autoScanSettings.lastScanTime && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Last scanned: {new Date(autoScanSettings.lastScanTime).toLocaleString()}
-                  </p>
-                )}
-                
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Processed {autoScanSettings.processedPhotos.length} photos
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-medium mb-3">Recipe Sources</h2>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Add recipe source URLs (one per line or comma-separated). The AI will try to read recipes from these sources.
-            </p>
-            
-            <div className="space-y-2">
-              {recipeSourcesSettings.sources.map((source, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={source.enabled}
-                    onChange={(e) => {
-                      const updatedSources = [...recipeSourcesSettings.sources];
-                      updatedSources[index] = { ...source, enabled: e.target.checked };
-                      setRecipeSourcesSettings({ sources: updatedSources });
-                    }}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                  />
-                  <input
-                    type="url"
-                    value={source.url}
-                    onChange={(e) => {
-                      const updatedSources = [...recipeSourcesSettings.sources];
-                      updatedSources[index] = { url: e.target.value, enabled: source.enabled };
-                      setRecipeSourcesSettings({ sources: updatedSources });
-                    }}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    placeholder="https://example.com/recipes"
-                  />
+              {(['manual', 'hourly', 'daily'] as const).map((f) => {
+                const on = autoScanSettings.frequency === f;
+                return (
                   <button
-                    onClick={() => {
-                      const updatedSources = recipeSourcesSettings.sources.filter((_, i) => i !== index);
-                      setRecipeSourcesSettings({ sources: updatedSources });
+                    key={f}
+                    onClick={() => setAutoScanSettings({ ...autoScanSettings, frequency: f })}
+                    className="px-3 py-1.5 rounded-full text-[12px] capitalize"
+                    style={{
+                      background: on ? 'var(--ink)' : 'transparent',
+                      color: on ? 'var(--bg)' : 'var(--ink-soft)',
+                      border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
                     }}
-                    className="px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
                   >
-                    Remove
+                    {f}
                   </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            
-            <div className="flex flex-col gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => {
-                  setRecipeSourcesSettings({
-                    sources: [...recipeSourcesSettings.sources, { url: '', enabled: true }]
-                  });
+          </Field>
+        )}
+        <button
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*'; input.multiple = true;
+            input.onchange = async (e) => {
+              const files = Array.from((e.target as HTMLInputElement).files || []);
+              if (files.length === 0) return;
+              const r = await runScan(files, autoScanSettings, photoUploads, {
+                addFoodLog, addPhotoUpload, setAutoScanSettings,
+              });
+              alert(`Logged ${r.processed}. Skipped ${r.skipped} dupes. ${r.notFood} not food. ${r.failed} failed.`);
+            };
+            input.click();
+          }}
+          className="px-3 py-2 rounded-full text-[13px]"
+          style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+        >
+          Scan now
+        </button>
+        {autoScanSettings.lastScanTime && (
+          <p className="text-[11.5px] muted m-0 mt-1">
+            Last scan: {new Date(autoScanSettings.lastScanTime).toLocaleString()} · {autoScanSettings.processedPhotos.length} photos remembered
+          </p>
+        )}
+      </Section>
+
+      <Section title="Recipe sources" eyebrow="Web">
+        <p className="text-[12.5px] muted m-0">
+          URLs the AI scrapes when you fetch recipes. Disable individual sources to filter them out.
+        </p>
+        <div className="space-y-1.5">
+          {recipeSourcesSettings.sources.map((s, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={s.enabled}
+                onChange={(e) => {
+                  const next = [...recipeSourcesSettings.sources];
+                  next[idx] = { ...s, enabled: e.target.checked };
+                  setRecipeSourcesSettings({ sources: next });
                 }}
-                className="w-full px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-              >
-                + Add Source URL
-              </button>
-              
-              <div className="mt-2">
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Or paste multiple URLs (one per line or comma-separated):
-                </label>
-                <textarea
-                  placeholder="https://example1.com&#10;https://example2.com&#10;or comma-separated: https://example1.com, https://example2.com"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                  rows={3}
-                  onBlur={(e) => {
-                    const text = e.target.value.trim();
-                    if (text) {
-                      // Split by newlines or commas
-                      const urls = text.split(/[\n,]+/)
-                        .map(url => url.trim())
-                        .filter(url => url && url.startsWith('http'));
-                      
-                      if (urls.length > 0) {
-                        const newSources = urls.map(url => ({ url, enabled: true }));
-                        setRecipeSourcesSettings({
-                          sources: [...recipeSourcesSettings.sources, ...newSources]
-                        });
-                        e.target.value = '';
-                      }
-                    }
-                  }}
-                />
-              </div>
-              
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => {
-                    const allEnabled = recipeSourcesSettings.sources.every(s => s.enabled);
-                    setRecipeSourcesSettings({
-                      sources: recipeSourcesSettings.sources.map(s => ({ ...s, enabled: !allEnabled }))
-                    });
-                  }}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  {recipeSourcesSettings.sources.every(s => s.enabled) ? 'Disable All' : 'Enable All'}
-                </button>
-                <button
-                  onClick={async () => {
-                    const enabledSources = recipeSourcesSettings.sources.filter(s => s.enabled);
-                    if (enabledSources.length === 0) {
-                      alert('Please enable at least one source to fetch recipes');
-                      return;
-                    }
-                    
-                    try {
-                      const response = await fetch('/api/recipes/fetch-from-sources', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sources: enabledSources }),
-                      });
-                      
-                      const data = await response.json();
-                      
-                      // Create admin notifications for errors
-                      if (data.errors && data.errors.length > 0) {
-                        const addAdminNotification = useAppStore.getState().addAdminNotification;
-                        data.errors.forEach((error: any) => {
-                          addAdminNotification({
-                            type: 'recipe_source_error',
-                            message: `Failed to fetch recipes from ${error.url}`,
-                            details: { error: error.error, url: error.url },
-                            resolved: false,
-                          });
-                        });
-                      }
-                      
-                      // Add fetched recipes to store
-                      if (data.recipes && data.recipes.length > 0) {
-                        const setRecipes = useAppStore.getState().setRecipes;
-                        const currentRecipes = useAppStore.getState().recipes;
-                        setRecipes([...currentRecipes, ...data.recipes]);
-                        alert(`Fetched ${data.recipes.length} recipes from sources${data.errors?.length > 0 ? ` (${data.errors.length} errors - check Admin Notifications)` : ''}`);
-                      } else if (data.errors && data.errors.length > 0) {
-                        alert(`No recipes fetched. Check Admin Notifications for details about ${data.errors.length} error(s).`);
-                      } else {
-                        alert('No recipes found in the enabled sources.');
-                      }
-                    } catch (error: any) {
-                      const addAdminNotification = useAppStore.getState().addAdminNotification;
-                      addAdminNotification({
-                        type: 'api_error',
-                        message: 'Failed to fetch recipes from sources',
-                        details: { error: error.message },
-                        resolved: false,
-                      });
-                      alert('Error fetching recipes. Check Admin Notifications for details.');
-                    }
-                  }}
-                  className="px-4 py-1.5 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                >
-                  🤖 Fetch Recipes from Enabled Sources
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-medium mb-3">Data</h2>
-          <div className="space-y-2">
-            <Link href="/timeline" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Timeline View
-            </Link>
-            <Link href="/realizations" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              My Realizations
-            </Link>
-            <Link href="/chat" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              AI Chat
-            </Link>
-            <Link href="/sources" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Knowledge Sources
-            </Link>
-            <Link href="/macros" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Macronutrients & Goals
-            </Link>
-              <Link href="/recipes" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Recipe Suggestions
-            </Link>
-            <Link href="/admin" className="block w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Admin Notifications
-            </Link>
-            <button
-              onClick={() => {
-                const store = useAppStore.getState();
-                const data = {
-                  foodLogs: store.foodLogs,
-                  symptoms: store.symptoms,
-                  contexts: store.contexts,
-                  experiments: store.experiments,
-                  realizations: store.realizations,
-                  exportedAt: new Date().toISOString(),
-                };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `digestive-diary-export-${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              }}
-              className="w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              Export Data for Doctor
-            </button>
-            <button
-              onClick={() => {
-                if (confirm('Are you sure you want to delete ALL data? This cannot be undone.')) {
-                  const store = useAppStore.getState();
-                  store.setFoodLogs([]);
-                  store.setSymptoms([]);
-                  store.setContexts([]);
-                  store.setExperiments([]);
-                  store.clearChatSession();
-                  // Clear realizations
-                  const realizations = [...store.realizations];
-                  realizations.forEach((r) => store.deleteRealization(r.id));
-                  alert('All data has been deleted.');
+              />
+              <input
+                value={s.url}
+                onChange={(e) => {
+                  const next = [...recipeSourcesSettings.sources];
+                  next[idx] = { ...s, url: e.target.value };
+                  setRecipeSourcesSettings({ sources: next });
+                }}
+                className="flex-1 px-3 py-1.5 rounded-card text-[13px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+              <button
+                onClick={() =>
+                  setRecipeSourcesSettings({
+                    sources: recipeSourcesSettings.sources.filter((_, i) => i !== idx),
+                  })
                 }
-              }}
-              className="w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-red-600 dark:text-red-400"
+                className="muted hover:text-ink text-[12px]"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setRecipeSourcesSettings({ sources: [...recipeSourcesSettings.sources, { url: '', enabled: true }] })}
+            className="px-3 py-1.5 rounded-full text-[12.5px]"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+          >
+            + Add URL
+          </button>
+          <button
+            onClick={async () => {
+              const enabled = recipeSourcesSettings.sources.filter((s) => s.enabled);
+              if (enabled.length === 0) { alert('Enable at least one source.'); return; }
+              try {
+                const r = await fetch('/api/recipes/fetch-from-sources', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ sources: enabled }),
+                });
+                const d = await r.json();
+                if (d.errors?.length) {
+                  const add = useAppStore.getState().addAdminNotification;
+                  d.errors.forEach((err: any) => add({
+                    type: 'recipe_source_error',
+                    message: `Failed to fetch from ${err.url}`,
+                    details: { error: err.error, url: err.url },
+                    resolved: false,
+                  }));
+                }
+                if (d.recipes?.length) {
+                  const setRecipes = useAppStore.getState().setRecipes;
+                  const cur = useAppStore.getState().recipes;
+                  setRecipes([...cur, ...d.recipes]);
+                  alert(`Fetched ${d.recipes.length} recipes${d.errors?.length ? ` (${d.errors.length} errors — see Admin).` : '.'}`);
+                } else if (d.errors?.length) {
+                  alert(`No recipes. ${d.errors.length} errors — see Admin.`);
+                } else {
+                  alert('No recipes found in enabled sources.');
+                }
+              } catch (err: any) {
+                const add = useAppStore.getState().addAdminNotification;
+                add({ type: 'api_error', message: 'Failed to fetch recipes', details: { error: err.message }, resolved: false });
+                alert('Fetch error — see Admin.');
+              }
+            }}
+            className="px-3 py-1.5 rounded-full text-[12.5px]"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+          >
+            Fetch now
+          </button>
+        </div>
+      </Section>
+
+      <Section title="Data" eyebrow="Export · Manage">
+        <div className="space-y-1.5">
+          {[
+            { href: '/timeline',     label: 'Timeline view' },
+            { href: '/realizations', label: 'My realizations' },
+            { href: '/chat',         label: 'AI chat' },
+            { href: '/sources',      label: 'Knowledge sources' },
+            { href: '/macros',       label: 'Macronutrients' },
+            { href: '/recipes',      label: 'Recipes' },
+            { href: '/admin',        label: 'Admin notifications' },
+          ].map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="block px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
+              style={{ border: '1px solid var(--border)' }}
             >
-              Delete All Data
-            </button>
-          </div>
+              {l.label} →
+            </Link>
+          ))}
+          <button
+            onClick={() => {
+              const store = useAppStore.getState();
+              const data = {
+                foodLogs: store.foodLogs,
+                symptoms: store.symptoms,
+                contexts: store.contexts,
+                experiments: store.experiments,
+                realizations: store.realizations,
+                exportedAt: new Date().toISOString(),
+              };
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = `digestive-diary-export-${new Date().toISOString().split('T')[0]}.json`;
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+            className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
+            style={{ border: '1px solid var(--border)' }}
+          >
+            Export data for doctor (JSON) →
+          </button>
+          <button
+            onClick={() => {
+              if (!confirm('Delete ALL data? Cannot be undone.')) return;
+              const s = useAppStore.getState();
+              s.setFoodLogs([]); s.setSymptoms([]); s.setContexts([]); s.setExperiments([]);
+              s.clearChatSession();
+              [...s.realizations].forEach((r) => s.deleteRealization(r.id));
+              alert('All data deleted.');
+            }}
+            className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] transition-colors"
+            style={{ border: '1px solid var(--border)', color: '#c44' }}
+          >
+            Delete all data →
+          </button>
         </div>
+      </Section>
 
-        <div>
-          <h2 className="text-lg font-medium mb-3">About</h2>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-              Digestive Diary v0.1.0
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              A non-judgmental tracking app for digestive disorders.
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-medium mb-3">Disclaimer</h2>
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-            <p className="text-xs text-yellow-800 dark:text-yellow-200">
-              This app is for logging purposes only and does not provide medical advice. 
-              Always consult with a healthcare professional for medical concerns.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Section title="About" eyebrow="Meta">
+        <p className="text-[12.5px] ink-soft m-0">
+          Digestive Diary · v0.2 · A non-judgmental tracking tool. Not medical advice.
+        </p>
+      </Section>
     </div>
+  );
+}
+
+function Section({ children, title, eyebrow }: { children: React.ReactNode; title: string; eyebrow?: string }) {
+  return (
+    <section className="px-5 pb-6">
+      <div className="mb-2">
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        <h2 className="m-0 mt-0.5 font-heading text-[18px] tracking-head ink">{title}</h2>
+      </div>
+      <div className="card p-4 space-y-3">{children}</div>
+    </section>
+  );
+}
+
+function Field({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <label className="block">
+      <span className="eyebrow">{label}</span>
+      <div className="mt-1.5">{children}</div>
+    </label>
+  );
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <label className="flex items-center justify-between cursor-pointer">
+      <span className="text-[13.5px] ink-soft">{label}</span>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        role="switch"
+        aria-checked={checked}
+        className="w-10 h-6 rounded-full transition-colors"
+        style={{
+          background: checked ? 'var(--accent)' : 'var(--border)',
+          padding: 2,
+          display: 'inline-flex',
+          alignItems: 'center',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-block',
+            width: 18, height: 18, borderRadius: 18,
+            background: '#fff',
+            transform: checked ? 'translateX(16px)' : 'translateX(0)',
+            transition: 'transform .15s ease',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          }}
+        />
+      </button>
+    </label>
   );
 }

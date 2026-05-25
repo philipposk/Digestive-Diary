@@ -1,264 +1,251 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { SleepQuality, StressLevel, ActivityLevel, BowelType } from '@/types';
+import { IconClose } from '@/components/ui/Icon';
 
-interface LogContextModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function LogContextModal({ isOpen, onClose }: LogContextModalProps) {
-  const [sleepQuality, setSleepQuality] = useState<SleepQuality | undefined>(undefined);
-  const [sleepDuration, setSleepDuration] = useState<number | undefined>(undefined);
-  const [sleepStartTime, setSleepStartTime] = useState<string>('');
-  const [sleepEndTime, setSleepEndTime] = useState<string>('');
-  const [stressLevel, setStressLevel] = useState<StressLevel | undefined>(undefined);
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel | undefined>(undefined);
-  const [bowelMovement, setBowelMovement] = useState<boolean | undefined>(undefined);
-  const [bowelType, setBowelType] = useState<BowelType | undefined>(undefined);
+function ChipRow<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly T[];
+  value: T | undefined;
+  onChange: (v: T | undefined) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = value === o;
+        return (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onChange(on ? undefined : o)}
+            className="px-3 py-1 rounded-full text-[12px] capitalize"
+            style={{
+              background: on ? 'var(--ink)' : 'transparent',
+              color: on ? 'var(--bg)' : 'var(--ink-soft)',
+              border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+            }}
+          >
+            {o}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function LogContextModal({ isOpen, onClose }: Props) {
+  const [sleepQuality, setSleepQuality] = useState<SleepQuality | undefined>();
+  const [sleepDuration, setSleepDuration] = useState<number | undefined>();
+  const [sleepStart, setSleepStart] = useState('');
+  const [sleepEnd, setSleepEnd] = useState('');
+  const [stressLevel, setStressLevel] = useState<StressLevel | undefined>();
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | undefined>();
+  const [bowelMovement, setBowelMovement] = useState<boolean | undefined>();
+  const [bowelType, setBowelType] = useState<BowelType | undefined>();
   const [notes, setNotes] = useState('');
-  const addContext = useAppStore((state) => state.addContext);
+
+  const addContext = useAppStore((s) => s.addContext);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSleepQuality(undefined); setSleepDuration(undefined);
+      setSleepStart(''); setSleepEnd('');
+      setStressLevel(undefined); setActivityLevel(undefined);
+      setBowelMovement(undefined); setBowelType(undefined); setNotes('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convert sleep times to Date objects if provided
-    let sleepStartDate: Date | undefined;
-    let sleepEndDate: Date | undefined;
-    
-    if (sleepStartTime) {
-      sleepStartDate = new Date();
-      const [hours, minutes] = sleepStartTime.split(':').map(Number);
-      sleepStartDate.setHours(hours, minutes, 0, 0);
-      // If sleep start is after midnight, assume previous day
-      if (hours >= 18) {
-        sleepStartDate.setDate(sleepStartDate.getDate() - 1);
-      }
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    if (sleepStart) {
+      startDate = new Date();
+      const [h, m] = sleepStart.split(':').map(Number);
+      startDate.setHours(h, m, 0, 0);
+      if (h >= 18) startDate.setDate(startDate.getDate() - 1);
     }
-    
-    if (sleepEndTime) {
-      sleepEndDate = new Date();
-      const [hours, minutes] = sleepEndTime.split(':').map(Number);
-      sleepEndDate.setHours(hours, minutes, 0, 0);
-      // If wake time is before noon, assume same day; otherwise previous night
-      if (hours < 12) {
-        // Same day
-      } else {
-        // Might be previous night's end
-      }
+    if (sleepEnd) {
+      endDate = new Date();
+      const [h, m] = sleepEnd.split(':').map(Number);
+      endDate.setHours(h, m, 0, 0);
     }
 
     addContext({
       sleepQuality,
       sleepDuration,
-      sleepStartTime: sleepStartDate,
-      sleepEndTime: sleepEndDate,
+      sleepStartTime: startDate,
+      sleepEndTime: endDate,
       stressLevel,
       activityLevel,
       bowelMovement,
       bowelType,
       notes: notes.trim() || undefined,
     });
-
-    // Reset form
-    setSleepQuality(undefined);
-    setSleepDuration(undefined);
-    setSleepStartTime('');
-    setSleepEndTime('');
-    setStressLevel(undefined);
-    setActivityLevel(undefined);
-    setBowelMovement(undefined);
-    setBowelType(undefined);
-    setNotes('');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">Log Context</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Sleep Quality */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Sleep Quality (optional)</label>
-              <div className="flex flex-wrap gap-2">
-                {(['poor', 'ok', 'good'] as SleepQuality[]).map((quality) => (
-                  <button
-                    key={quality}
-                    type="button"
-                    onClick={() => setSleepQuality(sleepQuality === quality ? undefined : quality)}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      sleepQuality === quality
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {quality}
-                  </button>
-                ))}
-              </div>
-            </div>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto bg-app"
+        style={{
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderTop: '1px solid var(--border)',
+          boxShadow: '0 -16px 40px rgba(0,0,0,0.18)',
+        }}
+      >
+        <div className="px-5 pt-2.5 pb-6">
+          <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="m-0 font-heading text-[22px] tracking-head ink">Log context</h2>
+            <button onClick={onClose} className="muted hover:text-ink" aria-label="Close">
+              <IconClose size={18} />
+            </button>
+          </div>
 
-            {/* Sleep Duration */}
+          <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Sleep Duration (hours, optional)</label>
-              <input
-                type="number"
-                min="0"
-                max="24"
-                step="0.5"
-                value={sleepDuration || ''}
-                onChange={(e) => setSleepDuration(e.target.value ? Number(e.target.value) : undefined)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                placeholder="e.g., 7.5"
+              <div className="eyebrow mb-1.5">Sleep quality</div>
+              <ChipRow<SleepQuality>
+                options={['poor', 'ok', 'good']}
+                value={sleepQuality}
+                onChange={setSleepQuality}
               />
             </div>
 
-            {/* Sleep Times */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-2">Sleep Start Time (optional)</label>
+            <div className="grid grid-cols-3 gap-3">
+              <label className="block">
+                <span className="eyebrow">Duration (h)</span>
+                <input
+                  type="number" min={0} max={24} step={0.5}
+                  value={sleepDuration ?? ''}
+                  onChange={(e) => setSleepDuration(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="e.g. 7.5"
+                  className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                  style={{ border: '1px solid var(--border)' }}
+                />
+              </label>
+              <label className="block">
+                <span className="eyebrow">Start</span>
                 <input
                   type="time"
-                  value={sleepStartTime}
-                  onChange={(e) => setSleepStartTime(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  value={sleepStart}
+                  onChange={(e) => setSleepStart(e.target.value)}
+                  className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                  style={{ border: '1px solid var(--border)' }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Wake Time (optional)</label>
+              </label>
+              <label className="block">
+                <span className="eyebrow">Wake</span>
                 <input
                   type="time"
-                  value={sleepEndTime}
-                  onChange={(e) => setSleepEndTime(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  value={sleepEnd}
+                  onChange={(e) => setSleepEnd(e.target.value)}
+                  className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                  style={{ border: '1px solid var(--border)' }}
                 />
-              </div>
+              </label>
             </div>
 
-            {/* Stress Level */}
             <div>
-              <label className="block text-sm font-medium mb-2">Stress Level (optional)</label>
-              <div className="flex flex-wrap gap-2">
-                {(['low', 'medium', 'high'] as StressLevel[]).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setStressLevel(stressLevel === level ? undefined : level)}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      stressLevel === level
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
+              <div className="eyebrow mb-1.5">Stress</div>
+              <ChipRow<StressLevel>
+                options={['low', 'medium', 'high']}
+                value={stressLevel}
+                onChange={setStressLevel}
+              />
             </div>
 
-            {/* Activity Level */}
             <div>
-              <label className="block text-sm font-medium mb-2">Activity Level (optional)</label>
-              <div className="flex flex-wrap gap-2">
-                {(['none', 'light', 'intense'] as ActivityLevel[]).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setActivityLevel(activityLevel === level ? undefined : level)}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      activityLevel === level
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
+              <div className="eyebrow mb-1.5">Activity</div>
+              <ChipRow<ActivityLevel>
+                options={['none', 'light', 'intense']}
+                value={activityLevel}
+                onChange={setActivityLevel}
+              />
             </div>
 
-            {/* Bowel Movement */}
             <div>
-              <label className="block text-sm font-medium mb-2">Bowel Movement (optional)</label>
+              <div className="eyebrow mb-1.5">Bowel movement today?</div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBowelMovement(bowelMovement === true ? undefined : true)}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm ${
-                    bowelMovement === true
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBowelMovement(bowelMovement === false ? undefined : false)}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm ${
-                    bowelMovement === false
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  No
-                </button>
+                {(['yes', 'no'] as const).map((v) => {
+                  const isYes = v === 'yes';
+                  const on = bowelMovement === isYes;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setBowelMovement(on ? undefined : isYes)}
+                      className="flex-1 px-3 py-2 rounded-card text-[13px] capitalize"
+                      style={{
+                        background: on ? 'var(--ink)' : 'transparent',
+                        color: on ? 'var(--bg)' : 'var(--ink-soft)',
+                        border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                      }}
+                    >
+                      {v}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Bowel Type */}
             {bowelMovement === true && (
               <div>
-                <label className="block text-sm font-medium mb-2">Bowel Type (optional)</label>
-                <div className="flex flex-wrap gap-2">
-                  {(['normal', 'loose', 'hard', 'irregular'] as BowelType[]).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setBowelType(bowelType === type ? undefined : type)}
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        bowelType === type
-                          ? 'bg-primary-500 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
+                <div className="eyebrow mb-1.5">Type</div>
+                <ChipRow<BowelType>
+                  options={['normal', 'loose', 'hard', 'none']}
+                  value={bowelType}
+                  onChange={setBowelType}
+                />
               </div>
             )}
 
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Notes (optional)</label>
+            <label className="block">
+              <span className="eyebrow">Notes</span>
               <textarea
+                rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                placeholder="Any additional notes..."
-                rows={3}
+                placeholder="Anything to remember?"
+                className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
               />
-            </div>
+            </label>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                className="px-4 py-2.5 rounded-full text-[13px]"
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                className="flex-1 px-4 py-2.5 rounded-full text-[14px] font-medium"
+                style={{ background: 'var(--ink)', color: 'var(--bg)' }}
               >
                 Save
               </button>

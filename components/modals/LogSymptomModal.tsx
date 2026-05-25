@@ -1,74 +1,88 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { SeverityLevel, Symptom } from '@/types';
-import { FoodLog } from '@/types';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 import { rankSuspectFoods } from '@/lib/suspectFoods';
 import { generateInsights } from '@/lib/generateInsights';
+import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
 
-interface LogSymptomModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
 const symptomTypes = [
-  'bloating', 
-  'pain', 
-  'nausea', 
-  'gas', 
-  'constipation', 
-  'diarrhea', 
-  'heartburn',
-  'hypoglycemia',
-  'low energy',
-  'low concentration',
-  'cramps',
-  'intestinal pinching',
-  'inflammation',
-  'rash',
-  'pimple',
-  'skin irritation',
-  'sugar craving',
-  'other'
+  'bloating', 'pain', 'nausea', 'gas', 'constipation', 'diarrhea', 'heartburn',
+  'hypoglycemia', 'low energy', 'low concentration', 'cramps', 'intestinal pinching',
+  'inflammation', 'rash', 'pimple', 'skin irritation', 'sugar craving', 'other',
 ];
-const severityLevels: SeverityLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProps) {
+const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
+const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+const fmtShortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+export default function LogSymptomModal({ isOpen, onClose }: Props) {
   const [type, setType] = useState('');
   const [customType, setCustomType] = useState('');
   const [severity, setSeverity] = useState<SeverityLevel>(5);
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
-  const [linkedFoodId, setLinkedFoodId] = useState<string>('');
-  const [linkedSymptomId, setLinkedSymptomId] = useState<string>('');
-  const [photoUrl, setPhotoUrl] = useState<string>('');
+  const [linkedFoodId, setLinkedFoodId] = useState('');
+  const [linkedSymptomId, setLinkedSymptomId] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const addSymptom = useAppStore((state) => state.addSymptom);
-  const updateSymptom = useAppStore((state) => state.updateSymptom);
-  const foodLogs = useAppStore((state) => state.foodLogs);
-  const symptoms = useAppStore((state) => state.symptoms);
-  const experiments = useAppStore((state) => state.experiments);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const addSymptom = useAppStore((s) => s.addSymptom);
+  const foodLogs = useAppStore((s) => s.foodLogs);
+  const symptoms = useAppStore((s) => s.symptoms);
+  const experiments = useAppStore((s) => s.experiments);
   const voice = useVoiceCapture();
 
-  const effectiveType = type === 'other' ? customType : type;
+  const effectiveType = type === 'other' ? customType.trim() : type;
+
+  const recentFoodLogs = useMemo(
+    () => foodLogs
+      .filter((f) => (Date.now() - toDate(f.timestamp).getTime()) / 3.6e6 <= 24)
+      .slice(0, 10)
+      .sort((a, b) => toDate(b.timestamp).getTime() - toDate(a.timestamp).getTime()),
+    [foodLogs]
+  );
+
+  const previousSymptoms = useMemo(
+    () => symptoms
+      .filter((s) => (!effectiveType || effectiveType === 'other' ? true : s.type === effectiveType))
+      .filter((s) => (Date.now() - toDate(s.timestamp).getTime()) / 86_400_000 <= 30)
+      .slice(0, 10)
+      .sort((a, b) => toDate(b.timestamp).getTime() - toDate(a.timestamp).getTime()),
+    [symptoms, effectiveType]
+  );
+
   const suspectFoods = useMemo(() => {
     if (!effectiveType) return [];
-    const recent48h = foodLogs.filter((f) => {
-      const t = f.timestamp instanceof Date ? f.timestamp.getTime() : new Date(f.timestamp).getTime();
-      return (Date.now() - t) / 3.6e6 <= 48;
-    });
+    const recent48h = foodLogs.filter((f) =>
+      (Date.now() - toDate(f.timestamp).getTime()) / 3.6e6 <= 48
+    );
     if (recent48h.length === 0) return [];
     const insights = generateInsights(foodLogs, symptoms, experiments);
     return rankSuspectFoods(effectiveType, recent48h, insights, symptoms);
   }, [effectiveType, foodLogs, symptoms, experiments]);
 
-  const handleVoiceClick = async () => {
+  useEffect(() => {
+    if (!isOpen) {
+      setType(''); setCustomType(''); setSeverity(5); setDuration(''); setNotes('');
+      setLinkedFoodId(''); setLinkedSymptomId('');
+      setPhotoUrl(''); setPhotoFile(null); setAiAnalysis(null); setAnalyzing(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleVoice = async () => {
     if (voice.recording) {
       const transcript = await voice.stop();
       if (!transcript) return;
@@ -83,103 +97,45 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
     }
   };
 
-  // Get recent food logs (last 24 hours) for linking
-  const recentFoodLogs = foodLogs
-    .filter((log) => {
-      const hoursAgo = (Date.now() - log.timestamp.getTime()) / (1000 * 60 * 60);
-      return hoursAgo <= 24;
-    })
-    .slice(0, 10)
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-  // Get previous symptoms of the same type for linking (last 30 days)
-  const previousSymptoms = symptoms
-    .filter((s) => {
-      if (type && type !== 'other') {
-        return s.type === type;
-      }
-      return true;
-    })
-    .filter((s) => {
-      const daysAgo = (Date.now() - s.timestamp.getTime()) / (1000 * 60 * 60 * 24);
-      return daysAgo <= 30;
-    })
-    .slice(0, 10)
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-  useEffect(() => {
-    if (!isOpen) {
-      // Reset form when modal closes
-      setType('');
-      setCustomType('');
-      setSeverity(5);
-      setDuration('');
-      setNotes('');
-      setLinkedFoodId('');
-      setLinkedSymptomId('');
-      setPhotoUrl('');
-      setPhotoFile(null);
-      setAiAnalysis(null);
-    }
-  }, [isOpen]);
-
-  const handlePhotoUpload = async (file: File) => {
+  const handlePhoto = async (file: File) => {
     setPhotoFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setPhotoUrl(dataUrl);
-    };
-    reader.readAsDataURL(file);
+    const r = new FileReader();
+    r.onload = (e) => setPhotoUrl((e.target?.result as string) || '');
+    r.readAsDataURL(file);
   };
 
   const analyzePhoto = async () => {
     if (!photoFile) return;
-
-    setAnalyzingPhoto(true);
+    setAnalyzing(true);
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        
-        // Get recent food logs for context
-        const recentFoods = foodLogs
-          .filter((log) => {
-            const hoursAgo = (Date.now() - log.timestamp.getTime()) / (1000 * 60 * 60);
-            return hoursAgo <= 48;
-          })
-          .slice(0, 20);
-
-        const response = await fetch('/api/openai/analyze-symptom-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64,
-            userData: { foodLogs: recentFoods },
-          }),
-        });
-
-        const analysis = await response.json();
-        setAiAnalysis(analysis);
-      };
-      reader.readAsDataURL(photoFile);
-    } catch (error) {
-      console.error('Error analyzing photo:', error);
-      alert('Failed to analyze photo. Please try again.');
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve((r.result as string).split(',')[1]);
+        r.onerror = reject;
+        r.readAsDataURL(photoFile);
+      });
+      const recent = foodLogs
+        .filter((f) => (Date.now() - toDate(f.timestamp).getTime()) / 3.6e6 <= 48)
+        .slice(0, 20);
+      const res = await fetch('/api/openai/analyze-symptom-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, userData: { foodLogs: recent } }),
+      });
+      if (res.ok) setAiAnalysis(await res.json());
+    } catch (err) {
+      console.error(err);
+      alert('Photo analysis failed. Try again.');
     } finally {
-      setAnalyzingPhoto(false);
+      setAnalyzing(false);
     }
   };
 
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const symptomType = type === 'other' ? customType.trim() : type;
+    const symptomType = effectiveType;
     if (!symptomType) return;
-
-    const newSymptom: Omit<Symptom, 'id' | 'timestamp'> = {
+    const next: Omit<Symptom, 'id' | 'timestamp'> = {
       type: symptomType,
       severity,
       duration: duration.trim() || undefined,
@@ -196,332 +152,280 @@ export default function LogSymptomModal({ isOpen, onClose }: LogSymptomModalProp
           }
         : undefined,
     };
-
-    addSymptom(newSymptom);
-
-    // Reset form
-    setType('');
-    setCustomType('');
-    setSeverity(5);
-    setDuration('');
-    setNotes('');
-    setLinkedFoodId('');
-    setLinkedSymptomId('');
-    setPhotoUrl('');
-    setPhotoFile(null);
-    setAiAnalysis(null);
+    addSymptom(next);
     onClose();
   };
 
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
-  };
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
-  };
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">Log Symptom</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto bg-app"
+        style={{
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderTop: '1px solid var(--border)',
+          boxShadow: '0 -16px 40px rgba(0,0,0,0.18)',
+        }}
+      >
+        <div className="px-5 pt-2.5 pb-6">
+          <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="m-0 font-heading text-[22px] tracking-head ink">Log symptom</h2>
+            <button onClick={onClose} className="muted hover:text-ink" aria-label="Close">
+              <IconClose size={18} />
+            </button>
+          </div>
+
+          <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Symptom Type *</label>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                {symptomTypes.map((symptom) => (
-                  <button
-                    key={symptom}
-                    type="button"
-                    onClick={() => setType(symptom)}
-                    className={`px-3 py-2 rounded-lg text-sm ${
-                      type === symptom
-                        ? 'bg-accent-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {symptom}
-                  </button>
-                ))}
+              <div className="eyebrow mb-1.5">Type</div>
+              <div className="flex flex-wrap gap-1.5">
+                {symptomTypes.map((s) => {
+                  const on = type === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setType(s)}
+                      className="px-3 py-1.5 rounded-full text-[12px] capitalize"
+                      style={{
+                        background: on ? 'var(--ink)' : 'transparent',
+                        color: on ? 'var(--bg)' : 'var(--ink-soft)',
+                        border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                      }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
               </div>
               {type === 'other' && (
                 <input
-                  type="text"
                   value={customType}
                   onChange={(e) => setCustomType(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 mt-2"
-                  placeholder="Enter symptom type"
+                  placeholder="Enter custom symptom"
+                  className="mt-2 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                  style={{ border: '1px solid var(--border)' }}
                   autoFocus
                 />
               )}
             </div>
 
-            {/* Photo Upload Section */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Photo (optional) - for visual symptoms like rashes, pimples, etc.
-              </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handlePhotoUpload(file);
-                }}
-                className="hidden"
-              />
-              <div className="space-y-2">
-                {!photoUrl ? (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-accent-500 dark:hover:border-accent-500 transition-colors text-gray-600 dark:text-gray-400"
-                  >
-                    📷 Take or Upload Photo
-                  </button>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <img
-                        src={photoUrl}
-                        alt="Symptom photo"
-                        className="w-full rounded-lg max-h-48 object-contain bg-gray-100 dark:bg-gray-900"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPhotoUrl('');
-                          setPhotoFile(null);
-                          setAiAnalysis(null);
-                        }}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    {!aiAnalysis && (
-                      <button
-                        type="button"
-                        onClick={analyzePhoto}
-                        disabled={analyzingPhoto}
-                        className="w-full px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        {analyzingPhoto ? 'Analyzing...' : '🤖 Analyze Photo with AI'}
-                      </button>
-                    )}
-                  </div>
-                )}
-                
-                {/* AI Analysis Results */}
-                {aiAnalysis && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">AI Analysis</h4>
-                    
-                    {aiAnalysis.description && (
-                      <div>
-                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Description:</p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">{aiAnalysis.description}</p>
-                      </div>
-                    )}
-                    
-                    {aiAnalysis.documentationTips && (
-                      <div>
-                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Documentation Tips:</p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">{aiAnalysis.documentationTips}</p>
-                      </div>
-                    )}
-                    
-                    {aiAnalysis.suggestion && (
-                      <div>
-                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Recommendation:</p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">{aiAnalysis.suggestion}</p>
-                      </div>
-                    )}
-                    
-                    {aiAnalysis.possibleCauses && aiAnalysis.possibleCauses.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Possible Connections:</p>
-                        <ul className="list-disc list-inside text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                          {aiAnalysis.possibleCauses.map((cause: string, idx: number) => (
-                            <li key={idx}>{cause}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {aiAnalysis.disclaimer && (
-                      <p className="text-xs text-blue-600 dark:text-blue-400 italic mt-2">
-                        {aiAnalysis.disclaimer}
-                      </p>
-                    )}
-                  </div>
-                )}
+              <div className="flex items-baseline justify-between mb-1.5">
+                <div className="eyebrow">Severity</div>
+                <span className="font-mono text-[11px] muted">{severity}/10</span>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Severity: {severity}/10
-              </label>
               <input
-                type="range"
-                min="1"
-                max="10"
+                type="range" min={1} max={10}
                 value={severity}
-                onChange={(e) => setSeverity(parseInt(e.target.value) as SeverityLevel)}
-                className="w-full"
+                onChange={(e) => setSeverity(Number(e.target.value) as SeverityLevel)}
+                className="w-full accent-current"
+                style={{ accentColor: 'var(--accent)' }}
               />
-              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-                <span>1 (mild)</span>
-                <span>10 (severe)</span>
+              <div className="flex justify-between text-[10px] muted mt-0.5">
+                <span>mild</span><span>severe</span>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Duration (optional)</label>
+            <label className="block">
+              <span className="eyebrow">Duration</span>
               <input
-                type="text"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                placeholder="e.g., 30 minutes, 2 hours"
+                placeholder="e.g. 30 min, 2 h"
+                className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Link to Previous Symptom (optional)
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Track how this symptom evolves - link to a previous occurrence
-              </p>
-              <select
-                value={linkedSymptomId}
-                onChange={(e) => setLinkedSymptomId(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+            {suspectFoods.length > 0 && (
+              <div
+                className="p-3 rounded-card"
+                style={{ background: 'var(--surface-alt)', border: '1px dashed var(--border-strong)' }}
               >
-                <option value="">None - New symptom occurrence</option>
-                {previousSymptoms.map((symptom) => (
-                  <option key={symptom.id} value={symptom.id}>
-                    {formatDate(symptom.timestamp)} - {symptom.type} (severity: {symptom.severity}/10)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Link to Food (optional)
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Did a specific food cause this symptom?
-              </p>
-
-              {suspectFoods.length > 0 && (
-                <div className="mb-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                  <p className="text-xs font-medium text-orange-800 dark:text-orange-200 mb-2">
-                    Likely culprits (based on your history)
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {suspectFoods.map((suspect) => (
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div
+                    className="w-[18px] h-[18px] rounded-md flex items-center justify-center"
+                    style={{ background: 'var(--accent)', color: 'var(--surface)' }}
+                  >
+                    <IconSpark size={11} stroke={2.2} />
+                  </div>
+                  <div className="eyebrow">Likely culprits</div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {suspectFoods.map((c) => {
+                    const on = linkedFoodId === c.foodLogId;
+                    return (
                       <button
-                        key={suspect.foodLogId}
+                        key={c.foodLogId}
                         type="button"
-                        onClick={() => setLinkedFoodId(suspect.foodLogId)}
-                        title={suspect.reasons.join(' • ')}
-                        className={`text-left px-3 py-1.5 rounded text-xs border ${
-                          linkedFoodId === suspect.foodLogId
-                            ? 'bg-orange-500 text-white border-orange-500'
-                            : 'bg-white dark:bg-gray-800 border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-200 hover:bg-orange-100 dark:hover:bg-orange-900/40'
-                        }`}
+                        onClick={() => setLinkedFoodId(on ? '' : c.foodLogId)}
+                        title={c.reasons.join(' · ')}
+                        className="text-left px-2.5 py-1 rounded-card text-[11.5px]"
+                        style={{
+                          background: on ? 'var(--accent)' : 'var(--surface)',
+                          color: on ? 'var(--surface)' : 'var(--ink-soft)',
+                          border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
                       >
-                        <div className="font-medium">{suspect.food}</div>
-                        <div className="opacity-75">
-                          {suspect.hoursAgo.toFixed(1)}h ago • score {Math.round(suspect.score)}
+                        <div className="font-medium">{c.food}</div>
+                        <div className="opacity-75 font-mono text-[10px]">
+                          {c.hoursAgo.toFixed(1)}h ago · {Math.round(c.score)}
                         </div>
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
+            <label className="block">
+              <span className="eyebrow">Link to food (optional)</span>
               <select
                 value={linkedFoodId}
                 onChange={(e) => setLinkedFoodId(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
               >
-                <option value="">None - Don&apos;t link</option>
-                {recentFoodLogs.map((food) => (
-                  <option key={food.id} value={food.id}>
-                    {formatTime(food.timestamp)} - {food.food}
+                <option value="">None</option>
+                {recentFoodLogs.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {fmtTime(toDate(f.timestamp))} — {f.food}
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="block">
+              <span className="eyebrow">Link to previous {effectiveType || 'symptom'} (optional)</span>
+              <select
+                value={linkedSymptomId}
+                onChange={(e) => setLinkedSymptomId(e.target.value)}
+                className="mt-1.5 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              >
+                <option value="">None — new occurrence</option>
+                {previousSymptoms.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {fmtShortDate(toDate(p.timestamp))} — {p.type} (S{p.severity})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div>
+              <div className="eyebrow mb-1.5">Photo (for visible symptoms)</div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]; if (f) handlePhoto(f);
+                }}
+              />
+              {!photoUrl ? (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-card text-[13px] ink-soft"
+                  style={{ border: '2px dashed var(--border-strong)' }}
+                >
+                  <IconCamera size={15} /> Take or upload photo
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoUrl} alt="" className="w-full rounded-card max-h-48 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => { setPhotoUrl(''); setPhotoFile(null); setAiAnalysis(null); }}
+                      className="absolute top-2 right-2 px-2 py-1 rounded-full text-white"
+                      style={{ background: 'rgba(0,0,0,0.55)' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {!aiAnalysis && (
+                    <button
+                      type="button"
+                      onClick={analyzePhoto}
+                      disabled={analyzing}
+                      className="w-full px-3 py-2 rounded-full text-[12.5px] disabled:opacity-50"
+                      style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+                    >
+                      {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+                    </button>
+                  )}
+                  {aiAnalysis && (
+                    <div className="card p-3 text-[12.5px] ink-soft space-y-1.5">
+                      {aiAnalysis.description && <p className="m-0"><b className="ink">Description:</b> {aiAnalysis.description}</p>}
+                      {aiAnalysis.suggestion && <p className="m-0"><b className="ink">Suggestion:</b> {aiAnalysis.suggestion}</p>}
+                      {Array.isArray(aiAnalysis.possibleCauses) && aiAnalysis.possibleCauses.length > 0 && (
+                        <ul className="list-disc list-inside m-0 space-y-0.5">
+                          {aiAnalysis.possibleCauses.map((c: string, i: number) => <li key={i}>{c}</li>)}
+                        </ul>
+                      )}
+                      {aiAnalysis.disclaimer && <p className="m-0 italic text-[11.5px] muted">{aiAnalysis.disclaimer}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Notes (optional)</label>
+              <div className="eyebrow mb-1.5">Notes</div>
               <div className="flex gap-2 items-start">
                 <textarea
+                  rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                  placeholder="Any additional notes..."
-                  rows={3}
+                  placeholder="What does it feel like? Where?"
+                  className="flex-1 px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                  style={{ border: '1px solid var(--border)' }}
                 />
                 {voice.supported && (
                   <button
                     type="button"
-                    onClick={handleVoiceClick}
+                    onClick={handleVoice}
                     disabled={voice.transcribing}
-                    title={voice.recording ? 'Stop recording' : 'Dictate notes'}
-                    aria-label={voice.recording ? 'Stop recording' : 'Start voice notes'}
-                    className={`px-3 py-2 border rounded-lg ${
-                      voice.recording
-                        ? 'bg-red-500 text-white border-red-500 animate-pulse'
-                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                    } disabled:opacity-50`}
+                    aria-label={voice.recording ? 'Stop' : 'Dictate'}
+                    className="px-2.5 py-2 rounded-full disabled:opacity-50"
+                    style={{
+                      background: voice.recording ? '#ef4444' : 'transparent',
+                      color: voice.recording ? '#fff' : 'var(--ink-soft)',
+                      border: '1px solid var(--border)',
+                    }}
                   >
-                    {voice.recording ? '■' : '🎤'}
+                    <IconMic size={13} />
                   </button>
                 )}
               </div>
-              {voice.recording && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Recording… tap ■ when done.</p>
-              )}
-              {voice.transcribing && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Transcribing…</p>
-              )}
-              {voice.error && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{voice.error}</p>
-              )}
+              {voice.error && <p className="mt-1 text-[11px]" style={{ color: '#c44' }}>{voice.error}</p>}
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                className="px-4 py-2.5 rounded-full text-[13px]"
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-accent-500 text-white rounded-lg hover:bg-accent-600"
-                disabled={!type || (type === 'other' && !customType.trim()) || analyzingPhoto}
+                disabled={!effectiveType || analyzing}
+                className="flex-1 px-4 py-2.5 rounded-full text-[14px] font-medium disabled:opacity-50"
+                style={{ background: 'var(--ink)', color: 'var(--bg)' }}
               >
                 Save
               </button>

@@ -2,165 +2,122 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { formatDate, formatTime } from '@/lib/utils';
-import { Realization } from '@/types';
+import PageHeader from '@/components/ui/PageHeader';
+import { IconPlus, IconClose, IconTrash } from '@/components/ui/Icon';
+
+const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
+const fmt = (d: Date) =>
+  `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 export default function RealizationsPage() {
-  const realizations = useAppStore((state) => state.realizations);
-  const addRealization = useAppStore((state) => state.addRealization);
-  const deleteRealization = useAppStore((state) => state.deleteRealization);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const realizations = useAppStore((s) => s.realizations);
+  const addRealization = useAppStore((s) => s.addRealization);
+  const deleteRealization = useAppStore((s) => s.deleteRealization);
+
+  const [open, setOpen] = useState(false);
   const [content, setContent] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
-
-    addRealization({
-      content: content.trim(),
-    });
-
+    addRealization({ content: content.trim() });
     setContent('');
-    setShowAddModal(false);
+    setOpen(false);
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 max-w-2xl">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">My Realizations</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-primary-500 hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          + Add Realization
-        </button>
-      </div>
+    <div className="w-full max-w-2xl mx-auto">
+      <PageHeader
+        eyebrow="Notes to self"
+        title="Realizations"
+        subtitle="Observations you want to remember and have the AI use as context."
+        action={
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+          >
+            <IconPlus size={13} /> Add
+          </button>
+        }
+      />
 
-      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-xs text-blue-800 dark:text-blue-200">
-          Write down your personal observations and realizations. These help you and the AI understand your patterns better.
-        </p>
-      </div>
-
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-4">Add Realization</h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Your Realization *</label>
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="E.g., 'Bloating seems worse after high-fiber meals.'"
-                    rows={6}
-                    autoFocus
-                    required
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setContent('');
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                    disabled={!content.trim()}
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
-            </div>
+      <section className="px-5 pb-10">
+        {realizations.length === 0 ? (
+          <div className="card p-4 muted text-[13.5px]">
+            No realizations yet. Add the first one — even half-formed thoughts help.
           </div>
-        </div>
-      )}
-
-      {realizations.length === 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-            No realizations yet. Add your first observation or insight.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {realizations.map((realization) => (
-            <div
-              key={realization.id}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1">
-                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                    {realization.content}
-                  </p>
+        ) : (
+          <div className="space-y-2">
+            {realizations.map((r) => (
+              <article key={r.id} className="card p-3.5 flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="m-0 ink whitespace-pre-wrap text-[14px]">{r.content}</p>
+                  <div className="eyebrow mt-2">{fmt(toDate(r.timestamp))}</div>
                 </div>
                 <button
-                  onClick={() => deleteRealization(realization.id)}
-                  className="ml-4 text-red-500 hover:text-red-700 text-sm"
+                  onClick={() => {
+                    if (confirm('Delete this realization?')) deleteRealization(r.id);
+                  }}
+                  aria-label="Delete"
+                  className="muted hover:text-ink self-start"
                 >
-                  Delete
+                  <IconTrash size={15} />
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="card w-full max-w-md p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="m-0 font-heading text-[22px] tracking-head ink">Add realization</h2>
+              <button onClick={() => setOpen(false)} className="muted hover:text-ink" aria-label="Close">
+                <IconClose size={18} />
+              </button>
+            </div>
+            <form onSubmit={save}>
+              <textarea
+                autoFocus
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={6}
+                placeholder="E.g. 'Bloating seems worse after high-fiber meals.'"
+                className="w-full px-3 py-2.5 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-4 py-2 rounded-full text-[13px]"
+                  style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!content.trim()}
+                  className="flex-1 px-4 py-2 rounded-full text-[13px] disabled:opacity-50"
+                  style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+                >
+                  Save
                 </button>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {formatDate(realization.timestamp)} at {formatTime(realization.timestamp)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
-            <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-4">Add Realization</h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Your Realization</label>
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="Write your observation, insight, or realization..."
-                    rows={6}
-                    autoFocus
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setContent('');
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                    disabled={!content.trim()}
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 }
-
