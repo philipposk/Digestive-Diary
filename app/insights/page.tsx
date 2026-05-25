@@ -15,6 +15,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   psychological: 'Psychological',
   experiment: 'Experiment',
   trend: 'Trend',
+  bayes: 'Probability',
 };
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));

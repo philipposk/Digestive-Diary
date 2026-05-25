@@ -1,6 +1,7 @@
 import { FoodLog, Symptom, Pattern, Experiment } from '@/types';
 import { INSIGHTS_CONFIG } from './insightsConfig';
 import { canonicalizeFoodNames, foodKey } from './foodNormalize';
+import { computeBayesTriggers } from './bayesTriggers';
 
 function toDate(t: Date | string | undefined): Date {
   return t instanceof Date ? t : new Date(t || 0);
@@ -344,6 +345,7 @@ export function generateInsights(
   insights.push(...detectSugarCravingPatterns(foodLogs, symptoms));
   insights.push(...correlateExperiments(experiments, symptoms));
   insights.push(...detectWeeklyTrends(symptoms));
+  insights.push(...computeBayesTriggers(foodLogs, symptoms));
 
   return insights.sort((a, b) => {
     const confOrder = { high: 3, medium: 2, low: 1 } as const;
