@@ -1,12 +1,36 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Instrument_Serif, JetBrains_Mono, DM_Sans } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/navigation/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
 import FloatingChatButton from "@/components/chat/FloatingChatButton";
 import AutoScanRunner from "@/components/AutoScanRunner";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-geist", // alias kept so globals.css doesn't need a rename
+  display: "swap",
+});
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-instrument-serif",
+  display: "swap",
+});
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-jetbrains",
+  display: "swap",
+});
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Digestive Diary",
@@ -15,14 +39,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="w-full">
-      <body className={`${inter.className} w-full`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      data-mode="light"
+      data-vibe="clinical"
+      className={`${inter.variable} ${instrumentSerif.variable} ${jetbrains.variable} ${dmSans.variable} w-full`}
+    >
+      <body className="w-full bg-deep text-ink font-body">
         <ThemeProvider>
-          <main className="min-h-screen pb-20 bg-white dark:bg-gray-950 w-full">
+          <main className="min-h-screen pb-24 bg-app w-full">
             {children}
           </main>
           <BottomNav />

@@ -1,29 +1,32 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
+import { IconChat } from '@/components/ui/Icon';
 
 export default function FloatingChatButton() {
   const router = useRouter();
   const chatSession = useAppStore((state) => state.chatSession);
-  const hasUnread = chatSession && chatSession.messages.length > 0;
-
-  const handleClick = () => {
-    router.push('/chat');
-  };
+  const hasMessages = !!chatSession && chatSession.messages.length > 0;
 
   return (
     <button
-      onClick={handleClick}
-      className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:scale-110 active:scale-95"
-      aria-label="Open AI Chat"
+      onClick={() => router.push('/chat')}
+      aria-label="Ask the diary"
+      className="fixed bottom-24 right-4 z-40 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-95 hover:scale-105"
+      style={{
+        background: 'var(--ink)',
+        color: 'var(--bg)',
+        boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
+      }}
     >
-      🤖
-      {hasUnread && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></span>
+      <IconChat size={20} stroke={1.6} />
+      {hasMessages && (
+        <span
+          className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+          style={{ background: 'var(--accent)', border: '2px solid var(--bg)' }}
+        />
       )}
     </button>
   );
 }
-

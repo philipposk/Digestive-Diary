@@ -2,37 +2,58 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  IconBowl,
+  IconPulse,
+  IconSpark,
+  IconFlask,
+  IconCog,
+} from '@/components/ui/Icon';
 
 const navItems = [
-  { href: '/', label: 'Log', icon: '📝' },
-  { href: '/calendar', label: 'Calendar', icon: '📅' },
-  { href: '/experiments', label: 'Experiments', icon: '🧪' },
-  { href: '/insights', label: 'Insights', icon: '💡' },
-  { href: '/recipes', label: 'Recipes', icon: '🍽️' },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/',            label: 'Today',     icon: IconBowl,     match: (p: string) => p === '/' },
+  { href: '/timeline',    label: 'Timeline',  icon: IconPulse,    match: (p: string) => p.startsWith('/timeline') || p.startsWith('/calendar') },
+  { href: '/insights',    label: 'Insights',  icon: IconSpark,    match: (p: string) => p.startsWith('/insights') || p.startsWith('/realizations') },
+  { href: '/experiments', label: 'Lab',       icon: IconFlask,    match: (p: string) => p.startsWith('/experiments') || p.startsWith('/recipes') || p.startsWith('/sources') || p.startsWith('/macros') },
+  { href: '/settings',    label: 'Profile',   icon: IconCog,      match: (p: string) => p.startsWith('/settings') || p.startsWith('/admin') },
 ];
 
 export default function BottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '/';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 z-50">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md"
+      style={{
+        background: 'linear-gradient(to top, var(--bg) 65%, transparent)',
+        borderTop: '1px solid var(--border)',
+        paddingTop: 8,
+        paddingBottom: 'max(env(safe-area-inset-bottom), 14px)',
+      }}
+    >
       <div className="w-full max-w-2xl mx-auto px-4">
-        <div className="flex justify-around items-center h-16">
+        <div className="flex justify-around items-center">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const Icon = item.icon;
+            const active = item.match(pathname);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center flex-1 h-full min-w-0 ${
-                  isActive
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-gray-500 dark:text-gray-400'
-                }`}
+                aria-current={active ? 'page' : undefined}
+                className="flex flex-col items-center justify-center gap-[3px] px-2 py-1.5 transition-colors"
+                style={{ color: active ? 'var(--ink)' : 'var(--muted)' }}
               >
-                <span className="text-xl mb-0.5">{item.icon}</span>
-                <span className="text-[10px] font-medium truncate w-full text-center">{item.label}</span>
+                <Icon size={20} stroke={active ? 2 : 1.5} />
+                <span
+                  className="text-[10.5px] font-body"
+                  style={{
+                    fontWeight: active ? 600 : 500,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -41,4 +62,3 @@ export default function BottomNav() {
     </nav>
   );
 }
-

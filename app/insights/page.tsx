@@ -1,326 +1,222 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { generateInsights } from '@/lib/generateInsights';
-import { formatDate, formatTime } from '@/lib/utils';
 import { Pattern } from '@/types';
+import PageHeader from '@/components/ui/PageHeader';
+import Confidence from '@/components/ui/Confidence';
+import AIAnnotation from '@/components/ui/AIAnnotation';
+import { IconChevR, IconSpark } from '@/components/ui/Icon';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  food: 'Food',
+  tag: 'Tag',
+  psychological: 'Psychological',
+  experiment: 'Experiment',
+  trend: 'Trend',
+};
+
+const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function InsightsPage() {
-  const foodLogs = useAppStore((state) => state.foodLogs);
-  const symptoms = useAppStore((state) => state.symptoms);
-  const experiments = useAppStore((state) => state.experiments);
+  const foodLogs = useAppStore((s) => s.foodLogs);
+  const symptoms = useAppStore((s) => s.symptoms);
+  const experiments = useAppStore((s) => s.experiments);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [categories, setCategories] = useState<string[]>([]);
-  const [selectedInsight, setSelectedInsight] = useState<Pattern | null>(null);
+  const [open, setOpen] = useState<Pattern | null>(null);
 
-  const insights = useMemo(() => {
-    return generateInsights(foodLogs, symptoms, experiments);
-  }, [foodLogs, symptoms, experiments]);
+  const insights = useMemo(() => generateInsights(foodLogs, symptoms, experiments), [foodLogs, symptoms, experiments]);
 
-  // Extract categories separately
-  useEffect(() => {
-    const uniqueCategories = Array.from(
-      new Set(insights.map((insight) => insight.category || 'uncategorized').filter(Boolean))
-    ).filter((cat) => cat !== 'uncategorized') as string[];
-    setCategories(uniqueCategories);
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    insights.forEach((p) => { if (p.category) set.add(p.category); });
+    return Array.from(set);
   }, [insights]);
 
-  // Filter insights by category
-  const filteredInsights = useMemo(() => {
-    if (selectedCategory === 'all') {
-      return insights;
-    }
-    return insights.filter((insight) => (insight.category || 'uncategorized') === selectedCategory);
-  }, [insights, selectedCategory]);
+  const filtered = useMemo(
+    () => selectedCategory === 'all' ? insights : insights.filter((p) => p.category === selectedCategory),
+    [insights, selectedCategory]
+  );
 
-  const getConfidenceColor = (confidence: 'low' | 'medium' | 'high') => {
-    switch (confidence) {
-      case 'high':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700';
-      case 'medium':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700';
-      case 'low':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700';
-    }
-  };
+  const weeklyNote = useMemo(() => {
+    if (foodLogs.length === 0 && symptoms.length === 0) return 'Not enough data yet. Log a few meals and symptoms to see patterns appear.';
+    const since = Date.now() - 7 * 86_400_000;
+    const meals = foodLogs.filter((l) => toDate(l.timestamp).getTime() >= since).length;
+    const sym = symptoms.filter((s) => toDate(s.timestamp).getTime() >= since).length;
+    const topPattern = insights[0];
+    const exp = insights.find((p) => p.category === 'experiment');
+    const lead = `This week you logged ${meals} meals and ${sym} symptoms.`;
+    const sig = topPattern ? ` Strongest signal: ${topPattern.description}` : '';
+    const expLine = exp ? ` ${exp.description}` : '';
+    return lead + sig + expLine;
+  }, [foodLogs, symptoms, insights]);
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-6">Insights</h1>
-      
-      {/* Category Filter */}
-      {categories.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1 rounded-full text-sm ${
-              selectedCategory === 'all'
-                ? 'bg-primary-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
+    <div className="w-full max-w-2xl mx-auto">
+      <PageHeader
+        eyebrow="This week"
+        title="Insights"
+        subtitle="Patterns surface as you log. Nothing here is medical advice."
+      />
+
+      <div className="mx-5 mb-5 p-4 rounded-card" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>
+        <div className="flex items-center gap-2 mb-2.5">
+          <div
+            className="w-[18px] h-[18px] rounded-md flex items-center justify-center"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            All
-          </button>
-          {categories.map((category) => (
+            <IconSpark size={11} stroke={2} />
+          </div>
+          <div className="eyebrow">Weekly note</div>
+        </div>
+        <p className="m-0 text-[14px] leading-snug ink-soft">{weeklyNote}</p>
+      </div>
+
+      {categories.length > 0 && (
+        <div className="mx-5 mb-3 flex flex-wrap gap-1.5">
+          {(['all', ...categories]).map((c) => (
             <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                selectedCategory === category
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              }`}
+              key={c}
+              onClick={() => setSelectedCategory(c)}
+              className="px-3 py-1 rounded-full text-xs capitalize"
+              style={{
+                background: selectedCategory === c ? 'var(--ink)' : 'transparent',
+                color: selectedCategory === c ? 'var(--bg)' : 'var(--ink-soft)',
+                border: `1px solid ${selectedCategory === c ? 'var(--ink)' : 'var(--border)'}`,
+              }}
             >
-              {category}
+              {c === 'all' ? 'All' : CATEGORY_LABELS[c] ?? c}
             </button>
           ))}
         </div>
       )}
-      
-      {filteredInsights.length === 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-            No insights available yet. Insights are generated automatically as you log more data.
-          </p>
-          <p className="text-xs text-gray-400 dark:text-gray-500">
-            Need at least 2 occurrences of a symptom linked to foods to generate insights.
-          </p>
+
+      <section className="px-5 pb-10">
+        <div className="flex items-baseline justify-between mb-2.5">
+          <h2 className="m-0 font-heading text-[18px] font-semibold tracking-head ink">Patterns</h2>
+          <span className="eyebrow">{filtered.length} found</span>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredInsights.map((insight) => (
-            <div
-              key={insight.id}
-              onClick={() => setSelectedInsight(insight)}
-              className={`rounded-lg p-4 border ${getConfidenceColor(insight.confidence)} cursor-pointer hover:shadow-md transition-shadow`}
+
+        {filtered.length === 0 ? (
+          <div className="card p-4 text-[13px] ink-soft">
+            <p className="m-0">No patterns yet for this filter. Link symptoms to foods as you log to surface correlations.</p>
+          </div>
+        ) : (
+          filtered.map((p, idx) => (
+            <button
+              key={p.id}
+              onClick={() => setOpen(p)}
+              className="card w-full text-left p-3.5 mb-2.5 transition-colors hover:bg-surf-alt"
             >
-              <div className="flex justify-between items-start mb-2">
-                <p className="font-medium flex-1">{insight.description}</p>
-                <div className="flex gap-2 ml-2">
-                  {insight.psychologicalFlag && (
-                    <span className="px-2 py-1 text-xs rounded bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
-                      🧠 Psychological
-                    </span>
-                  )}
-                  <span className="px-2 py-1 text-xs rounded bg-white dark:bg-gray-800 bg-opacity-50 dark:bg-opacity-50">
-                    {insight.confidence}
-                  </span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <div className="text-xs opacity-75">
-                  Based on {insight.dataPoints} data point{insight.dataPoints !== 1 ? 's' : ''}
-                </div>
-                {insight.category && (
-                  <span className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">
-                    {insight.category}
-                  </span>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="font-mono text-[11px] muted">0{idx + 1}</span>
+                <Confidence level={p.confidence} />
+                {p.category && (
+                  <span className="ml-auto eyebrow">{CATEGORY_LABELS[p.category] ?? p.category}</span>
                 )}
               </div>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 italic">
-                Click to see details →
+              <div
+                className="font-heading text-[16px] leading-tight tracking-head ink mb-1 text-pretty"
+                style={{ fontWeight: 600 }}
+              >
+                <span>{p.pattern.symptom}</span>{' '}
+                <span className="muted font-normal">follows</span>{' '}
+                {p.pattern.followsFood && <span className="text-accent">{p.pattern.followsFood}</span>}
               </div>
+              <p className="m-0 text-[13px] ink-soft mb-2.5">{p.description}</p>
+              <div className="flex items-center gap-3 pt-2.5" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-1.5 flex-1">
+                  <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                    <div
+                      className="h-full"
+                      style={{
+                        width: `${Math.min(100, p.dataPoints * 14)}%`,
+                        background: 'var(--accent)',
+                      }}
+                    />
+                  </div>
+                  <span className="font-mono text-[11px] muted">{p.dataPoints} pts</span>
+                </div>
+                {p.pattern.timeWindow && (
+                  <span className="pill">{p.pattern.timeWindow}</span>
+                )}
+                <IconChevR size={14} className="muted" style={{ color: 'var(--muted)' }} />
+              </div>
+            </button>
+          ))
+        )}
+      </section>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setOpen(null)}
+        >
+          <div
+            className="card w-full max-w-md max-h-[88vh] overflow-y-auto p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <div className="eyebrow">Pattern detail</div>
+                <h2 className="m-0 font-heading text-[24px] tracking-head ink">
+                  {open.pattern.symptom}
+                </h2>
+              </div>
+              <button
+                onClick={() => setOpen(null)}
+                className="muted hover:text-ink"
+                aria-label="Close"
+              >
+                ✕
+              </button>
             </div>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-        <p className="text-xs text-yellow-800 dark:text-yellow-200">
-          <strong>Note:</strong> These insights are patterns detected in your data only. They are not medical advice.
-          Always consult with a healthcare professional for medical concerns.
-        </p>
-      </div>
-
-      {/* Insight Detail Modal */}
-      {selectedInsight && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-semibold">Insight Details</h2>
-                <button
-                  onClick={() => setSelectedInsight(null)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+            <p className="text-[13.5px] ink-soft">{open.description}</p>
+            <div className="grid grid-cols-2 gap-3 my-4">
+              <div>
+                <div className="eyebrow mb-1">Confidence</div>
+                <Confidence level={open.confidence} />
               </div>
-
-              <div className="space-y-4">
-                {/* Description */}
+              <div>
+                <div className="eyebrow mb-1">Data points</div>
+                <div className="font-mono text-[13px] ink">{open.dataPoints}</div>
+              </div>
+              {open.pattern.followsFood && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Description</h3>
-                  <p className="text-base font-medium">{selectedInsight.description}</p>
+                  <div className="eyebrow mb-1">Follows</div>
+                  <div className="text-[13px] ink">{open.pattern.followsFood}</div>
                 </div>
-
-                {/* Pattern Details */}
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Pattern Analysis</h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Symptom Type</p>
-                      <p className="text-sm font-medium">{selectedInsight.pattern.symptom}</p>
-                    </div>
-                    
-                    {selectedInsight.pattern.followsFood && (
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Follows Food</p>
-                        <p className="text-sm font-medium capitalize">{selectedInsight.pattern.followsFood}</p>
-                      </div>
-                    )}
-                    
-                    {selectedInsight.pattern.timeWindow && (
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Time Window</p>
-                        <p className="text-sm font-medium">{selectedInsight.pattern.timeWindow}</p>
-                      </div>
-                    )}
-                    
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Confidence Level</p>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 text-xs rounded ${getConfidenceColor(selectedInsight.confidence)}`}>
-                          {selectedInsight.confidence}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+              )}
+              {open.pattern.timeWindow && (
+                <div>
+                  <div className="eyebrow mb-1">Window</div>
+                  <div className="text-[13px] ink">{open.pattern.timeWindow}</div>
                 </div>
-
-                {/* Occurrences */}
-                {selectedInsight.occurrences && selectedInsight.occurrences.length > 0 && (
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-green-800 dark:text-green-200 mb-3">
-                      Specific Occurrences ({selectedInsight.occurrences.length})
-                    </h3>
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {selectedInsight.occurrences.map((occurrence, idx) => {
-                        const foodLog = foodLogs.find((f) => f.id === occurrence.foodLogId);
-                        const symptom = symptoms.find((s) => s.id === occurrence.symptomId);
-                        
-                        if (!foodLog || !symptom) return null;
-                        
-                        return (
-                          <div
-                            key={idx}
-                            className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-green-200 dark:border-green-800"
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium">🍽️ {foodLog.food}</span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">→</span>
-                                  <span className="text-sm font-medium">🏥 {symptom.type}</span>
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                  <div>Food: {formatDate(foodLog.timestamp)} at {formatTime(foodLog.timestamp)}</div>
-                                  <div>Symptom: {formatDate(symptom.timestamp)} at {formatTime(symptom.timestamp)}</div>
-                                  <div className="font-medium text-green-700 dark:text-green-300">
-                                    Time between: ~{occurrence.hoursBetween} hour{occurrence.hoursBetween !== 1 ? 's' : ''}
-                                  </div>
-                                </div>
-                                {symptom.severity && (
-                                  <div className="mt-2 text-xs">
-                                    <span className="text-gray-600 dark:text-gray-400">Severity: </span>
-                                    <span className="font-medium">{symptom.severity}/10</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Data Points */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">How This Insight Was Calculated</h3>
-                  <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
-                    <p>
-                      <strong>Data Points:</strong> This pattern is based on <strong>{selectedInsight.dataPoints}</strong> occurrence{selectedInsight.dataPoints !== 1 ? 's' : ''} where {selectedInsight.pattern.symptom} was logged after {selectedInsight.pattern.followsFood || 'eating'}.
-                    </p>
-                    <p>
-                      <strong>Confidence Level:</strong> {selectedInsight.confidence === 'high' 
-                        ? 'High confidence (5+ occurrences)' 
-                        : selectedInsight.confidence === 'medium' 
-                        ? 'Medium confidence (3-4 occurrences)' 
-                        : 'Low confidence (2 occurrences)'} - The more times this pattern appears, the higher the confidence.
-                    </p>
-                    {selectedInsight.pattern.timeWindow && (
-                      <p>
-                        <strong>Timing:</strong> Symptoms typically appear within {selectedInsight.pattern.timeWindow} after eating the linked food.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Psychological Flag Information */}
-                {selectedInsight.psychologicalFlag && (
-                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-3">
-                      🧠 Psychological/Emotional Pattern Detected
-                    </h3>
-                    <div className="space-y-3 text-sm text-purple-700 dark:text-purple-300">
-                      <p>
-                        This pattern has been flagged as potentially having psychological or emotional components. This means the eating behavior may be connected to emotions, stress, or psychological factors rather than purely physical hunger.
-                      </p>
-                      <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-3 mt-3">
-                        <h4 className="font-medium mb-2">What This Means:</h4>
-                        <ul className="text-xs space-y-1 list-disc list-inside">
-                          <li>Patterns like multiple eating sessions in short periods, or sugar cravings followed by eating, can indicate emotional eating</li>
-                          <li>These patterns may be related to stress, anxiety, boredom, or other emotional states</li>
-                          <li>Understanding these patterns can help you make more conscious choices about eating</li>
-                        </ul>
-                      </div>
-                      <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-3">
-                        <h4 className="font-medium mb-2">Suggested Resources:</h4>
-                        <ul className="text-xs space-y-1">
-                          <li>• Consider tracking your emotional state when eating (stress, mood, etc.)</li>
-                          <li>• Patterns in your sources/library may have relevant information about emotional eating</li>
-                          <li>• Consulting with a mental health professional or nutritionist can provide additional support</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Methodology */}
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">How Patterns Are Detected</h3>
-                  <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
-                    <li>Patterns are detected when you log symptoms and link them to specific foods</li>
-                    <li>A pattern is identified when the same symptom appears after the same food (or food tag) multiple times</li>
-                    <li>Confidence increases with the number of occurrences</li>
-                    <li>Time windows are calculated as the average time between food and symptom</li>
-                    <li>Psychological patterns are flagged when multiple eating sessions occur in short periods or when cravings are followed by eating</li>
-                    <li>These are observations from your data only - not medical diagnoses</li>
-                  </ul>
-                </div>
-
-                {/* Disclaimer */}
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                    <strong>Important:</strong> This insight is based solely on patterns in your logged data. It is not medical advice, diagnosis, or treatment. Always consult with a healthcare professional for medical concerns.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setSelectedInsight(null)}
-                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
+              )}
             </div>
+            {open.psychologicalFlag && (
+              <AIAnnotation label="Psychological">
+                This pattern may involve emotional or stress triggers, not just food. Worth tracking context (sleep, stress) alongside.
+              </AIAnnotation>
+            )}
+            {open.occurrences && open.occurrences.length > 0 && (
+              <div className="mt-4">
+                <div className="eyebrow mb-1.5">Occurrences ({open.occurrences.length})</div>
+                <ul className="space-y-1 text-[12.5px] ink-soft">
+                  {open.occurrences.slice(0, 8).map((o, i) => (
+                    <li key={i} className="flex justify-between">
+                      <span>#{i + 1}</span>
+                      <span className="font-mono">~{o.hoursBetween}h after</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="mt-4 text-[11.5px] muted">
+              Observations from your own data only. Not a diagnosis. Consult a clinician for medical questions.
+            </p>
           </div>
         </div>
       )}

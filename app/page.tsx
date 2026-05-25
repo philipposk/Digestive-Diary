@@ -1,13 +1,19 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { formatTime } from '@/lib/utils';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import LogFoodModal from '@/components/modals/LogFoodModal';
 import LogSymptomModal from '@/components/modals/LogSymptomModal';
 import LogContextModal from '@/components/modals/LogContextModal';
 import { generateSampleData } from '@/lib/generateSampleData';
 import { FoodLog, Symptom } from '@/types';
+import PageHeader from '@/components/ui/PageHeader';
+import AIAnnotation from '@/components/ui/AIAnnotation';
+import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
+import { IconBowl, IconPulse, IconMoon, IconSearch } from '@/components/ui/Icon';
+
+const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function HomePage() {
   const [today] = useState(new Date());
@@ -18,87 +24,68 @@ export default function HomePage() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showClearDemoButton, setShowClearDemoButton] = useState(false);
-  
   const [smartTip, setSmartTip] = useState<string | null>(null);
   const [smartTipLoading, setSmartTipLoading] = useState(false);
 
-  const symptoms = useAppStore((state) => state.symptoms);
-  const setFoodLogs = useAppStore((state) => state.setFoodLogs);
-  const setSymptoms = useAppStore((state) => state.setSymptoms);
-  const setContexts = useAppStore((state) => state.setContexts);
-  const setExperiments = useAppStore((state) => state.setExperiments);
-  const setRealizations = useAppStore((state) => state.setRealizations);
-  const setChatSession = useAppStore((state) => state.setChatSession);
-  const setSources = useAppStore((state) => state.setSources);
-  const experiments = useAppStore((state) => state.experiments);
-  const contexts = useAppStore((state) => state.contexts);
-  const fastingSettings = useAppStore((state) => state.fastingSettings);
-  const foodLogs = useAppStore((state) => state.foodLogs);
+  const symptoms = useAppStore((s) => s.symptoms);
+  const setFoodLogs = useAppStore((s) => s.setFoodLogs);
+  const setSymptoms = useAppStore((s) => s.setSymptoms);
+  const setContexts = useAppStore((s) => s.setContexts);
+  const setExperiments = useAppStore((s) => s.setExperiments);
+  const setRealizations = useAppStore((s) => s.setRealizations);
+  const setChatSession = useAppStore((s) => s.setChatSession);
+  const setSources = useAppStore((s) => s.setSources);
+  const experiments = useAppStore((s) => s.experiments);
+  const fastingSettings = useAppStore((s) => s.fastingSettings);
+  const foodLogs = useAppStore((s) => s.foodLogs);
 
-  // Check if welcome banner was dismissed
   useEffect(() => {
-    const dismissed = localStorage.getItem('welcomeBannerDismissed');
-    if (dismissed === 'true') {
-      setShowWelcomeBanner(false);
-    }
+    if (localStorage.getItem('welcomeBannerDismissed') === 'true') setShowWelcomeBanner(false);
   }, []);
 
-  // Check if demo data was cleared
   useEffect(() => {
-    const demoCleared = localStorage.getItem('demoDataCleared');
-    const hasData = foodLogs.length > 0 || symptoms.length > 0 || experiments.length > 0;
-    setShowClearDemoButton(!demoCleared && hasData);
+    const cleared = localStorage.getItem('demoDataCleared');
+    const has = foodLogs.length > 0 || symptoms.length > 0 || experiments.length > 0;
+    setShowClearDemoButton(!cleared && has);
   }, [foodLogs.length, symptoms.length, experiments.length]);
 
-  // Generate sample data on first load if no data exists
   useEffect(() => {
     if (foodLogs.length === 0) {
-      const sampleData = generateSampleData();
-      setFoodLogs(sampleData.foodLogs);
-      setSymptoms(sampleData.symptoms);
-      setContexts(sampleData.contexts);
-      setExperiments(sampleData.experiments);
-      setRealizations(sampleData.realizations);
-      setChatSession(sampleData.chatSession);
-      setSources(sampleData.sources);
+      const data = generateSampleData();
+      setFoodLogs(data.foodLogs);
+      setSymptoms(data.symptoms);
+      setContexts(data.contexts);
+      setExperiments(data.experiments);
+      setRealizations(data.realizations);
+      setChatSession(data.chatSession);
+      setSources(data.sources);
     }
   }, [foodLogs.length, setFoodLogs, setSymptoms, setContexts, setExperiments, setRealizations, setChatSession, setSources]);
 
-  const handleDismissWelcome = () => {
-    setShowWelcomeBanner(false);
-    localStorage.setItem('welcomeBannerDismissed', 'true');
-  };
-
-  // Smart suggestions (Groq) — refetch at most every 15 minutes
+  // Groq smart tip (15-min sessionStorage cache).
   useEffect(() => {
     const CACHE_KEY = 'smartTip';
     const CACHE_AT = 'smartTipAt';
     const TTL = 15 * 60 * 1000;
     try {
-      const cachedAt = Number(sessionStorage.getItem(CACHE_AT) || '0');
+      const at = Number(sessionStorage.getItem(CACHE_AT) || '0');
       const cached = sessionStorage.getItem(CACHE_KEY);
-      if (cached && Date.now() - cachedAt < TTL) {
+      if (cached && Date.now() - at < TTL) {
         setSmartTip(cached);
         return;
       }
-    } catch { /* sessionStorage unavailable */ }
-
+    } catch { /* ignore */ }
     const lastFood = foodLogs[0];
     const lastSymptom = symptoms[0];
-    const lastFoodTime = lastFood?.timestamp ? new Date(lastFood.timestamp) : null;
-    const lastSymptomTime = lastSymptom?.timestamp ? new Date(lastSymptom.timestamp) : null;
-    const now = new Date();
-    const hoursSinceFood = lastFoodTime ? (now.getTime() - lastFoodTime.getTime()) / 3.6e6 : null;
-    const hoursSinceSymptom = lastSymptomTime ? (now.getTime() - lastSymptomTime.getTime()) / 3.6e6 : null;
-    const hour = now.getHours();
-    const partOfDay = hour < 5 ? 'late night' : hour < 11 ? 'morning' : hour < 15 ? 'midday' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'night';
-    const activeExperiments = experiments.filter((e) => e.active).map((e) => e.name);
-
-    const context = `Time of day: ${partOfDay}. ` +
-      (hoursSinceFood !== null ? `Hours since last food log: ${hoursSinceFood.toFixed(1)}. ` : 'No food logged yet. ') +
-      (hoursSinceSymptom !== null ? `Hours since last symptom: ${hoursSinceSymptom.toFixed(1)}. ` : '') +
-      (activeExperiments.length > 0 ? `Active diet experiments: ${activeExperiments.join(', ')}.` : '');
-
+    const hoursSinceFood = lastFood ? (Date.now() - toDate(lastFood.timestamp).getTime()) / 3.6e6 : null;
+    const hoursSinceSymptom = lastSymptom ? (Date.now() - toDate(lastSymptom.timestamp).getTime()) / 3.6e6 : null;
+    const hr = new Date().getHours();
+    const partOfDay = hr < 5 ? 'late night' : hr < 11 ? 'morning' : hr < 15 ? 'midday' : hr < 18 ? 'afternoon' : hr < 22 ? 'evening' : 'night';
+    const active = experiments.filter((e) => e.active).map((e) => e.name);
+    const context = `Time of day: ${partOfDay}. `
+      + (hoursSinceFood !== null ? `Hours since last food: ${hoursSinceFood.toFixed(1)}. ` : 'No food logged yet. ')
+      + (hoursSinceSymptom !== null ? `Hours since last symptom: ${hoursSinceSymptom.toFixed(1)}. ` : '')
+      + (active.length ? `Active experiments: ${active.join(', ')}.` : '');
     setSmartTipLoading(true);
     fetch('/api/groq/suggestions', {
       method: 'POST',
@@ -112,8 +99,8 @@ export default function HomePage() {
       }),
     })
       .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        const tip = typeof data?.suggestion === 'string' ? data.suggestion.trim() : '';
+      .then((d) => {
+        const tip = typeof d?.suggestion === 'string' ? d.suggestion.trim() : '';
         if (tip) {
           setSmartTip(tip);
           try {
@@ -122,485 +109,305 @@ export default function HomePage() {
           } catch { /* ignore */ }
         }
       })
-      .catch(() => { /* silent */ })
+      .catch(() => undefined)
       .finally(() => setSmartTipLoading(false));
   }, [foodLogs, symptoms, experiments]);
 
+  const handleDismissWelcome = () => {
+    setShowWelcomeBanner(false);
+    localStorage.setItem('welcomeBannerDismissed', 'true');
+  };
   const handleClearDemoData = () => {
-    if (confirm('Are you sure you want to clear all demo data and start fresh? This cannot be undone.')) {
-      setFoodLogs([]);
-      setSymptoms([]);
-      setContexts([]);
-      setExperiments([]);
-      setRealizations([]);
-      setChatSession(null);
-      setSources([]);
-      localStorage.setItem('demoDataCleared', 'true');
-      setShowClearDemoButton(false);
-    }
+    if (!confirm('Clear all demo data and start fresh? Cannot be undone.')) return;
+    setFoodLogs([]);
+    setSymptoms([]);
+    setContexts([]);
+    setExperiments([]);
+    setRealizations([]);
+    setChatSession(null);
+    setSources([]);
+    localStorage.setItem('demoDataCleared', 'true');
+    setShowClearDemoButton(false);
   };
 
-  const todayItems = useMemo(() => {
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const items: Array<{ type: 'food' | 'symptom'; data: FoodLog | Symptom; timestamp: Date; linkedFood?: FoodLog }> = [];
-    
+  const todayItems = useMemo<TimelineItem[]>(() => {
+    const start = new Date(today); start.setHours(0, 0, 0, 0);
+    const end = new Date(today); end.setHours(23, 59, 59, 999);
+    const items: TimelineItem[] = [];
     foodLogs.forEach((log) => {
-      const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
-      if (logTimestamp >= todayStart && logTimestamp <= todayEnd) {
-        items.push({ type: 'food', data: log, timestamp: logTimestamp });
+      const t = toDate(log.timestamp);
+      if (t >= start && t <= end) {
+        items.push({
+          id: log.id,
+          kind: 'food',
+          timestamp: t,
+          title: log.food,
+          detail: log.quantity,
+          tags: log.tags,
+        });
       }
     });
-
-    symptoms.forEach((symptom) => {
-      const symptomTimestamp = symptom.timestamp instanceof Date ? symptom.timestamp : new Date(symptom.timestamp);
-      if (symptomTimestamp >= todayStart && symptomTimestamp <= todayEnd) {
-        const linkedFood = symptom.linkedFoodId 
-          ? foodLogs.find((f) => f.id === symptom.linkedFoodId)
-          : undefined;
-        items.push({ type: 'symptom', data: symptom, timestamp: symptomTimestamp, linkedFood });
+    symptoms.forEach((sym) => {
+      const t = toDate(sym.timestamp);
+      if (t >= start && t <= end) {
+        const linked = sym.linkedFoodId ? foodLogs.find((f) => f.id === sym.linkedFoodId) : null;
+        items.push({
+          id: sym.id,
+          kind: 'symptom',
+          timestamp: t,
+          title: sym.type,
+          duration: sym.duration,
+          severity: sym.severity,
+          note: sym.notes,
+          photoUrl: sym.photoUrl,
+          linkedFoodTitle: linked?.food,
+        });
       }
     });
-
-    return items.sort((a, b) => {
-      const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-      const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-      return bTime.getTime() - aTime.getTime();
-    });
+    return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [foodLogs, symptoms, today]);
 
-  // Search functionality
+  const counts = useMemo(() => ({
+    food: todayItems.filter((i) => i.kind === 'food').length,
+    symptom: todayItems.filter((i) => i.kind === 'symptom').length,
+  }), [todayItems]);
+
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return { foods: [], symptoms: [], experiments: [] };
-
-    const query = searchQuery.toLowerCase();
-    const matchedFoods = foodLogs.filter(
-      (log) =>
-        log.food.toLowerCase().includes(query) ||
-        log.tags.some((tag) => tag.toLowerCase().includes(query)) ||
-        log.notes?.toLowerCase().includes(query)
-    );
-    const matchedSymptoms = symptoms.filter(
-      (symptom) =>
-        symptom.type.toLowerCase().includes(query) ||
-        symptom.notes?.toLowerCase().includes(query)
-    );
-    const matchedExperiments = experiments.filter(
-      (exp) =>
-        exp.name.toLowerCase().includes(query) ||
-        exp.notes?.toLowerCase().includes(query)
-    );
-
+    if (!searchQuery.trim()) return { foods: [] as FoodLog[], symptoms: [] as Symptom[], experiments: [] as typeof experiments };
+    const q = searchQuery.toLowerCase();
     return {
-      foods: matchedFoods.slice(0, 10),
-      symptoms: matchedSymptoms.slice(0, 10),
-      experiments: matchedExperiments.slice(0, 10),
+      foods: foodLogs.filter((l) => l.food.toLowerCase().includes(q) || l.tags.some((t) => t.toLowerCase().includes(q)) || l.notes?.toLowerCase().includes(q)).slice(0, 10),
+      symptoms: symptoms.filter((s) => s.type.toLowerCase().includes(q) || s.notes?.toLowerCase().includes(q)).slice(0, 10),
+      experiments: experiments.filter((e) => e.name.toLowerCase().includes(q) || e.notes?.toLowerCase().includes(q)).slice(0, 10),
     };
   }, [searchQuery, foodLogs, symptoms, experiments]);
 
+  const fastingInfo = useMemo(() => {
+    if (!fastingSettings.enabled) return null;
+    const lastMeal = fastingSettings.lastMealTime ? toDate(fastingSettings.lastMealTime) : (foodLogs[0] ? toDate(foodLogs[0].timestamp) : null);
+    if (!lastMeal) return null;
+    const hoursSince = (Date.now() - lastMeal.getTime()) / 3.6e6;
+    const isFasting = hoursSince < fastingSettings.fastingWindow;
+    if (isFasting) {
+      const remaining = fastingSettings.fastingWindow - hoursSince;
+      const hoursIn = Math.min(fastingSettings.fastingWindow, hoursSince);
+      return { mode: 'fasting' as const, remaining, hoursIn, pct: hoursIn / fastingSettings.fastingWindow };
+    }
+    const eatEnd = new Date(lastMeal.getTime() + (fastingSettings.fastingWindow + fastingSettings.eatingWindow) * 3.6e6);
+    const remaining = (eatEnd.getTime() - Date.now()) / 3.6e6;
+    if (remaining <= 0) return null;
+    return { mode: 'eating' as const, remaining };
+  }, [fastingSettings, foodLogs]);
+
+  const dateLine = today.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateSub = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
   return (
     <>
-      <div className="w-full max-w-2xl mx-auto px-4 py-6">
-        {/* Welcome Banner */}
+      <div className="w-full max-w-2xl mx-auto">
+        <PageHeader
+          eyebrow={dateSub}
+          title={dateLine}
+          subtitle={`${counts.food} meals · ${counts.symptom} symptoms logged`}
+          action={
+            <button
+              aria-label="Search"
+              onClick={() => setShowSearchResults((v) => !v)}
+              className="pill"
+              style={{ padding: '6px 8px' }}
+            >
+              <IconSearch size={15} />
+            </button>
+          }
+        />
+
         {showWelcomeBanner && (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-5 relative">
+          <div className="mx-5 mb-4 card p-4 relative">
             <button
               onClick={handleDismissWelcome}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              aria-label="Dismiss welcome message"
+              aria-label="Dismiss"
+              className="absolute top-2.5 right-2.5 muted hover:text-ink"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              ✕
             </button>
-            <div className="pr-8">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                Digestive Diary
-              </h1>
-              <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
-                A platform to help you track your food, symptoms, and patterns. Log what you eat and how you feel, discover connections over time, and organize your data for better insights. This is a logging tool, not medical advice.
+            <div className="pr-6">
+              <div className="eyebrow mb-1">Welcome</div>
+              <p className="text-[13.5px] ink-soft leading-relaxed">
+                Track food, symptoms, patterns. Log what you eat and how you feel. Not medical advice.
               </p>
             </div>
           </div>
         )}
 
-        {/* Clear Demo Data Button */}
         {showClearDemoButton && (
-          <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
-                  Demo Data Loaded
-                </p>
-                <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                  This app is showing sample data. Clear it to start logging your own data.
-                </p>
-              </div>
-              <button
-                onClick={handleClearDemoData}
-                className="ml-4 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
-              >
-                Clear Demo Data
-              </button>
+          <div
+            className="mx-5 mb-4 px-4 py-3 rounded-card flex items-center justify-between gap-3"
+            style={{ background: 'var(--surface-alt)', border: '1px dashed var(--border-strong)' }}
+          >
+            <div>
+              <div className="eyebrow mb-0.5">Demo data</div>
+              <p className="text-[12.5px] ink-soft">Sample data shown. Clear to start fresh.</p>
             </div>
+            <button
+              onClick={handleClearDemoData}
+              className="pill pill-strong text-xs"
+            >
+              Clear
+            </button>
           </div>
         )}
 
-        {/* Smart suggestion (Groq) */}
-        {(smartTip || smartTipLoading) && (
-          <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
-            <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-1">
-              💡 Smart suggestion
-            </p>
-            {smartTipLoading && !smartTip ? (
-              <p className="text-sm text-indigo-700 dark:text-indigo-300">Thinking…</p>
-            ) : (
-              <p className="text-sm text-indigo-900 dark:text-indigo-100">{smartTip}</p>
-            )}
-          </div>
-        )}
-
-        {/* Search Bar */}
-        <div className="mb-6 space-y-3">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setShowSearchResults(e.target.value.trim().length > 0);
-            }}
-            placeholder="Search foods, symptoms, experiments..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
-          />
-          
-          {/* Recipe Suggestions Prompt */}
-          {!showSearchResults && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
-                🍽️ Looking for recipe ideas?
-              </p>
-              <p className="text-xs text-green-700 dark:text-green-300 mb-3">
-                Chat with AI to get personalized recipe suggestions based on your dietary preferences and active experiments.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href="/recipes"
-                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Browse Recipes
-                </a>
-                <a
-                  href="/chat?query=What should I eat today? Suggest recipes based on my diet."
-                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Ask AI: What to eat today?
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Search Results */}
-        {showSearchResults && searchQuery.trim() && (
-          <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-semibold">Search Results</h2>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setShowSearchResults(false);
-                }}
-                className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                Clear
-              </button>
-            </div>
-
-            {(searchResults.foods.length > 0 ||
-              searchResults.symptoms.length > 0 ||
-              searchResults.experiments.length > 0) ? (
-              <div className="space-y-3">
+        {showSearchResults && (
+          <div className="mx-5 mb-4 card p-3">
+            <input
+              autoFocus
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search foods, symptoms, experiments…"
+              className="w-full bg-transparent border-0 outline-none text-[14px] ink font-body"
+            />
+            {searchQuery.trim() && (
+              <div className="mt-3 space-y-2 text-[13px] ink-soft">
                 {searchResults.foods.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                      Foods ({searchResults.foods.length})
-                    </h3>
-                    <div className="space-y-1">
-                      {searchResults.foods.map((log) => (
-                        <div
-                          key={log.id}
-                          className="text-sm p-2 bg-white dark:bg-gray-700 rounded"
-                        >
-                          {log.food} {log.tags.length > 0 && `(${log.tags.join(', ')})`}
-                        </div>
-                      ))}
-                    </div>
+                    <div className="eyebrow mb-1">Foods · {searchResults.foods.length}</div>
+                    {searchResults.foods.map((l) => (
+                      <div key={l.id} className="py-1">{l.food}{l.tags.length ? ` · ${l.tags.join(', ')}` : ''}</div>
+                    ))}
                   </div>
                 )}
-
                 {searchResults.symptoms.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                      Symptoms ({searchResults.symptoms.length})
-                    </h3>
-                    <div className="space-y-1">
-                      {searchResults.symptoms.map((symptom) => (
-                        <div
-                          key={symptom.id}
-                          className="text-sm p-2 bg-white dark:bg-gray-700 rounded"
-                        >
-                          {symptom.type} (severity: {symptom.severity}/10)
-                        </div>
-                      ))}
-                    </div>
+                    <div className="eyebrow mb-1">Symptoms · {searchResults.symptoms.length}</div>
+                    {searchResults.symptoms.map((s) => (
+                      <div key={s.id} className="py-1">{s.type} · {s.severity}/10</div>
+                    ))}
                   </div>
                 )}
-
                 {searchResults.experiments.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                      Experiments ({searchResults.experiments.length})
-                    </h3>
-                    <div className="space-y-1">
-                      {searchResults.experiments.map((exp) => (
-                        <div
-                          key={exp.id}
-                          className="text-sm p-2 bg-white dark:bg-gray-700 rounded"
-                        >
-                          {exp.name} ({exp.active ? 'active' : 'completed'})
-                        </div>
-                      ))}
-                    </div>
+                    <div className="eyebrow mb-1">Experiments · {searchResults.experiments.length}</div>
+                    {searchResults.experiments.map((e) => (
+                      <div key={e.id} className="py-1">{e.name}{e.active ? ' · active' : ''}</div>
+                    ))}
                   </div>
                 )}
-
-                {/* AI Suggestions */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                  <a
-                    href={`/chat?query=${encodeURIComponent(searchQuery)}`}
-                    className="block text-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
-                  >
-                    💬 Ask AI about &quot;{searchQuery}&quot;
-                  </a>
-                  <a
-                    href={`/chat?query=Suggest recipes for ${encodeURIComponent(searchQuery)}`}
-                    className="block text-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
-                  >
-                    🍽️ Get recipe suggestions for &quot;{searchQuery}&quot;
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4 space-y-4">
-                <div className="text-gray-500 dark:text-gray-400">
-                  <p className="mb-4">No results found for &quot;{searchQuery}&quot;</p>
-                  
-                  <div className="space-y-3">
-                    <a
-                      href={`/chat?query=${encodeURIComponent(searchQuery)}`}
-                      className="inline-block px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors text-sm font-medium"
-                    >
-                      💬 Ask AI about &quot;{searchQuery}&quot;
-                    </a>
-                    
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Looking for recipes?
-                      </p>
-                      <a
-                        href={`/chat?query=Suggest recipes for ${encodeURIComponent(searchQuery)}`}
-                        className="inline-block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
-                      >
-                        🍽️ Get recipe suggestions for &quot;{searchQuery}&quot;
-                      </a>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <a
-                        href="/chat?query=What should I eat today? Suggest recipes based on my logged foods and dietary preferences."
-                        className="inline-block px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium"
-                      >
-                        🤖 AI: What should I eat today?
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                <Link href={`/chat?query=${encodeURIComponent(searchQuery)}`} className="block mt-3 text-[12.5px] text-accent">
+                  Ask the diary about &quot;{searchQuery}&quot; →
+                </Link>
               </div>
             )}
           </div>
         )}
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold mb-2">Today</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {today.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </p>
-        </div>
-
-        {/* Fasting Alerts */}
-        {fastingSettings.enabled && (() => {
-          const now = new Date();
-          const lastMealTime = fastingSettings.lastMealTime ? new Date(fastingSettings.lastMealTime) : null;
-          const lastMeal = foodLogs.sort((a, b) => {
-            const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-            const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-            return bTime.getTime() - aTime.getTime();
-          })[0];
-          const effectiveLastMeal = lastMealTime || (lastMeal ? lastMeal.timestamp : null);
-          
-          if (!effectiveLastMeal) return null;
-          
-          const hoursSinceLastMeal = (now.getTime() - effectiveLastMeal.getTime()) / (1000 * 60 * 60);
-          const hoursUntilFastBreak = fastingSettings.fastingWindow - hoursSinceLastMeal;
-          const isFasting = hoursSinceLastMeal < fastingSettings.fastingWindow;
-          
-          if (isFasting && hoursUntilFastBreak > 0) {
-            const hours = Math.floor(hoursUntilFastBreak);
-            const minutes = Math.floor((hoursUntilFastBreak - hours) * 60);
-            return (
-              <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-                  🕐 Fasting in Progress
-                </p>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  You can break your fast in {hours > 0 ? `${hours}h ` : ''}{minutes}m
-                </p>
+        {fastingInfo && (
+          <div className="mx-5 mb-4 card flex items-center gap-3 px-3.5 py-2.5">
+            <div className="relative w-8 h-8">
+              <svg width="32" height="32" viewBox="0 0 32 32">
+                <circle cx="16" cy="16" r="13" fill="none" stroke="var(--border)" strokeWidth="2.5" />
+                <circle
+                  cx="16" cy="16" r="13" fill="none" stroke="var(--accent)" strokeWidth="2.5"
+                  strokeDasharray={`${(fastingInfo.mode === 'fasting' ? fastingInfo.pct : 1) * 81.7} 999`}
+                  transform="rotate(-90 16 16)" strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] ink-soft font-medium">
+                {fastingInfo.mode === 'fasting' ? `Fasting, ${Math.floor(fastingInfo.hoursIn)}h in` : 'Eating window open'}
               </div>
-            );
-          } else if (!isFasting) {
-            const eatingWindowStart = new Date(effectiveLastMeal);
-            eatingWindowStart.setHours(eatingWindowStart.getHours() + fastingSettings.fastingWindow);
-            const eatingWindowEnd = new Date(eatingWindowStart);
-            eatingWindowEnd.setHours(eatingWindowEnd.getHours() + fastingSettings.eatingWindow);
-            const hoursRemaining = (eatingWindowEnd.getTime() - now.getTime()) / (1000 * 60 * 60);
-            
-            if (hoursRemaining > 0) {
-              const hours = Math.floor(hoursRemaining);
-              const minutes = Math.floor((hoursRemaining - hours) * 60);
-              return (
-                <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
-                    🍽️ Eating Window Open
-                  </p>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    {hours > 0 ? `${hours}h ` : ''}{minutes}m remaining in eating window
-                  </p>
-                </div>
-              );
-            }
-          }
-          return null;
-        })()}
-
-        <div className="grid grid-cols-1 gap-4 mb-8">
-          <button 
-            onClick={() => setShowFoodModal(true)}
-            className="bg-primary-500 hover:bg-primary-600 text-white font-medium py-4 px-6 rounded-lg text-lg transition-colors"
-          >
-            + Log Food
-          </button>
-          <button 
-            onClick={() => setShowSymptomModal(true)}
-            className="bg-accent-500 hover:bg-accent-600 text-white font-medium py-4 px-6 rounded-lg text-lg transition-colors"
-          >
-            + Log Symptom
-          </button>
-          <button 
-            onClick={() => setShowContextModal(true)}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-4 px-6 rounded-lg text-lg transition-colors"
-          >
-            + Log Context (Sleep, Stress, Activity)
-          </button>
-        </div>
-
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Today&apos;s Timeline</h2>
-          <div className="space-y-4">
-            {todayItems.length === 0 ? (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                  No entries yet. Start by logging your food or symptoms.
-                </p>
+              <div className="text-[11.5px] muted font-mono">
+                {fastingInfo.mode === 'fasting'
+                  ? `${fastingInfo.remaining.toFixed(1)}h until you can break`
+                  : `${fastingInfo.remaining.toFixed(1)}h remaining`}
               </div>
-            ) : (
-              todayItems.map((item) => (
-                <div
-                  key={item.data.id}
-                  className={`rounded-lg p-4 ${
-                    item.type === 'food'
-                      ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700'
-                      : 'bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="text-lg">
-                        {item.type === 'food' ? '🍽️' : '🏥'}
-                      </span>
-                      <div className="flex-1">
-                        <span className="font-medium">
-                          {item.type === 'food'
-                            ? (item.data as FoodLog).food
-                            : (item.data as Symptom).type
-                          }
-                        </span>
-                        {item.type === 'symptom' && 'linkedFood' in item && item.linkedFood && (
-                          <div className="text-xs text-red-700 dark:text-red-300 mt-1">
-                            ← After: {item.linkedFood.food} ({formatTime(item.linkedFood.timestamp)})
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {formatTime(item.timestamp)}
-                    </span>
-                  </div>
-                  {item.type === 'food' && (item.data as FoodLog).quantity && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      {(item.data as FoodLog).quantity}
-                    </p>
-                  )}
-                  {item.type === 'food' && (item.data as FoodLog).tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(item.data as FoodLog).tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs px-2 py-1 bg-blue-300 dark:bg-blue-700 text-blue-900 dark:text-blue-100 rounded font-medium"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {item.type === 'symptom' && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Severity: {(item.data as Symptom).severity}/10
-                      </span>
-                      {(item.data as Symptom).duration && (
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          • {(item.data as Symptom).duration}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+            </div>
           </div>
+        )}
+
+        {(smartTip || smartTipLoading) && (
+          <div className="mx-5 mb-4">
+            <AIAnnotation label="Worth noticing">
+              {smartTipLoading && !smartTip ? <span className="muted">Thinking…</span> : smartTip}
+            </AIAnnotation>
+          </div>
+        )}
+
+        <div className="mx-5 mb-6 grid grid-cols-3 gap-2">
+          <ActionButton
+            primary
+            label="Food"
+            icon={<IconBowl size={18} />}
+            onClick={() => setShowFoodModal(true)}
+          />
+          <ActionButton
+            label="Symptom"
+            icon={<IconPulse size={18} />}
+            onClick={() => setShowSymptomModal(true)}
+          />
+          <ActionButton
+            label="Context"
+            icon={<IconMoon size={18} />}
+            onClick={() => setShowContextModal(true)}
+          />
         </div>
+
+        <section className="px-5 pb-10">
+          <div className="flex items-baseline justify-between mb-1.5">
+            <h2 className="m-0 font-heading text-[17px] font-semibold tracking-head ink">Stream</h2>
+            <span className="eyebrow">Newest first</span>
+          </div>
+          {todayItems.length === 0 ? (
+            <p className="muted text-[13px] py-3">Nothing logged today. Start with food, symptom, or context above.</p>
+          ) : (
+            todayItems.map((it, i, arr) => (
+              <TimelineRow key={it.id} item={it} prev={i > 0} next={i < arr.length - 1} />
+            ))
+          )}
+        </section>
       </div>
 
       <LogFoodModal isOpen={showFoodModal} onClose={() => setShowFoodModal(false)} />
       <LogSymptomModal isOpen={showSymptomModal} onClose={() => setShowSymptomModal(false)} />
       <LogContextModal isOpen={showContextModal} onClose={() => setShowContextModal(false)} />
     </>
+  );
+}
+
+function ActionButton({
+  label,
+  icon,
+  primary,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  primary?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center justify-center gap-1.5 px-2 py-3 transition-colors"
+      style={
+        primary
+          ? {
+              background: 'var(--ink)',
+              color: 'var(--bg)',
+              border: '1px solid transparent',
+              borderRadius: 14,
+            }
+          : {
+              background: 'transparent',
+              color: 'var(--ink)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 14,
+            }
+      }
+    >
+      {icon}
+      <span className="text-[12.5px] font-medium">{label}</span>
+    </button>
   );
 }

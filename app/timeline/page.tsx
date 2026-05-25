@@ -1,115 +1,155 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
-import { formatTime, formatDate } from '@/lib/utils';
+import { useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { FoodLog, Symptom } from '@/types';
+import PageHeader from '@/components/ui/PageHeader';
+import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
+import Sparkline from '@/components/ui/Sparkline';
+import { IconFilter, IconDownRight, IconUpRight } from '@/components/ui/Icon';
 
 type SortOrder = 'newest' | 'oldest';
-type ViewStyle = 'list' | 'compact';
 
 interface SummaryResult {
   summary: string;
   highlights: string[];
 }
 
+const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
+
 export default function TimelinePage() {
-  const [filter, setFilter] = useState<'all' | 'food' | 'symptom'>('all');
+  const [filter, setFilter] = useState<'all' | 'food' | 'symptom' | 'context'>('all');
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
-  const [viewStyle, setViewStyle] = useState<ViewStyle>('list');
   const [summary, setSummary] = useState<SummaryResult | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const summaryCacheRef = useRef<Map<string, SummaryResult>>(new Map());
 
-  const foodLogs = useAppStore((state) => state.foodLogs);
-  const symptoms = useAppStore((state) => state.symptoms);
-  const experiments = useAppStore((state) => state.experiments);
+  const foodLogs = useAppStore((s) => s.foodLogs);
+  const symptoms = useAppStore((s) => s.symptoms);
+  const contexts = useAppStore((s) => s.contexts);
+  const experiments = useAppStore((s) => s.experiments);
 
-  const filteredItems = useMemo(() => {
-    const now = new Date();
-    const daysAgo = dateRange === '7d' ? 7 : dateRange === '14d' ? 14 : 30;
-    const startDate = new Date(now);
-    startDate.setDate(startDate.getDate() - daysAgo);
-    startDate.setHours(0, 0, 0, 0);
+  const days = dateRange === '7d' ? 7 : dateRange === '14d' ? 14 : 30;
+  const startMs = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, [days]);
 
-    const items: Array<{ type: 'food' | 'symptom'; data: FoodLog | Symptom; timestamp: Date; linkedFood?: FoodLog; linkedSymptom?: Symptom }> = [];
-
+  const filteredItems = useMemo<TimelineItem[]>(() => {
+    const items: TimelineItem[] = [];
     if (filter === 'all' || filter === 'food') {
       foodLogs.forEach((log) => {
-        const logTimestamp = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
-        if (logTimestamp >= startDate) {
-          items.push({ type: 'food', data: log, timestamp: logTimestamp });
+        const t = toDate(log.timestamp);
+        if (t.getTime() >= startMs) {
+          items.push({
+            id: log.id,
+            kind: 'food',
+            timestamp: t,
+            title: log.food,
+            detail: log.quantity,
+            tags: log.tags,
+          });
         }
       });
     }
-
     if (filter === 'all' || filter === 'symptom') {
-      symptoms.forEach((symptom) => {
-        const symptomTimestamp = symptom.timestamp instanceof Date ? symptom.timestamp : new Date(symptom.timestamp);
-        if (symptomTimestamp >= startDate) {
-          const linkedFood = symptom.linkedFoodId 
-            ? foodLogs.find((f) => f.id === symptom.linkedFoodId)
-            : undefined;
-          const linkedSymptom = symptom.linkedSymptomId
-            ? symptoms.find((s) => s.id === symptom.linkedSymptomId)
-            : undefined;
-          items.push({ type: 'symptom', data: symptom, timestamp: symptomTimestamp, linkedFood, linkedSymptom });
+      symptoms.forEach((sym) => {
+        const t = toDate(sym.timestamp);
+        if (t.getTime() >= startMs) {
+          const linked = sym.linkedFoodId ? foodLogs.find((f) => f.id === sym.linkedFoodId) : null;
+          items.push({
+            id: sym.id,
+            kind: 'symptom',
+            timestamp: t,
+            title: sym.type,
+            duration: sym.duration,
+            severity: sym.severity,
+            note: sym.notes,
+            photoUrl: sym.photoUrl,
+            linkedFoodTitle: linked?.food,
+          });
         }
       });
     }
-
-    // Sort by timestamp
-    items.sort((a, b) => {
-      const aTime = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-      const bTime = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-      return sortOrder === 'newest' 
-        ? bTime.getTime() - aTime.getTime()
-        : aTime.getTime() - bTime.getTime();
-    });
-
+    if (filter === 'all' || filter === 'context') {
+      contexts.forEach((ctx) => {
+        const t = toDate(ctx.timestamp);
+        if (t.getTime() >= startMs) {
+          const bits = [
+            ctx.sleepQuality && `sleep ${ctx.sleepQuality}`,
+            ctx.stressLevel && `stress ${ctx.stressLevel}`,
+            ctx.activityLevel && ctx.activityLevel !== 'none' && `activity ${ctx.activityLevel}`,
+          ].filter(Boolean) as string[];
+          items.push({
+            id: ctx.id,
+            kind: 'context',
+            timestamp: t,
+            title: bits.length ? bits.join(' · ') : 'Context',
+            detail: ctx.notes,
+          });
+        }
+      });
+    }
+    items.sort((a, b) => sortOrder === 'newest' ? b.timestamp.getTime() - a.timestamp.getTime() : a.timestamp.getTime() - b.timestamp.getTime());
     return items;
-  }, [foodLogs, symptoms, filter, dateRange, sortOrder]);
+  }, [foodLogs, symptoms, contexts, filter, startMs, sortOrder]);
+
+  // Build per-day buckets for "Today / Yesterday / DD MMM" sections.
+  const grouped = useMemo(() => {
+    const map = new Map<string, { label: string; items: TimelineItem[] }>();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    filteredItems.forEach((it) => {
+      const d = new Date(it.timestamp); d.setHours(0, 0, 0, 0);
+      const key = d.toISOString().slice(0, 10);
+      const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
+      const label = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const entry = map.get(key) ?? { label, items: [] };
+      entry.items.push(it);
+      map.set(key, entry);
+    });
+    return Array.from(map.values());
+  }, [filteredItems]);
+
+  // 14-day severity sparkline (always built from full symptom set, ignoring date filter)
+  const spark14 = useMemo(() => {
+    const buckets: number[] = Array.from({ length: 14 }, () => 0);
+    const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+    symptoms.forEach((s) => {
+      const t = toDate(s.timestamp); t.setHours(0, 0, 0, 0);
+      const diff = Math.round((todayMid.getTime() - t.getTime()) / 86_400_000);
+      if (diff >= 0 && diff < 14) buckets[13 - diff] += s.severity;
+    });
+    return buckets;
+  }, [symptoms]);
+
+  const avgPerDay = useMemo(() => {
+    const total = spark14.reduce((a, b) => a + b, 0);
+    return spark14.length > 0 ? total / spark14.length : 0;
+  }, [spark14]);
+  const prev = useMemo(() => spark14.slice(0, 7).reduce((a, b) => a + b, 0), [spark14]);
+  const last = useMemo(() => spark14.slice(7).reduce((a, b) => a + b, 0), [spark14]);
+  const deltaPct = prev > 0 ? Math.round(((last - prev) / prev) * 100) : 0;
 
   const handleSummarize = async () => {
-    const daysAgo = dateRange === '7d' ? 7 : dateRange === '14d' ? 14 : 30;
-    const startMs = Date.now() - daysAgo * 86_400_000;
-    const inRangeFoods = foodLogs.filter((f) => {
-      const t = f.timestamp instanceof Date ? f.timestamp.getTime() : new Date(f.timestamp).getTime();
-      return t >= startMs;
-    });
-    const inRangeSymptoms = symptoms.filter((s) => {
-      const t = s.timestamp instanceof Date ? s.timestamp.getTime() : new Date(s.timestamp).getTime();
-      return t >= startMs;
-    });
+    const inRangeFoods = foodLogs.filter((f) => toDate(f.timestamp).getTime() >= startMs);
+    const inRangeSymptoms = symptoms.filter((s) => toDate(s.timestamp).getTime() >= startMs);
     const cacheKey = `${dateRange}|${inRangeFoods.length}|${inRangeSymptoms.length}|${inRangeFoods[0]?.id ?? ''}|${inRangeSymptoms[0]?.id ?? ''}`;
     const cached = summaryCacheRef.current.get(cacheKey);
-    if (cached) {
-      setSummary(cached);
-      setSummaryError(null);
-      return;
-    }
-
-    setSummaryLoading(true);
-    setSummaryError(null);
+    if (cached) { setSummary(cached); setSummaryError(null); return; }
+    setSummaryLoading(true); setSummaryError(null);
     try {
       const res = await fetch('/api/openai/generate-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           timelineData: {
-            rangeDays: daysAgo,
-            foodLogs: inRangeFoods.map((f) => ({
-              food: f.food,
-              tags: f.tags,
-              timestamp: (f.timestamp instanceof Date ? f.timestamp : new Date(f.timestamp)).toISOString(),
-            })),
-            symptoms: inRangeSymptoms.map((s) => ({
-              type: s.type,
-              severity: s.severity,
-              timestamp: (s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp)).toISOString(),
-            })),
+            rangeDays: days,
+            foodLogs: inRangeFoods.map((f) => ({ food: f.food, tags: f.tags, timestamp: toDate(f.timestamp).toISOString() })),
+            symptoms: inRangeSymptoms.map((s) => ({ type: s.type, severity: s.severity, timestamp: toDate(s.timestamp).toISOString() })),
             experiments: experiments.map((e) => ({ name: e.name, active: e.active })),
           },
         }),
@@ -133,259 +173,139 @@ export default function TimelinePage() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-6">Timeline</h1>
+    <div className="w-full max-w-2xl mx-auto">
+      <PageHeader
+        eyebrow={`Last ${days} days`}
+        title="Timeline"
+        action={
+          <button className="pill" aria-label="Filters" style={{ padding: '6px 8px' }}>
+            <IconFilter size={15} />
+          </button>
+        }
+      />
 
-      <div className="mb-6 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-        <div className="flex justify-between items-center mb-2 gap-3">
-          <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
-            AI Summary — last {dateRange === '7d' ? '7 days' : dateRange === '14d' ? '14 days' : '30 days'}
-          </p>
+      <div className="mx-5 mb-4 flex gap-1.5 flex-wrap">
+        {(['all', 'food', 'symptom', 'context'] as const).map((f) => {
+          const active = filter === f;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="px-3 py-1 rounded-full text-xs capitalize transition-colors"
+              style={{
+                background: active ? 'var(--ink)' : 'transparent',
+                color: active ? 'var(--bg)' : 'var(--ink-soft)',
+                border: `1px solid ${active ? 'var(--ink)' : 'var(--border)'}`,
+                fontWeight: 500,
+              }}
+            >
+              {f}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mx-5 mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <div className="eyebrow mb-1">Range</div>
+          <div className="flex gap-1.5">
+            {(['7d', '14d', '30d'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setDateRange(r)}
+                className="px-2.5 py-1 rounded-full text-[11.5px]"
+                style={{
+                  background: dateRange === r ? 'var(--ink)' : 'transparent',
+                  color: dateRange === r ? 'var(--bg)' : 'var(--ink-soft)',
+                  border: `1px solid ${dateRange === r ? 'var(--ink)' : 'var(--border)'}`,
+                }}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="eyebrow mb-1">Sort</div>
+          <div className="flex gap-1.5">
+            {(['newest', 'oldest'] as const).map((o) => (
+              <button
+                key={o}
+                onClick={() => setSortOrder(o)}
+                className="px-2.5 py-1 rounded-full text-[11.5px] capitalize"
+                style={{
+                  background: sortOrder === o ? 'var(--ink)' : 'transparent',
+                  color: sortOrder === o ? 'var(--bg)' : 'var(--ink-soft)',
+                  border: `1px solid ${sortOrder === o ? 'var(--ink)' : 'var(--border)'}`,
+                }}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-5 mb-5 card p-3.5 flex items-center justify-between gap-3">
+        <div>
+          <div className="eyebrow">Symptom severity · 14d</div>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="font-heading text-[26px] font-semibold tracking-head ink">{avgPerDay.toFixed(1)}</span>
+            <span className="text-xs muted">avg / day</span>
+            {deltaPct !== 0 && (
+              <span className="ml-1.5 text-[11.5px] inline-flex items-center gap-1 text-accent">
+                {deltaPct < 0 ? <IconDownRight size={11} /> : <IconUpRight size={11} />}
+                {Math.abs(deltaPct)}%
+              </span>
+            )}
+          </div>
+        </div>
+        <Sparkline data={spark14.length === 14 ? spark14 : [0]} width={140} height={36} />
+      </div>
+
+      <div className="mx-5 mb-5 card p-3.5">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <div className="eyebrow">AI summary · last {days} days</div>
+            <p className="text-[11.5px] muted mt-0.5">Patterns and trends, not medical advice.</p>
+          </div>
           <button
             onClick={handleSummarize}
             disabled={summaryLoading}
-            className="px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 text-white rounded-lg disabled:opacity-50"
+            className="px-3 py-1.5 text-xs rounded-full disabled:opacity-50"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            {summaryLoading ? 'Summarizing…' : summary ? 'Refresh summary' : 'Summarize'}
+            {summaryLoading ? 'Summarizing…' : summary ? 'Refresh' : 'Summarize'}
           </button>
         </div>
-        {summaryError && (
-          <p className="text-xs text-red-600 dark:text-red-400">{summaryError}</p>
-        )}
+        {summaryError && <p className="text-[12px]" style={{ color: '#c44' }}>{summaryError}</p>}
         {summary && (
-          <div className="space-y-2">
-            {summary.summary && (
-              <p className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-line">{summary.summary}</p>
-            )}
+          <div className="space-y-2 mt-2">
+            {summary.summary && <p className="text-[13.5px] ink-soft whitespace-pre-line">{summary.summary}</p>}
             {summary.highlights.length > 0 && (
-              <ul className="list-disc list-inside text-sm text-purple-800 dark:text-purple-200 space-y-1">
-                {summary.highlights.map((h, i) => (
-                  <li key={i}>{h}</li>
-                ))}
+              <ul className="list-disc list-inside text-[13px] ink-soft space-y-1">
+                {summary.highlights.map((h, i) => (<li key={i}>{h}</li>))}
               </ul>
             )}
           </div>
         )}
-        {!summary && !summaryError && !summaryLoading && (
-          <p className="text-xs text-purple-700 dark:text-purple-300">
-            Generates a short narrative + bullet observations from the selected range. No medical advice.
-          </p>
-        )}
       </div>
 
-      <div className="mb-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Filter by type</label>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === 'all'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('food')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === 'food'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              Food
-            </button>
-            <button
-              onClick={() => setFilter('symptom')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === 'symptom'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              Symptoms
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Time range</label>
-            <div className="flex gap-2 flex-wrap">
-              {(['7d', '14d', '30d'] as const).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setDateRange(range)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    dateRange === range
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {range === '7d' ? '7d' : range === '14d' ? '14d' : '30d'}
-                </button>
-              ))}
+      {grouped.length === 0 ? (
+        <div className="mx-5 mb-10 card p-4 muted text-[13px]">No entries in the selected range.</div>
+      ) : (
+        grouped.map((g) => (
+          <section key={g.label} className="px-5 pb-4">
+            <div className="flex items-baseline gap-2.5 mt-1 mb-1">
+              <h2 className="m-0 font-heading text-[22px] tracking-head ink">{g.label}</h2>
+              <span className="eyebrow">{g.items.length} entries</span>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Sort order</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSortOrder('newest')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  sortOrder === 'newest'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                Newest
-              </button>
-              <button
-                onClick={() => setSortOrder('oldest')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  sortOrder === 'oldest'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                Oldest
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {filteredItems.length === 0 ? (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No entries found for the selected filters.
-            </p>
-          </div>
-        ) : (
-          filteredItems.map((item) => {
-            const itemDate = formatDate(item.timestamp);
-            const prevItem = filteredItems[filteredItems.indexOf(item) - 1];
-            const showDate = !prevItem || formatDate(prevItem.timestamp) !== itemDate;
-
-            return (
-              <div key={item.data.id}>
-                {showDate && (
-                  <div className="sticky top-0 bg-white dark:bg-gray-950 py-2 z-10 border-b border-gray-200 dark:border-gray-800 mb-2">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      {itemDate}
-                    </h3>
-                  </div>
-                )}
-                <div
-                  className={`rounded-lg p-4 mb-2 ${
-                    item.type === 'food'
-                      ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700'
-                      : 'bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="text-lg">
-                        {item.type === 'food' ? '🍽️' : '🏥'}
-                      </span>
-                      <div className="flex-1">
-                        <span className="font-medium">
-                          {item.type === 'food' 
-                            ? (item.data as FoodLog).food
-                            : (item.data as Symptom).type
-                          }
-                        </span>
-                        {item.type === 'symptom' && item.linkedFood && (
-                          <div className="text-xs text-red-700 dark:text-red-300 mt-1">
-                            ← After: {item.linkedFood.food} ({formatTime(item.linkedFood.timestamp)})
-                          </div>
-                        )}
-                        {item.type === 'symptom' && item.linkedSymptom && (
-                          <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">
-                            🔗 Evolution: Linked to {item.linkedSymptom.type} ({formatDate(item.linkedSymptom.timestamp)})
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-                      {formatTime(item.timestamp)}
-                    </span>
-                  </div>
-                  {item.type === 'food' && (item.data as FoodLog).quantity && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      {(item.data as FoodLog).quantity}
-                    </p>
-                  )}
-                  {item.type === 'food' && (item.data as FoodLog).tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(item.data as FoodLog).tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs px-2 py-1 bg-blue-300 dark:bg-blue-700 text-blue-900 dark:text-blue-100 rounded font-medium"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {item.type === 'symptom' && (
-                    <>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          Severity: {(item.data as Symptom).severity}/10
-                        </span>
-                        {(item.data as Symptom).duration && (
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            • {(item.data as Symptom).duration}
-                          </span>
-                        )}
-                      </div>
-                      {(item.data as Symptom).photoUrl && (
-                        <div className="mt-2">
-                          <img
-                            src={(item.data as Symptom).photoUrl}
-                            alt="Symptom photo"
-                            className="rounded-lg max-h-48 object-contain bg-gray-100 dark:bg-gray-900"
-                          />
-                        </div>
-                      )}
-                      {(item.data as Symptom).aiAnalysis && (
-                        <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2">
-                          {(item.data as Symptom).aiAnalysis?.description && (
-                            <div>
-                              <p className="text-xs font-medium text-blue-800 dark:text-blue-200">AI Analysis:</p>
-                              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                                {(item.data as Symptom).aiAnalysis?.description}
-                              </p>
-                            </div>
-                          )}
-                          {(item.data as Symptom).aiAnalysis?.suggestion && (
-                            <div>
-                              <p className="text-xs font-medium text-blue-800 dark:text-blue-200">Recommendation:</p>
-                              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                                {(item.data as Symptom).aiAnalysis?.suggestion}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {(item.data as Symptom).notes && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">
-                          {(item.data as Symptom).notes}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+            {g.items.map((it, i, arr) => (
+              <TimelineRow key={it.id} item={it} prev={i > 0} next={i < arr.length - 1} />
+            ))}
+          </section>
+        ))
+      )}
     </div>
   );
 }

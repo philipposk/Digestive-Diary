@@ -1,5 +1,8 @@
 import type { Config } from "tailwindcss";
 
+// Theme tokens drive runtime via CSS variables (lib/theme.ts). Tailwind picks them up
+// so existing utility classes (bg-app, text-ink, border-app, etc.) still compose.
+
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,32 +12,50 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Calming color scheme
+        app: 'var(--bg)',
+        deep: 'var(--bg-deep)',
+        surface: 'var(--surface)',
+        'surface-alt': 'var(--surface-alt)',
+        ink: 'var(--ink)',
+        'ink-soft': 'var(--ink-soft)',
+        muted: 'var(--muted)',
+        faint: 'var(--faint)',
+        accent: 'var(--accent)',
+        'accent-soft': 'var(--accent-soft)',
+        // Legacy primary/accent kept as accent var so existing JSX doesn't break visually
+        // (will be migrated page by page in F3-F5).
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
+          50:  'var(--accent-soft)',
+          100: 'var(--accent-soft)',
+          200: 'var(--accent-soft)',
+          300: 'var(--accent)',
+          400: 'var(--accent)',
+          500: 'var(--accent)',
+          600: 'var(--accent)',
+          700: 'var(--accent)',
+          800: 'var(--accent)',
+          900: 'var(--ink)',
         },
-        // Soft greens for positive associations
-        accent: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-        },
+      },
+      borderColor: {
+        app: 'var(--border)',
+        strong: 'var(--border-strong)',
+        DEFAULT: 'var(--border)',
+      },
+      fontFamily: {
+        heading: ['var(--font-heading)'],
+        body: ['var(--font-body)'],
+        mono: ['var(--font-mono)'],
+        serif: ['var(--font-serif)'],
+      },
+      borderRadius: {
+        card: '14px',
+      },
+      letterSpacing: {
+        head: '-0.02em',
+        body: '-0.01em',
+        mono: '0.04em',
+        eyebrow: '0.12em',
       },
     },
   },
@@ -43,4 +64,3 @@ const config: Config = {
 };
 
 export default config;
-
