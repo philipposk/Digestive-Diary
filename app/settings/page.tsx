@@ -10,6 +10,9 @@ import {
 } from '@/lib/theme';
 import { VIBES, VibeId } from '@/lib/themeTokens';
 import { runScan } from '@/lib/autoScanScheduler';
+import {
+  applyBackupPayload, buildBackupPayload, decryptBackup, downloadFile, encryptBackup,
+} from '@/lib/backup';
 import PageHeader from '@/components/ui/PageHeader';
 
 export default function SettingsPage() {
@@ -327,6 +330,7 @@ export default function SettingsPage() {
               {l.label} →
             </Link>
           ))}
+          <BackupBlock />
           <button
             onClick={() => {
               const store = useAppStore.getState();
@@ -341,14 +345,14 @@ export default function SettingsPage() {
               const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
-              a.href = url; a.download = `digestive-diary-export-${new Date().toISOString().split('T')[0]}.json`;
+              a.href = url; a.download = `digestive-diary-doctor-${new Date().toISOString().split('T')[0]}.json`;
               document.body.appendChild(a); a.click(); document.body.removeChild(a);
               URL.revokeObjectURL(url);
             }}
             className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
             style={{ border: '1px solid var(--border)' }}
           >
-            Export data for doctor (JSON) →
+            Export simple JSON for doctor →
           </button>
           <button
             onClick={() => {
@@ -394,6 +398,172 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
       <span className="eyebrow">{label}</span>
       <div className="mt-1.5">{children}</div>
     </label>
+  );
+}
+
+function BackupBlock() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [passOpen, setPassOpen] = useState<null | 'export' | 'import'>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pass, setPass] = useState('');
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const doPlainExport = () => {
+    try {
+      const payload = buildBackupPayload();
+      downloadFile(`digestive-diary-backup-${todayStr}.json`, JSON.stringify(payload, null, 2));
+      setMsg('Backup exported.');
+    } catch (err: any) {
+      setMsg(err?.message || 'Export failed');
+    }
+  };
+
+  const doEncryptedExport = async () => {
+    if (!pass || pass.length < 6) { setMsg('Passphrase must be 6+ characters.'); return; }
+    setBusy(true);
+    try {
+      const payload = buildBackupPayload();
+      const envelope = await encryptBackup(payload, pass);
+      downloadFile(`digestive-diary-backup-${todayStr}.enc.json`, envelope);
+      setMsg('Encrypted backup exported.');
+      setPassOpen(null); setPass('');
+    } catch (err: any) {
+      setMsg(err?.message || 'Encryption failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFile = (f: File) => {
+    setPendingFile(f);
+    const isEncrypted = f.name.includes('.enc') || f.name.includes('.encrypted');
+    if (isEncrypted) { setPassOpen('import'); return; }
+    // Plain JSON path
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const payload = JSON.parse(reader.result as string);
+        if (!confirm('This replaces your current data. Continue?')) return;
+        applyBackupPayload(payload);
+        setMsg('Backup restored.');
+      } catch (err: any) {
+        setMsg(err?.message || 'Import failed');
+      } finally {
+        setPendingFile(null);
+      }
+    };
+    reader.readAsText(f);
+  };
+
+  const doDecryptedImport = async () => {
+    if (!pendingFile) return;
+    setBusy(true);
+    try {
+      const text = await pendingFile.text();
+      const payload = await decryptBackup(text, pass);
+      if (!confirm('This replaces your current data. Continue?')) return;
+      applyBackupPayload(payload);
+      setMsg('Encrypted backup restored.');
+      setPassOpen(null); setPass(''); setPendingFile(null);
+    } catch (err: any) {
+      setMsg(err?.message || 'Decryption failed — wrong passphrase?');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="px-3 py-3 rounded-card"
+      style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)' }}
+    >
+      <div className="eyebrow mb-1.5">Backup</div>
+      <p className="m-0 text-[12.5px] muted mb-2.5">
+        Save everything locally so you don&apos;t lose data when clearing browser storage. Encryption is optional but recommended.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={doPlainExport}
+          className="px-3 py-1.5 rounded-full text-[12.5px]"
+          style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+        >
+          Export JSON
+        </button>
+        <button
+          onClick={() => { setPassOpen('export'); setMsg(null); }}
+          className="px-3 py-1.5 rounded-full text-[12.5px]"
+          style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+        >
+          Export encrypted
+        </button>
+        <label
+          className="px-3 py-1.5 rounded-full text-[12.5px] cursor-pointer"
+          style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+        >
+          Import backup
+          <input
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]; if (f) handleFile(f);
+              e.currentTarget.value = '';
+            }}
+          />
+        </label>
+      </div>
+      {msg && <p className="mt-2 text-[12px]" style={{ color: msg.toLowerCase().includes('fail') ? '#c44' : 'var(--accent)' }}>{msg}</p>}
+
+      {passOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => { setPassOpen(null); setPass(''); setPendingFile(null); }}
+        >
+          <div
+            className="card w-full max-w-sm p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="m-0 font-heading text-[20px] tracking-head ink mb-2">
+              {passOpen === 'export' ? 'Encrypt backup' : 'Decrypt backup'}
+            </h2>
+            <p className="text-[12.5px] muted m-0 mb-3">
+              {passOpen === 'export'
+                ? 'Pick a passphrase. You will need it to restore later. We cannot recover it.'
+                : 'Enter the passphrase you used when exporting this backup.'}
+            </p>
+            <input
+              autoFocus
+              type="password"
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+              placeholder="Passphrase"
+              className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+              style={{ border: '1px solid var(--border)' }}
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { setPassOpen(null); setPass(''); setPendingFile(null); }}
+                className="px-3 py-2 rounded-full text-[12.5px]"
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={passOpen === 'export' ? doEncryptedExport : doDecryptedImport}
+                disabled={busy || pass.length < 6}
+                className="flex-1 px-3 py-2 rounded-full text-[12.5px] disabled:opacity-50"
+                style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+              >
+                {busy ? 'Working…' : passOpen === 'export' ? 'Encrypt & download' : 'Decrypt & restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
