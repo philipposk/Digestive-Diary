@@ -1,0 +1,15 @@
+{
+  "name": "Digestive Diary",
+  "short_name": "Diary",
+  "description": "A non-judgmental tracking app for digestive disorders.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f1",
+  "theme_color": "#f6f5f1",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["health", "lifestyle", "medical"]
+}

@@ -5,6 +5,7 @@ import BottomNav from "@/components/navigation/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
 import FloatingChatButton from "@/components/chat/FloatingChatButton";
 import AutoScanRunner from "@/components/AutoScanRunner";
+import PWARegister from "@/components/PWARegister";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,6 +36,17 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Digestive Diary",
   description: "A non-judgmental tracking app for digestive disorders",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#f6f5f1",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Diary",
+  },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg" }],
+  },
 };
 
 export default function RootLayout({
@@ -56,6 +68,7 @@ export default function RootLayout({
           <BottomNav />
           <FloatingChatButton />
           <AutoScanRunner />
+          <PWARegister />
         </ThemeProvider>
       </body>
     </html>
