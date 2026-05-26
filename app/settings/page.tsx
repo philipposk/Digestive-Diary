@@ -354,6 +354,13 @@ export default function SettingsPage() {
               {l.label} →
             </Link>
           ))}
+          <Link
+            href="/report"
+            className="block px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
+            style={{ border: '1px solid var(--border)' }}
+          >
+            Doctor PDF report →
+          </Link>
           <BackupBlock />
           <button
             onClick={() => {
