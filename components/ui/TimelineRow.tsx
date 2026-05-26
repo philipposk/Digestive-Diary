@@ -1,5 +1,5 @@
 import * as React from 'react';
-import Severity from './Severity';
+import Severity, { severityColor } from './Severity';
 import Tag from './Tag';
 import { IconLink } from './Icon';
 
@@ -43,8 +43,12 @@ export default function TimelineRow({ item, prev, next }: Props) {
           style={{
             width: 11,
             height: 11,
-            background: isSymptom ? 'var(--accent)' : 'var(--bg)',
-            border: `1.5px solid ${isSymptom ? 'var(--accent)' : 'var(--border-strong)'}`,
+            background: isSymptom
+              ? (typeof item.severity === 'number' ? severityColor(item.severity) : 'var(--accent)')
+              : 'var(--bg)',
+            border: `1.5px solid ${isSymptom
+              ? (typeof item.severity === 'number' ? severityColor(item.severity) : 'var(--accent)')
+              : 'var(--border-strong)'}`,
           }}
         />
       </div>
