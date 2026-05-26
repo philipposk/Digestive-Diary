@@ -489,6 +489,27 @@ export default function SettingsPage() {
           >
             Doctor PDF report →
           </Link>
+          <button
+            onClick={async () => {
+              if (!confirm('Reload sample demo data? This adds 14 days of example logs alongside your current data.')) return;
+              const mod = await import('@/lib/generateSampleData');
+              const data = mod.generateSampleData();
+              const store = useAppStore.getState();
+              store.setFoodLogs([...data.foodLogs, ...store.foodLogs]);
+              store.setSymptoms([...data.symptoms, ...store.symptoms]);
+              store.setContexts([...data.contexts, ...store.contexts]);
+              store.setExperiments([...data.experiments, ...store.experiments]);
+              store.setRealizations([...data.realizations, ...store.realizations]);
+              if (!store.chatSession) store.setChatSession(data.chatSession);
+              store.setSources([...data.sources, ...store.sources]);
+              localStorage.removeItem('demoDataCleared');
+              alert('Sample data reloaded. Visit Today / Insights to see new entries.');
+            }}
+            className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
+            style={{ border: '1px solid var(--border)' }}
+          >
+            Reload sample data →
+          </button>
           <BackupBlock />
           <button
             onClick={() => {

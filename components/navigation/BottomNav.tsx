@@ -10,17 +10,19 @@ import {
   IconCog,
 } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { useAppStore } from '@/lib/store';
 
 export default function BottomNav() {
   const pathname = usePathname() || '/';
   const { t } = useT();
+  const unresolved = useAppStore((s) => s.adminNotifications.filter((n) => !n.resolved).length);
 
   const navItems = [
-    { href: '/',            label: t('nav.today'),    icon: IconBowl,  match: (p: string) => p === '/' },
-    { href: '/timeline',    label: t('nav.timeline'), icon: IconPulse, match: (p: string) => p.startsWith('/timeline') || p.startsWith('/calendar') },
-    { href: '/insights',    label: t('nav.insights'), icon: IconSpark, match: (p: string) => p.startsWith('/insights') || p.startsWith('/realizations') },
-    { href: '/experiments', label: t('nav.lab'),      icon: IconFlask, match: (p: string) => p.startsWith('/experiments') || p.startsWith('/recipes') || p.startsWith('/sources') || p.startsWith('/macros') },
-    { href: '/settings',    label: t('nav.profile'),  icon: IconCog,   match: (p: string) => p.startsWith('/settings') || p.startsWith('/admin') },
+    { href: '/',            label: t('nav.today'),    icon: IconBowl,  badge: 0,           match: (p: string) => p === '/' },
+    { href: '/timeline',    label: t('nav.timeline'), icon: IconPulse, badge: 0,           match: (p: string) => p.startsWith('/timeline') || p.startsWith('/calendar') },
+    { href: '/insights',    label: t('nav.insights'), icon: IconSpark, badge: 0,           match: (p: string) => p.startsWith('/insights') || p.startsWith('/realizations') },
+    { href: '/experiments', label: t('nav.lab'),      icon: IconFlask, badge: 0,           match: (p: string) => p.startsWith('/experiments') || p.startsWith('/recipes') || p.startsWith('/sources') || p.startsWith('/macros') || p.startsWith('/factors') },
+    { href: '/settings',    label: t('nav.profile'),  icon: IconCog,   badge: unresolved,  match: (p: string) => p.startsWith('/settings') || p.startsWith('/admin') },
   ];
 
   return (
@@ -43,10 +45,27 @@ export default function BottomNav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className="flex flex-col items-center justify-center gap-[3px] px-2 py-1.5 transition-colors"
+                className="relative flex flex-col items-center justify-center gap-[3px] px-2 py-1.5 transition-colors"
                 style={{ color: active ? 'var(--ink)' : 'var(--muted)' }}
               >
                 <Icon size={20} stroke={active ? 2 : 1.5} />
+                {item.badge > 0 && (
+                  <span
+                    aria-label={`${item.badge} unresolved`}
+                    className="absolute top-0 right-0 text-[9px] font-mono font-bold rounded-full"
+                    style={{
+                      background: '#c44a4a',
+                      color: '#fff',
+                      minWidth: 14,
+                      height: 14,
+                      padding: '0 4px',
+                      lineHeight: '14px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                )}
                 <span
                   className="text-[10.5px] font-body"
                   style={{
