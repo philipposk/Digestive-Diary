@@ -13,6 +13,7 @@ import { runScan } from '@/lib/autoScanScheduler';
 import {
   applyBackupPayload, buildBackupPayload, decryptBackup, downloadFile, encryptBackup,
 } from '@/lib/backup';
+import { importSleepCSV } from '@/lib/wearableImport';
 import { useT, LOCALE_LABEL, type Locale } from '@/lib/i18n';
 import PageHeader from '@/components/ui/PageHeader';
 
@@ -334,6 +335,10 @@ export default function SettingsPage() {
         </div>
       </Section>
 
+      <Section title="Wearables" eyebrow="Import">
+        <WearableImportBlock />
+      </Section>
+
       <Section title={t('settings.data')} eyebrow={t('settings.data_eyebrow')}>
         <div className="space-y-1.5">
           {[
@@ -430,6 +435,61 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
       <span className="eyebrow">{label}</span>
       <div className="mt-1.5">{children}</div>
     </label>
+  );
+}
+
+function WearableImportBlock() {
+  const addContext = useAppStore((s) => s.addContext);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const text = await file.text();
+      const preview = importSleepCSV(text);
+      if (preview.sleepEntries.length === 0) {
+        setMsg(preview.errors[0] || 'No usable sleep rows found in this CSV.');
+        return;
+      }
+      if (!confirm(`Import ${preview.sleepEntries.length} sleep entries as context logs?`)) return;
+      let imported = 0;
+      preview.sleepEntries.forEach((entry) => {
+        addContext(entry);
+        imported++;
+      });
+      setMsg(`Imported ${imported} sleep entries. ${preview.errors.length > 0 ? `${preview.errors.length} rows skipped.` : ''}`);
+    } catch (err: any) {
+      setMsg(err?.message || 'Import failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[12.5px] muted m-0">
+        Import sleep CSV from Apple Health (export.zip → export.csv), Fitbit takeout, Garmin Connect, or Oura. The parser is best-effort — vendors change their schemas, so check the result on the Timeline.
+      </p>
+      <label
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] cursor-pointer"
+        style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+      >
+        {busy ? 'Parsing…' : 'Import CSV'}
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+            e.currentTarget.value = '';
+          }}
+        />
+      </label>
+      {msg && <p className="text-[12px]" style={{ color: msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('no usable') ? '#c44' : 'var(--accent)' }}>{msg}</p>}
+    </div>
   );
 }
 
