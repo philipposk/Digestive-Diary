@@ -227,6 +227,42 @@ export interface RecipeSourcesSettings {
   sources: RecipeSource[];
 }
 
+export interface Medication {
+  id: string;
+  name: string;
+  dose?: string;
+  active: boolean;
+  addedAt: Date;
+  notes?: string;
+}
+
+export interface MedicationLog {
+  id: string;
+  medicationId: string;
+  timestamp: Date;
+  notes?: string;
+}
+
+export type CustomFactorScale = 'severity' | 'yesno' | 'number';
+
+export interface CustomFactor {
+  id: string;
+  label: string;
+  scale: CustomFactorScale;
+  unit?: string;
+  icon?: string;
+  active: boolean;
+  addedAt: Date;
+}
+
+export interface CustomFactorLog {
+  id: string;
+  factorId: string;
+  value: number; // severity: 0-10; yesno: 0|1; number: any
+  timestamp: Date;
+  notes?: string;
+}
+
 export interface AdminNotification {
   id: string;
   type: 'recipe_source_error' | 'api_error' | 'other';

@@ -342,6 +342,7 @@ export default function SettingsPage() {
             { href: '/chat',         label: 'AI chat' },
             { href: '/sources',      label: 'Knowledge sources' },
             { href: '/macros',       label: 'Macronutrients' },
+            { href: '/factors',      label: 'Medications & custom factors' },
             { href: '/recipes',      label: 'Recipes' },
             { href: '/admin',        label: 'Admin notifications' },
           ].map((l) => (

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings, Recipe, RecipeSourcesSettings, AdminNotification } from '@/types';
+import { FoodLog, Symptom, Context, Experiment, Realization, ChatMessage, ChatSession, Source, PhotoUpload, ExperimentLog, FastingSettings, MacroGoals, AutoScanSettings, Recipe, RecipeSourcesSettings, AdminNotification, Medication, MedicationLog, CustomFactor, CustomFactorLog } from '@/types';
 
 interface AppState {
   foodLogs: FoodLog[];
@@ -17,7 +17,11 @@ interface AppState {
   recipes: Recipe[];
   recipeSourcesSettings: RecipeSourcesSettings;
   adminNotifications: AdminNotification[];
-  
+  medications: Medication[];
+  medicationLogs: MedicationLog[];
+  customFactors: CustomFactor[];
+  customFactorLogs: CustomFactorLog[];
+
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
   addSymptom: (symptom: Omit<Symptom, 'id' | 'timestamp'>) => void;
@@ -56,6 +60,18 @@ interface AppState {
   addAdminNotification: (notification: Omit<AdminNotification, 'id' | 'timestamp'>) => void;
   resolveAdminNotification: (id: string) => void;
   clearAdminNotifications: () => void;
+
+  // Medications + custom factors
+  addMedication: (m: Omit<Medication, 'id' | 'addedAt'>) => void;
+  updateMedication: (id: string, updates: Partial<Medication>) => void;
+  deleteMedication: (id: string) => void;
+  addMedicationLog: (log: Omit<MedicationLog, 'id' | 'timestamp'>) => void;
+  deleteMedicationLog: (id: string) => void;
+  addCustomFactor: (f: Omit<CustomFactor, 'id' | 'addedAt'>) => void;
+  updateCustomFactor: (id: string, updates: Partial<CustomFactor>) => void;
+  deleteCustomFactor: (id: string) => void;
+  addCustomFactorLog: (log: Omit<CustomFactorLog, 'id' | 'timestamp'>) => void;
+  deleteCustomFactorLog: (id: string) => void;
 }
 
 // O(log n) sorted insertion (descending by key). Used by add* actions so we don't
@@ -170,6 +186,23 @@ const storage = {
             timestamp: safeDate(r.timestamp) || new Date(),
           }))
           .filter((r: any) => r.timestamp instanceof Date);
+
+        parsed.state.medications = (parsed.state.medications || [])
+          .filter((m: any) => m && m.addedAt)
+          .map((m: any) => ({ ...m, addedAt: safeDate(m.addedAt) || new Date() }))
+          .filter((m: any) => m.addedAt instanceof Date);
+        parsed.state.medicationLogs = (parsed.state.medicationLogs || [])
+          .filter((l: any) => l && l.timestamp)
+          .map((l: any) => ({ ...l, timestamp: safeDate(l.timestamp) || new Date() }))
+          .filter((l: any) => l.timestamp instanceof Date);
+        parsed.state.customFactors = (parsed.state.customFactors || [])
+          .filter((f: any) => f && f.addedAt)
+          .map((f: any) => ({ ...f, addedAt: safeDate(f.addedAt) || new Date() }))
+          .filter((f: any) => f.addedAt instanceof Date);
+        parsed.state.customFactorLogs = (parsed.state.customFactorLogs || [])
+          .filter((l: any) => l && l.timestamp)
+          .map((l: any) => ({ ...l, timestamp: safeDate(l.timestamp) || new Date() }))
+          .filter((l: any) => l.timestamp instanceof Date);
 
         parsed.state.sources = (parsed.state.sources || [])
           .filter((s: any) => s && s.addedAt)
@@ -292,6 +325,10 @@ export const useAppStore = create<AppState>()(
         ],
       },
       adminNotifications: [],
+      medications: [],
+      medicationLogs: [],
+      customFactors: [],
+      customFactorLogs: [],
 
       addFoodLog: (log) => {
         const newLog: FoodLog = {
@@ -523,6 +560,62 @@ export const useAppStore = create<AppState>()(
         }));
       },
       clearAdminNotifications: () => set({ adminNotifications: [] }),
+
+      // ─── Medications ──────────────────────────────────────────
+      addMedication: (m) => {
+        const newMed: Medication = { ...m, id: crypto.randomUUID(), addedAt: new Date() };
+        set((state) => ({
+          medications: insertSortedDesc(state.medications, newMed, (x) => tsMs(x.addedAt)),
+        }));
+      },
+      updateMedication: (id, updates) => {
+        set((state) => ({
+          medications: state.medications.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+        }));
+      },
+      deleteMedication: (id) => {
+        set((state) => ({
+          medications: state.medications.filter((m) => m.id !== id),
+          medicationLogs: state.medicationLogs.filter((l) => l.medicationId !== id),
+        }));
+      },
+      addMedicationLog: (log) => {
+        const newLog: MedicationLog = { ...log, id: crypto.randomUUID(), timestamp: new Date() };
+        set((state) => ({
+          medicationLogs: insertSortedDesc(state.medicationLogs, newLog, (l) => tsMs(l.timestamp)),
+        }));
+      },
+      deleteMedicationLog: (id) => {
+        set((state) => ({ medicationLogs: state.medicationLogs.filter((l) => l.id !== id) }));
+      },
+
+      // ─── Custom factors ───────────────────────────────────────
+      addCustomFactor: (f) => {
+        const newF: CustomFactor = { ...f, id: crypto.randomUUID(), addedAt: new Date() };
+        set((state) => ({
+          customFactors: insertSortedDesc(state.customFactors, newF, (x) => tsMs(x.addedAt)),
+        }));
+      },
+      updateCustomFactor: (id, updates) => {
+        set((state) => ({
+          customFactors: state.customFactors.map((f) => (f.id === id ? { ...f, ...updates } : f)),
+        }));
+      },
+      deleteCustomFactor: (id) => {
+        set((state) => ({
+          customFactors: state.customFactors.filter((f) => f.id !== id),
+          customFactorLogs: state.customFactorLogs.filter((l) => l.factorId !== id),
+        }));
+      },
+      addCustomFactorLog: (log) => {
+        const newLog: CustomFactorLog = { ...log, id: crypto.randomUUID(), timestamp: new Date() };
+        set((state) => ({
+          customFactorLogs: insertSortedDesc(state.customFactorLogs, newLog, (l) => tsMs(l.timestamp)),
+        }));
+      },
+      deleteCustomFactorLog: (id) => {
+        set((state) => ({ customFactorLogs: state.customFactorLogs.filter((l) => l.id !== id) }));
+      },
     }),
     {
       name: 'digestive-diary-storage',
