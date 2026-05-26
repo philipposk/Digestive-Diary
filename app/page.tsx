@@ -13,6 +13,7 @@ import AIAnnotation from '@/components/ui/AIAnnotation';
 import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import { IconBowl, IconPulse, IconMoon, IconSearch } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { foodKey } from '@/lib/foodNormalize';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
@@ -34,6 +35,7 @@ export default function HomePage() {
   const medicationLogs = useAppStore((s) => s.medicationLogs);
   const customFactors = useAppStore((s) => s.customFactors);
   const customFactorLogs = useAppStore((s) => s.customFactorLogs);
+  const addFoodLog = useAppStore((s) => s.addFoodLog);
   const setFoodLogs = useAppStore((s) => s.setFoodLogs);
   const setSymptoms = useAppStore((s) => s.setSymptoms);
   const setContexts = useAppStore((s) => s.setContexts);
@@ -223,6 +225,28 @@ export default function HomePage() {
     }
     return count;
   }, [foodLogs, symptoms]);
+
+  // Top 5 foods by frequency in last 30 days → quick-re-log chips.
+  const frequentFoods = useMemo(() => {
+    const since = Date.now() - 30 * 86_400_000;
+    const counts = new Map<string, { name: string; tags: string[]; count: number }>();
+    foodLogs.forEach((l) => {
+      if (toDate(l.timestamp).getTime() < since) return;
+      const k = foodKey(l.food);
+      const cur = counts.get(k);
+      if (cur) {
+        cur.count++;
+        // Merge tags — keep most common
+        l.tags.forEach((tag) => { if (!cur.tags.includes(tag)) cur.tags.push(tag); });
+      } else {
+        counts.set(k, { name: l.food, tags: [...l.tags], count: 1 });
+      }
+    });
+    return Array.from(counts.values())
+      .filter((e) => e.count >= 2)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [foodLogs]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return { foods: [] as FoodLog[], symptoms: [] as Symptom[], experiments: [] as typeof experiments };
@@ -429,6 +453,31 @@ export default function HomePage() {
             >
               {streak === 1 ? t('home.streak_today') : t('home.streak', { n: streak })}
             </span>
+          </div>
+        )}
+
+        {frequentFoods.length > 0 && (
+          <div className="mx-5 mb-2">
+            <div className="eyebrow mb-1.5">{t('home.frequent_label')}</div>
+            <div className="flex gap-1.5 flex-wrap">
+              {frequentFoods.map((f) => (
+                <button
+                  key={f.name}
+                  onClick={() => {
+                    addFoodLog({ food: f.name, tags: f.tags });
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] transition-colors"
+                  style={{
+                    border: '1px solid var(--border)',
+                    color: 'var(--ink-soft)',
+                    background: 'var(--surface-alt)',
+                  }}
+                  title={`Log ${f.name} (×${f.count} this month)`}
+                >
+                  🍽 {f.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

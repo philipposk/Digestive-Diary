@@ -51,6 +51,7 @@ export const el: Record<string, string> = {
   'home.eating_remaining':   'απομένουν {h}ώ.',
   'home.streak':             '🔥 {n} μέρες στη σειρά',
   'home.streak_today':       '🔥 Καταγράφηκε σήμερα',
+  'home.frequent_label':     'Γρήγορη καταγραφή',
 
   // Timeline
   'timeline.title':     'Ιστορικό',

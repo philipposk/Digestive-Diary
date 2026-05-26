@@ -48,6 +48,7 @@ export const en: Record<string, string> = {
   'home.eating_remaining':   '{h}h remaining',
   'home.streak':             '🔥 {n}-day streak',
   'home.streak_today':       '🔥 Logged today',
+  'home.frequent_label':     'Quick-add',
 
   // Timeline
   'timeline.title':     'Timeline',
