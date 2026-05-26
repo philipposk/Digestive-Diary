@@ -216,13 +216,39 @@ export default function InsightsPage() {
             {open.occurrences && open.occurrences.length > 0 && (
               <div className="mt-4">
                 <div className="eyebrow mb-1.5">{t('insights.occurrences')} ({open.occurrences.length})</div>
-                <ul className="space-y-1 text-[12.5px] ink-soft">
-                  {open.occurrences.slice(0, 8).map((o, i) => (
-                    <li key={i} className="flex justify-between">
-                      <span>#{i + 1}</span>
-                      <span className="font-mono">~{o.hoursBetween}h after</span>
-                    </li>
-                  ))}
+                <ul className="space-y-1.5 text-[12.5px] ink-soft">
+                  {open.occurrences.slice(0, 12).map((o, i) => {
+                    const food = foodLogs.find((f) => f.id === o.foodLogId);
+                    const symptom = symptoms.find((s) => s.id === o.symptomId);
+                    const when = symptom
+                      ? new Date(symptom.timestamp instanceof Date ? symptom.timestamp : symptom.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                      : '—';
+                    return (
+                      <li
+                        key={i}
+                        className="card p-2"
+                        style={{ background: 'var(--surface-alt)' }}
+                      >
+                        <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                          <span className="font-mono text-[11px] muted">#{String(i + 1).padStart(2, '0')} · {when}</span>
+                          <span className="font-mono text-[11px] text-accent">~{o.hoursBetween}h after</span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5 flex-wrap text-[12.5px]">
+                          {food && <span className="ink">🍽 {food.food}</span>}
+                          {food && symptom && <span className="muted">→</span>}
+                          {symptom && (
+                            <span className="ink">
+                              {symptom.type}
+                              <span className="muted font-mono ml-1">{symptom.severity}/10</span>
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {open.occurrences.length > 12 && (
+                    <li className="muted text-[11px] pl-1">+{open.occurrences.length - 12} more not shown</li>
+                  )}
                 </ul>
               </div>
             )}
