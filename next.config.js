@@ -15,7 +15,7 @@ const SECURITY_HEADERS = [
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
-      "connect-src 'self' https://api.openai.com https://api.groq.com https://*.supabase.co",
+      "connect-src 'self' https://api.openai.com https://api.groq.com https://*.supabase.co https://world.openfoodfacts.org",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -97,6 +97,16 @@ export interface ExperimentLog {
   notes?: string;
 }
 
+export type FodmapPhase = 'elimination' | 'reintroduction' | 'personalization';
+
+export interface FodmapState {
+  phase: FodmapPhase;
+  currentChallenge?: string; // FODMAP group being tested in reintro
+  challengeStartedAt?: Date;
+  passed?: string[];          // FODMAP groups well-tolerated
+  reactive?: string[];        // FODMAP groups that triggered symptoms
+}
+
 export interface Experiment {
   id: string;
   name: string; // e.g., 'No Dairy', 'Low FODMAP'
@@ -105,6 +115,7 @@ export interface Experiment {
   active: boolean;
   notes?: string;
   logs?: ExperimentLog[]; // Optional logs for tracking progress
+  fodmap?: FodmapState;   // Structured FODMAP mode when applicable
 }
 
 export interface TimelineItem {

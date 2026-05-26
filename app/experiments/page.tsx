@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { ExperimentLogType } from '@/types';
+import { ExperimentLogType, FodmapPhase, FodmapState } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
 import AIAnnotation from '@/components/ui/AIAnnotation';
 import { IconPlus, IconClose } from '@/components/ui/Icon';
@@ -22,6 +22,7 @@ export default function ExperimentsPage() {
   const experiments = useAppStore((s) => s.experiments);
   const symptoms = useAppStore((s) => s.symptoms);
   const addExperiment = useAppStore((s) => s.addExperiment);
+  const updateExperiment = useAppStore((s) => s.updateExperiment);
   const endExperiment = useAppStore((s) => s.endExperiment);
   const addExperimentLog = useAppStore((s) => s.addExperimentLog);
   const deleteExperimentLog = useAppStore((s) => s.deleteExperimentLog);
@@ -150,6 +151,27 @@ export default function ExperimentsPage() {
             <AIAnnotation label={t('experiments.reading')}>
               Symptom count is {compare.during < compare.before ? 'down' : 'up'} {Math.round(Math.abs(1 - compare.during / Math.max(1, compare.before)) * 100)}% versus the equal-length window before this experiment started. Association only — not proven cause.
             </AIAnnotation>
+          )}
+
+          {active.fodmap && <FodmapPanel experimentId={active.id} state={active.fodmap} />}
+
+          {!active.fodmap && /low[-\s]?fodmap/i.test(active.name) && (
+            <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={() => {
+                  updateExperiment(active.id, {
+                    fodmap: { phase: 'elimination', passed: [], reactive: [] },
+                  });
+                }}
+                className="px-3 py-1.5 rounded-full text-[12px]"
+                style={{ background: 'var(--accent)', color: 'var(--surface)' }}
+              >
+                Enable structured FODMAP mode
+              </button>
+              <p className="text-[11.5px] muted mt-1.5">
+                Three phases: elimination → reintroduction (group by group) → personalization.
+              </p>
+            </div>
           )}
 
           <div className="flex" style={{ borderTop: '1px solid var(--border)' }}>
@@ -394,6 +416,163 @@ export default function ExperimentsPage() {
             </button>
           </div>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+const FODMAP_GROUPS: Array<{ id: string; label: string; examples: string }> = [
+  { id: 'fructans',       label: 'Fructans',          examples: 'wheat, onion, garlic, leek' },
+  { id: 'gos',            label: 'GOS',               examples: 'legumes, cashews, pistachios' },
+  { id: 'lactose',        label: 'Lactose',           examples: 'milk, soft cheese, yogurt' },
+  { id: 'fructose',       label: 'Excess fructose',   examples: 'apple, mango, honey, agave' },
+  { id: 'polyols-sorbitol', label: 'Sorbitol',        examples: 'stone fruit, sugar-free gum' },
+  { id: 'polyols-mannitol', label: 'Mannitol',        examples: 'mushroom, cauliflower' },
+];
+
+function FodmapPanel({ experimentId, state }: { experimentId: string; state: FodmapState }) {
+  const updateExperiment = useAppStore((s) => s.updateExperiment);
+
+  const update = (next: Partial<FodmapState>) =>
+    updateExperiment(experimentId, { fodmap: { ...state, ...next } });
+
+  const goToPhase = (phase: FodmapPhase) => update({ phase, currentChallenge: undefined, challengeStartedAt: undefined });
+
+  const startChallenge = (groupId: string) =>
+    update({ currentChallenge: groupId, challengeStartedAt: new Date() });
+
+  const finishChallenge = (outcome: 'passed' | 'reactive') => {
+    if (!state.currentChallenge) return;
+    const passed = new Set(state.passed || []);
+    const reactive = new Set(state.reactive || []);
+    if (outcome === 'passed') {
+      passed.add(state.currentChallenge);
+      reactive.delete(state.currentChallenge);
+    } else {
+      reactive.add(state.currentChallenge);
+      passed.delete(state.currentChallenge);
+    }
+    update({ passed: Array.from(passed), reactive: Array.from(reactive), currentChallenge: undefined, challengeStartedAt: undefined });
+  };
+
+  return (
+    <div className="px-4 py-3.5" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="flex items-baseline justify-between mb-2.5">
+        <div className="eyebrow">FODMAP mode</div>
+        <div className="flex gap-1">
+          {(['elimination', 'reintroduction', 'personalization'] as FodmapPhase[]).map((p) => {
+            const on = state.phase === p;
+            return (
+              <button
+                key={p}
+                onClick={() => goToPhase(p)}
+                className="px-2.5 py-1 rounded-full text-[11px] capitalize"
+                style={{
+                  background: on ? 'var(--ink)' : 'transparent',
+                  color: on ? 'var(--bg)' : 'var(--ink-soft)',
+                  border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                }}
+              >
+                {p}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {state.phase === 'elimination' && (
+        <p className="text-[12.5px] ink-soft m-0">
+          Stay strictly low-FODMAP for 2–6 weeks. When you have a clear stretch of low symptom days, move on to Reintroduction.
+        </p>
+      )}
+
+      {state.phase === 'reintroduction' && (
+        <div>
+          {state.currentChallenge ? (
+            <div className="card p-3 mb-2">
+              <div className="text-[13.5px] ink font-medium">
+                Challenging {FODMAP_GROUPS.find((g) => g.id === state.currentChallenge)?.label}
+              </div>
+              <div className="text-[11.5px] muted mt-0.5">
+                Eat a measured portion daily for 3 days. Log symptoms each day. After the 3-day challenge, decide.
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => finishChallenge('passed')}
+                  className="px-3 py-1 rounded-full text-[12px]"
+                  style={{ background: 'var(--accent)', color: 'var(--surface)' }}
+                >
+                  Tolerated
+                </button>
+                <button
+                  onClick={() => finishChallenge('reactive')}
+                  className="px-3 py-1 rounded-full text-[12px]"
+                  style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+                >
+                  Triggered symptoms
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[12.5px] ink-soft m-0 mb-2">Pick a group to challenge next:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {FODMAP_GROUPS.map((g) => {
+                  const done = (state.passed || []).includes(g.id) || (state.reactive || []).includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => startChallenge(g.id)}
+                      disabled={done}
+                      title={g.examples}
+                      className="px-2.5 py-1.5 rounded-full text-[11.5px]"
+                      style={{
+                        border: `1px solid ${done ? 'var(--border)' : 'var(--border-strong)'}`,
+                        color: done ? 'var(--muted)' : 'var(--ink-soft)',
+                        opacity: done ? 0.55 : 1,
+                      }}
+                    >
+                      {g.label}{done ? ' ✓' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {state.phase === 'personalization' && (
+        <p className="text-[12.5px] ink-soft m-0">
+          Build your personal diet from what you tolerated. Re-test reactive groups occasionally — tolerance can shift.
+        </p>
+      )}
+
+      {((state.passed && state.passed.length > 0) || (state.reactive && state.reactive.length > 0)) && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div>
+            <div className="eyebrow mb-1">Tolerated</div>
+            <div className="flex flex-wrap gap-1">
+              {(state.passed || []).length === 0 && <span className="text-[12px] muted">—</span>}
+              {(state.passed || []).map((id) => (
+                <span key={id} className="pill text-[11px]" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                  {FODMAP_GROUPS.find((g) => g.id === id)?.label ?? id}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="eyebrow mb-1">Reactive</div>
+            <div className="flex flex-wrap gap-1">
+              {(state.reactive || []).length === 0 && <span className="text-[12px] muted">—</span>}
+              {(state.reactive || []).map((id) => (
+                <span key={id} className="pill text-[11px]" style={{ borderColor: '#c44', color: '#c44' }}>
+                  {FODMAP_GROUPS.find((g) => g.id === id)?.label ?? id}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

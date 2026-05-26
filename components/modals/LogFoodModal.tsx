@@ -6,6 +6,7 @@ import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 import Tag from '@/components/ui/Tag';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { detectBarcodeFromImage, fetchProduct, hasBarcodeDetector } from '@/lib/openFoodFacts';
 
 interface Props {
   isOpen: boolean;
@@ -37,6 +38,42 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
   const addFoodLog = useAppStore((s) => s.addFoodLog);
   const voice = useVoiceCapture();
   const fileRef = useRef<HTMLInputElement>(null);
+  const barcodeRef = useRef<HTMLInputElement>(null);
+  const [barcodeStatus, setBarcodeStatus] = useState<string | null>(null);
+
+  const handleBarcode = async (file: File) => {
+    setBarcodeStatus('Scanning…');
+    const code = await detectBarcodeFromImage(file);
+    if (!code) {
+      setBarcodeStatus('No barcode detected. Try a clearer shot.');
+      return;
+    }
+    setBarcodeStatus(`Looking up ${code}…`);
+    const product = await fetchProduct(code);
+    if (!product) {
+      setBarcodeStatus(`Code ${code} not in Open Food Facts.`);
+      return;
+    }
+    setBarcodeStatus(null);
+    const name = product.productName ? (product.brand ? `${product.productName} (${product.brand})` : product.productName) : `Barcode ${code}`;
+    setFood(name);
+    if (product.quantity) setQuantity(product.quantity);
+    if (product.tags && product.tags.length > 0) {
+      setSelectedTags((prev) => Array.from(new Set([...prev, ...product.tags!.filter((t) => commonTags.includes(t))])));
+    }
+    if (product.nutriments && (product.nutriments.energyKcal || product.nutriments.protein)) {
+      setMacros({
+        calories: product.nutriments.energyKcal,
+        protein: product.nutriments.protein,
+        carbs: product.nutriments.carbs,
+        fat: product.nutriments.fat,
+        fiber: product.nutriments.fiber,
+      });
+    }
+    if (product.ingredientsText) {
+      setNotes((prev) => prev ? `${prev}\n${product.ingredientsText}` : product.ingredientsText!);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -255,6 +292,27 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
                     disabled={analyzing}
                   />
                 </label>
+                {hasBarcodeDetector() && (
+                  <label
+                    className="px-2 py-1 rounded-full cursor-pointer text-[11px]"
+                    style={{ border: '1px solid var(--border)', color: 'var(--ink-soft)' }}
+                    title="Scan barcode"
+                  >
+                    1D
+                    <input
+                      ref={barcodeRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleBarcode(f);
+                        e.currentTarget.value = '';
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
             </div>
 
@@ -325,6 +383,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
               </div>
             )}
             {analyzing && <p className="text-[11.5px] muted">{t('log_food.analyzing')}</p>}
+            {barcodeStatus && <p className="text-[11.5px] muted">{barcodeStatus}</p>}
 
             {!parsed && (
               <div>
