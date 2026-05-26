@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
 import { IconChevL, IconChevR, Dot } from '@/components/ui/Icon';
+import { severityColor } from '@/components/ui/Severity';
 import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
@@ -27,19 +28,20 @@ export default function CalendarPage() {
 
   const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
   const counts = useMemo(() => {
-    const map = new Map<string, { food: number; sym: number }>();
+    const map = new Map<string, { food: number; sym: number; maxSev: number }>();
     foodLogs.forEach((l) => {
       const d = toDate(l.timestamp);
       const k = dayKey(d);
-      const cur = map.get(k) ?? { food: 0, sym: 0 };
+      const cur = map.get(k) ?? { food: 0, sym: 0, maxSev: 0 };
       cur.food++;
       map.set(k, cur);
     });
     symptoms.forEach((s) => {
       const d = toDate(s.timestamp);
       const k = dayKey(d);
-      const cur = map.get(k) ?? { food: 0, sym: 0 };
+      const cur = map.get(k) ?? { food: 0, sym: 0, maxSev: 0 };
       cur.sym++;
+      if (typeof s.severity === 'number') cur.maxSev = Math.max(cur.maxSev, s.severity);
       map.set(k, cur);
     });
     return map;
@@ -117,7 +119,7 @@ export default function CalendarPage() {
               </span>
               <div className="mt-auto flex gap-0.5">
                 {Array.from({ length: Math.min(data.sym, 5) }).map((_, k) => (
-                  <Dot key={k} size={4} color="var(--accent)" />
+                  <Dot key={k} size={4} color={data.maxSev > 0 ? severityColor(data.maxSev) : 'var(--accent)'} />
                 ))}
               </div>
             </button>
@@ -131,7 +133,10 @@ export default function CalendarPage() {
           {t('calendar.legend_active')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <Dot size={5} color="var(--accent)" /> {t('calendar.legend_symptom')}
+          <Dot size={5} color="#5a8a3c" />
+          <Dot size={5} color="#c08a2c" />
+          <Dot size={5} color="#c44a4a" />
+          {' '}{t('calendar.legend_symptom')}
         </span>
       </div>
 

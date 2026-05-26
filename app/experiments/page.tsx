@@ -149,7 +149,9 @@ export default function ExperimentsPage() {
 
           {compare.before > 0 && (
             <AIAnnotation label={t('experiments.reading')}>
-              Symptom count is {compare.during < compare.before ? 'down' : 'up'} {Math.round(Math.abs(1 - compare.during / Math.max(1, compare.before)) * 100)}% versus the equal-length window before this experiment started. Association only — not proven cause.
+              {t(compare.during < compare.before ? 'experiments.reading_down' : 'experiments.reading_up', {
+                pct: String(Math.round(Math.abs(1 - compare.during / Math.max(1, compare.before)) * 100)),
+              })}
             </AIAnnotation>
           )}
 
@@ -166,10 +168,10 @@ export default function ExperimentsPage() {
                 className="px-3 py-1.5 rounded-full text-[12px]"
                 style={{ background: 'var(--accent)', color: 'var(--surface)' }}
               >
-                Enable structured FODMAP mode
+                {t('experiments.fodmap_enable')}
               </button>
               <p className="text-[11.5px] muted mt-1.5">
-                Three phases: elimination → reintroduction (group by group) → personalization.
+                {t('experiments.fodmap_phases')}
               </p>
             </div>
           )}
@@ -197,7 +199,7 @@ export default function ExperimentsPage() {
           {expanded === active.id && (
             <div className="px-4 pb-4 pt-3 space-y-2" style={{ borderTop: '1px solid var(--border)' }}>
               {(active.logs || []).length === 0 ? (
-                <p className="muted text-[12.5px]">No logs yet.</p>
+                <p className="muted text-[12.5px]">{t('experiments.no_logs')}</p>
               ) : (
                 (active.logs || []).map((log) => (
                   <div key={log.id} className="card p-3 text-[13px] ink-soft">
