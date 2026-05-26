@@ -18,9 +18,14 @@ function ChatPageContent() {
   const clearChatSession = useAppStore((s) => s.clearChatSession);
   const foodLogs = useAppStore((s) => s.foodLogs);
   const symptoms = useAppStore((s) => s.symptoms);
+  const contexts = useAppStore((s) => s.contexts);
   const experiments = useAppStore((s) => s.experiments);
   const realizations = useAppStore((s) => s.realizations);
   const sources = useAppStore((s) => s.sources);
+  const medications = useAppStore((s) => s.medications);
+  const medicationLogs = useAppStore((s) => s.medicationLogs);
+  const customFactors = useAppStore((s) => s.customFactors);
+  const customFactorLogs = useAppStore((s) => s.customFactorLogs);
 
   const [input, setInput] = useState(queryParam || '');
   const [loading, setLoading] = useState(false);
@@ -59,6 +64,11 @@ function ChatPageContent() {
             symptoms: symptoms.slice(0, 50),
             experiments,
             realizations,
+            contexts: contexts.slice(0, 30),
+            medications,
+            medicationLogs: medicationLogs.slice(0, 50),
+            customFactors,
+            customFactorLogs: customFactorLogs.slice(0, 50),
           },
           chatHistory: history.slice(-10),
           sources: sources.filter((s) => s.content).slice(0, 10),

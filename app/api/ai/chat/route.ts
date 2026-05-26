@@ -67,6 +67,65 @@ export async function POST(request: NextRequest) {
       contextParts.push(`User realizations: ${realizations}`);
     }
 
+    if (userData?.contexts && Array.isArray(userData.contexts) && userData.contexts.length > 0) {
+      const recent = userData.contexts.slice(0, 14).map((c: any) => {
+        const bits: string[] = [];
+        if (c?.sleepQuality) bits.push(`sleep ${sanitize(c.sleepQuality, 30)}`);
+        if (c?.sleepDuration) bits.push(`${Number(c.sleepDuration).toFixed(1)}h`);
+        if (c?.stressLevel) bits.push(`stress ${sanitize(c.stressLevel, 20)}`);
+        if (c?.activityLevel && c.activityLevel !== 'none') bits.push(`activity ${sanitize(c.activityLevel, 20)}`);
+        if (c?.bristolType) bits.push(`bristol ${Number(c.bristolType)}`);
+        if (c?.cyclePhase) bits.push(`cycle ${sanitize(c.cyclePhase, 20)}`);
+        if (c?.hydrationMl) bits.push(`${Number(c.hydrationMl)}ml water`);
+        return bits.join(' / ');
+      }).filter(Boolean).join('; ');
+      if (recent) contextParts.push(`Recent contexts: ${recent}`);
+    }
+
+    if (userData?.medications && Array.isArray(userData.medications) && userData.medications.length > 0) {
+      const meds = userData.medications
+        .slice(0, 20)
+        .map((m: any) => `${sanitize(m?.name, 80)}${m?.dose ? ` ${sanitize(m.dose, 40)}` : ''}${m?.active === false ? ' (inactive)' : ''}`)
+        .join(', ');
+      contextParts.push(`Medications: ${meds}`);
+    }
+
+    if (userData?.medicationLogs && Array.isArray(userData.medicationLogs) && userData.medicationLogs.length > 0) {
+      const meds = Array.isArray(userData.medications) ? userData.medications : [];
+      const doses = userData.medicationLogs
+        .slice(0, 30)
+        .map((l: any) => {
+          const m = meds.find((x: any) => x?.id === l?.medicationId);
+          const name = sanitize(m?.name, 60) || 'medication';
+          const ts = l?.timestamp ? new Date(l.timestamp).toISOString().slice(0, 10) : '?';
+          return `${name}@${ts}`;
+        })
+        .join(', ');
+      contextParts.push(`Recent doses: ${doses}`);
+    }
+
+    if (userData?.customFactors && Array.isArray(userData.customFactors) && userData.customFactors.length > 0) {
+      const factors = userData.customFactors
+        .slice(0, 20)
+        .map((f: any) => `${sanitize(f?.label, 60)} (${sanitize(f?.scale, 20)}${f?.unit ? ` ${sanitize(f.unit, 20)}` : ''})`)
+        .join(', ');
+      contextParts.push(`Custom factors tracked: ${factors}`);
+    }
+
+    if (userData?.customFactorLogs && Array.isArray(userData.customFactorLogs) && userData.customFactorLogs.length > 0) {
+      const factors = Array.isArray(userData.customFactors) ? userData.customFactors : [];
+      const logs = userData.customFactorLogs
+        .slice(0, 30)
+        .map((l: any) => {
+          const f = factors.find((x: any) => x?.id === l?.factorId);
+          const name = sanitize(f?.label, 60) || 'factor';
+          const ts = l?.timestamp ? new Date(l.timestamp).toISOString().slice(0, 10) : '?';
+          return `${name}=${Number(l?.value)}@${ts}`;
+        })
+        .join(', ');
+      contextParts.push(`Factor logs: ${logs}`);
+    }
+
     let sourcesContext = '';
     if (sources && Array.isArray(sources) && sources.length > 0) {
       const sourcesText = sources

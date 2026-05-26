@@ -101,6 +101,11 @@ export const ChatRequestSchema = v.object({
     symptoms: v.array(v.any({ optional: true }), { max: 50, optional: true }),
     experiments: v.array(v.any({ optional: true }), { max: 20, optional: true }),
     realizations: v.array(v.any({ optional: true }), { max: 50, optional: true }),
+    contexts: v.array(v.any({ optional: true }), { max: 30, optional: true }),
+    medications: v.array(v.any({ optional: true }), { max: 30, optional: true }),
+    medicationLogs: v.array(v.any({ optional: true }), { max: 60, optional: true }),
+    customFactors: v.array(v.any({ optional: true }), { max: 30, optional: true }),
+    customFactorLogs: v.array(v.any({ optional: true }), { max: 60, optional: true }),
   }, { optional: true }),
   chatHistory: v.array(v.object({
     role: v.enumOf(['user', 'assistant'] as const),
