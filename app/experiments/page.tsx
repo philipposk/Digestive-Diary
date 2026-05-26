@@ -6,6 +6,7 @@ import { ExperimentLogType } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
 import AIAnnotation from '@/components/ui/AIAnnotation';
 import { IconPlus, IconClose } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 const daysBetween = (start: Date | string, end?: Date | string) => {
@@ -17,6 +18,7 @@ const fmtDate = (d: Date | string) =>
   toDate(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 export default function ExperimentsPage() {
+  const { t } = useT();
   const experiments = useAppStore((s) => s.experiments);
   const symptoms = useAppStore((s) => s.symptoms);
   const addExperiment = useAppStore((s) => s.addExperiment);
@@ -85,16 +87,16 @@ export default function ExperimentsPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="Lab"
-        title="Experiments"
-        subtitle="Quiet, time-boxed changes you're testing."
+        eyebrow={t('experiments.eyebrow')}
+        title={t('experiments.title')}
+        subtitle={t('experiments.subtitle')}
         action={
           <button
             onClick={() => setShowNew(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            <IconPlus size={13} /> New
+            <IconPlus size={13} /> {t('experiments.new')}
           </button>
         }
       />
@@ -106,11 +108,11 @@ export default function ExperimentsPage() {
         >
           <div className="p-4">
             <div className="flex items-baseline gap-2.5">
-              <span className="eyebrow text-accent">Active</span>
-              <span className="font-mono text-[10.5px] muted">started {fmtDate(active.startDate)}</span>
+              <span className="eyebrow text-accent">{t('experiments.active')}</span>
+              <span className="font-mono text-[10.5px] muted">{fmtDate(active.startDate)}</span>
             </div>
             <div className="font-heading text-[28px] tracking-head ink mt-1">{active.name}</div>
-            <div className="text-[13px] muted">Day {daysBetween(active.startDate)}</div>
+            <div className="text-[13px] muted">{t('experiments.day_n', { n: daysBetween(active.startDate) })}</div>
 
             <div className="mt-3.5">
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
@@ -132,20 +134,20 @@ export default function ExperimentsPage() {
               style={{ background: 'var(--border)', gap: 1 }}
             >
               <div className="px-3.5 py-3 flex flex-col gap-0.5" style={{ background: 'var(--surface)' }}>
-                <div className="eyebrow">Prior window</div>
+                <div className="eyebrow">{t('experiments.prior_window')}</div>
                 <div className="font-heading text-[24px] tracking-head ink">{compare.before}</div>
-                <div className="text-[11px] muted">symptoms</div>
+                <div className="text-[11px] muted">{t('experiments.symptoms')}</div>
               </div>
               <div className="px-3.5 py-3 flex flex-col gap-0.5" style={{ background: 'var(--surface)' }}>
-                <div className="eyebrow">During</div>
+                <div className="eyebrow">{t('experiments.during')}</div>
                 <div className="font-heading text-[24px] tracking-head text-accent">{compare.during}</div>
-                <div className="text-[11px] muted">symptoms</div>
+                <div className="text-[11px] muted">{t('experiments.symptoms')}</div>
               </div>
             </div>
           </div>
 
           {compare.before > 0 && (
-            <AIAnnotation label="Reading">
+            <AIAnnotation label={t('experiments.reading')}>
               Symptom count is {compare.during < compare.before ? 'down' : 'up'} {Math.round(Math.abs(1 - compare.during / Math.max(1, compare.before)) * 100)}% versus the equal-length window before this experiment started. Association only — not proven cause.
             </AIAnnotation>
           )}
@@ -156,17 +158,17 @@ export default function ExperimentsPage() {
               className="flex-1 py-3 text-[13px] ink-soft"
               style={{ borderRight: '1px solid var(--border)' }}
             >
-              Add note
+              {t('experiments.add_note')}
             </button>
             <button
               onClick={() => setExpanded(expanded === active.id ? null : active.id)}
               className="flex-1 py-3 text-[13px] ink-soft"
               style={{ borderRight: '1px solid var(--border)' }}
             >
-              {expanded === active.id ? 'Hide logs' : `Logs · ${active.logs?.length ?? 0}`}
+              {expanded === active.id ? t('experiments.hide_logs') : t('experiments.logs_n', { n: active.logs?.length ?? 0 })}
             </button>
             <button onClick={() => endExperiment(active.id)} className="flex-1 py-3 text-[13px] ink-soft">
-              End early
+              {t('experiments.end_early')}
             </button>
           </div>
 
@@ -205,21 +207,21 @@ export default function ExperimentsPage() {
       {!active && (
         <div className="mx-5 mb-5 card p-4">
           <p className="text-[13px] ink-soft mb-2">
-            No active experiment. Start one to track how a deliberate change (e.g. &ldquo;No dairy 14 days&rdquo;) affects your symptoms.
+            {t('experiments.no_active')}
           </p>
           <button
             onClick={() => setShowNew(true)}
             className="px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            Start experiment
+            {t('experiments.start')}
           </button>
         </div>
       )}
 
       {past.length > 0 && (
         <section className="px-5 pb-10">
-          <h3 className="m-0 mb-2.5 font-heading text-[16px] tracking-head ink">Past</h3>
+          <h3 className="m-0 mb-2.5 font-heading text-[16px] tracking-head ink">{t('experiments.past')}</h3>
           {past.map((e) => {
             const days = daysBetween(e.startDate, e.endDate);
             const startMs = toDate(e.startDate).getTime();
@@ -245,7 +247,7 @@ export default function ExperimentsPage() {
                 {before > 0 && (
                   <div className="text-right">
                     <div className="font-mono text-[12px] text-accent">{delta > 0 ? '−' : '+'}{Math.abs(delta)}%</div>
-                    <div className="eyebrow">symptoms</div>
+                    <div className="eyebrow">{t('experiments.symptoms')}</div>
                   </div>
                 )}
               </div>
@@ -255,9 +257,9 @@ export default function ExperimentsPage() {
       )}
 
       {showNew && (
-        <Modal onClose={() => setShowNew(false)} title="Start experiment">
+        <Modal onClose={() => setShowNew(false)} title={t('experiments.modal_start')}>
           <label className="block">
-            <span className="eyebrow">Name</span>
+            <span className="eyebrow">{t('experiments.name')}</span>
             <input
               autoFocus
               value={newName}
@@ -268,7 +270,7 @@ export default function ExperimentsPage() {
             />
           </label>
           <label className="block mt-3">
-            <span className="eyebrow">Length (days)</span>
+            <span className="eyebrow">{t('experiments.length_days')}</span>
             <input
               type="number"
               min={3}
@@ -280,7 +282,7 @@ export default function ExperimentsPage() {
             />
           </label>
           <label className="block mt-3">
-            <span className="eyebrow">Notes (optional)</span>
+            <span className="eyebrow">{t('common.notes')} ({t('common.optional')})</span>
             <textarea
               rows={2}
               value={newNotes}
@@ -296,7 +298,7 @@ export default function ExperimentsPage() {
               className="flex-1 px-3 py-2 rounded-full text-[13px]"
               style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={startNew}
@@ -304,14 +306,14 @@ export default function ExperimentsPage() {
               className="flex-1 px-3 py-2 rounded-full text-[13px] disabled:opacity-50"
               style={{ background: 'var(--ink)', color: 'var(--bg)' }}
             >
-              Start
+              {t('experiments.start')}
             </button>
           </div>
         </Modal>
       )}
 
       {logFor && (
-        <Modal onClose={() => setLogFor(null)} title="Add log">
+        <Modal onClose={() => setLogFor(null)} title={t('experiments.modal_log')}>
           <div className="flex gap-1.5 mb-3">
             {(['text', 'image'] as ExperimentLogType[]).map((t) => (
               <button
@@ -371,7 +373,7 @@ export default function ExperimentsPage() {
             rows={2}
             value={logNotes}
             onChange={(e) => setLogNotes(e.target.value)}
-            placeholder="Notes (optional)"
+            placeholder={`${t('common.notes')} (${t('common.optional')})`}
             className="mt-3 w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
             style={{ border: '1px solid var(--border)' }}
           />
@@ -381,14 +383,14 @@ export default function ExperimentsPage() {
               className="flex-1 px-3 py-2 rounded-full text-[13px]"
               style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={submitLog}
               className="flex-1 px-3 py-2 rounded-full text-[13px]"
               style={{ background: 'var(--ink)', color: 'var(--bg)' }}
             >
-              Save
+              {t('common.save')}
             </button>
           </div>
         </Modal>

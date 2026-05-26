@@ -6,18 +6,19 @@ import { Source, SourceType } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
 import Tag from '@/components/ui/Tag';
 import { IconBook, IconClose, IconPlus, IconTrash } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
-const TYPE_LABEL: Record<SourceType, string> = {
-  book: 'Book',
-  article: 'Article',
-  video: 'Video',
-  pdf: 'PDF',
-  other: 'Other',
-};
-
 export default function SourcesPage() {
+  const { t } = useT();
+  const TYPE_LABEL: Record<SourceType, string> = {
+    book: t('sources.type_book'),
+    article: t('sources.type_article'),
+    video: t('sources.type_video'),
+    pdf: t('sources.type_pdf'),
+    other: t('sources.type_other'),
+  };
   const sources = useAppStore((s) => s.sources);
   const addSource = useAppStore((s) => s.addSource);
   const deleteSource = useAppStore((s) => s.deleteSource);
@@ -65,16 +66,16 @@ export default function SourcesPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="Library"
-        title="Knowledge sources"
-        subtitle="Books, articles, videos the AI can reference when answering."
+        eyebrow={t('sources.eyebrow')}
+        title={t('sources.title')}
+        subtitle={t('sources.subtitle')}
         action={
           <button
             onClick={openNew}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            <IconPlus size={13} /> Add
+            <IconPlus size={13} /> {t('common.add')}
           </button>
         }
       />
@@ -82,7 +83,7 @@ export default function SourcesPage() {
       <section className="px-5 pb-10">
         {sources.length === 0 ? (
           <div className="card p-4 muted text-[13.5px]">
-            No sources yet. Add books, articles or PDFs that you trust so the AI can cite them.
+            {t('sources.empty')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -117,14 +118,14 @@ export default function SourcesPage() {
                         {s.tags.map((t) => <Tag key={t}>{t}</Tag>)}
                       </div>
                     )}
-                    <div className="eyebrow mt-2">Added {toDate(s.addedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                    <div className="eyebrow mt-2">{t('sources.added', { date: toDate(s.addedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}</div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <button
                       onClick={() => openEdit(s)}
                       className="text-[12px] muted hover:text-ink"
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button
                       onClick={() => {
@@ -155,15 +156,15 @@ export default function SourcesPage() {
           >
             <div className="flex items-center justify-between mb-3">
               <h2 className="m-0 font-heading text-[22px] tracking-head ink">
-                {editing ? 'Edit source' : 'Add source'}
+                {editing ? t('sources.edit_title') : t('sources.add_title')}
               </h2>
-              <button onClick={() => { setOpen(false); resetForm(); }} className="muted hover:text-ink" aria-label="Close">
+              <button onClick={() => { setOpen(false); resetForm(); }} className="muted hover:text-ink" aria-label={t('common.close')}>
                 <IconClose size={18} />
               </button>
             </div>
             <form onSubmit={submit} className="space-y-3">
               <label className="block">
-                <span className="eyebrow">Title</span>
+                <span className="eyebrow">{t('sources.field_title')}</span>
                 <input
                   autoFocus required
                   value={title}
@@ -174,7 +175,7 @@ export default function SourcesPage() {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Type</span>
+                <span className="eyebrow">{t('sources.field_type')}</span>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as SourceType)}
@@ -187,7 +188,7 @@ export default function SourcesPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="eyebrow">Author</span>
+                <span className="eyebrow">{t('sources.field_author')}</span>
                 <input
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
@@ -196,7 +197,7 @@ export default function SourcesPage() {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">URL</span>
+                <span className="eyebrow">{t('sources.field_url')}</span>
                 <input
                   type="url"
                   value={url}
@@ -207,7 +208,7 @@ export default function SourcesPage() {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Description</span>
+                <span className="eyebrow">{t('sources.field_description')}</span>
                 <textarea
                   rows={2}
                   value={description}
@@ -217,7 +218,7 @@ export default function SourcesPage() {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Content / notes (AI reads this)</span>
+                <span className="eyebrow">{t('sources.field_content')}</span>
                 <textarea
                   rows={4}
                   value={content}
@@ -227,7 +228,7 @@ export default function SourcesPage() {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Tags (comma-separated)</span>
+                <span className="eyebrow">{t('sources.field_tags')}</span>
                 <input
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
@@ -243,14 +244,14 @@ export default function SourcesPage() {
                   className="px-4 py-2 rounded-full text-[13px]"
                   style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-full text-[13px]"
                   style={{ background: 'var(--ink)', color: 'var(--bg)' }}
                 >
-                  {editing ? 'Update' : 'Add'}
+                  {editing ? t('common.update') : t('common.add')}
                 </button>
               </div>
             </form>

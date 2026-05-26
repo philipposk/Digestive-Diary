@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 import Tag from '@/components/ui/Tag';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface ParsedItem {
 }
 
 export default function LogFoodModal({ isOpen, onClose }: Props) {
+  const { t } = useT();
   const [food, setFood] = useState('');
   const [quantity, setQuantity] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -181,8 +183,8 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
   };
 
   const saveLabel = parsed && parsed.length > 0
-    ? `Save ${parsed.length} item${parsed.length === 1 ? '' : 's'}`
-    : 'Save';
+    ? t('log_food.save_n', { n: parsed.length, s: parsed.length === 1 ? '' : 's' })
+    : t('common.save');
 
   return (
     <div
@@ -204,8 +206,8 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
 
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="m-0 font-heading text-[22px] tracking-head ink">Log food</h2>
-            <button onClick={onClose} aria-label="Close" className="muted hover:text-ink">
+            <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('log_food.title')}</h2>
+            <button onClick={onClose} aria-label={t('common.close')} className="muted hover:text-ink">
               <IconClose size={18} />
             </button>
           </div>
@@ -216,7 +218,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
                 value={food}
                 onChange={(e) => setFood(e.target.value)}
                 onBlur={() => food.trim() && parseFood(food.trim())}
-                placeholder="What did you eat? e.g. 'sourdough toast with avocado and two eggs'"
+                placeholder={t('log_food.placeholder')}
                 rows={3}
                 className="w-full bg-transparent border-0 outline-none text-[15px] ink resize-none"
                 autoFocus
@@ -269,8 +271,8 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
                 </div>
                 <div className="flex-1 text-[12.5px] ink-soft">
                   {parsing
-                    ? 'Parsing…'
-                    : <>Parsed as <b className="ink">{parsed!.length} item{parsed!.length === 1 ? '' : 's'}</b> — adjust before saving.</>}
+                    ? t('log_food.parsing')
+                    : t('log_food.parsed_n', { n: parsed!.length, s: parsed!.length === 1 ? '' : 's' })}
                 </div>
                 {parseMs !== null && (
                   <span className="font-mono text-[10px] muted">{parseMs}ms</span>
@@ -322,15 +324,15 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
                 </button>
               </div>
             )}
-            {analyzing && <p className="text-[11.5px] muted">Analyzing image…</p>}
+            {analyzing && <p className="text-[11.5px] muted">{t('log_food.analyzing')}</p>}
 
             {!parsed && (
               <div>
-                <div className="eyebrow mb-1.5">Quantity (optional)</div>
+                <div className="eyebrow mb-1.5">{t('log_food.quantity', { optional: t('common.optional') })}</div>
                 <input
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="e.g. large bowl, 2 slices"
+                  placeholder={t('log_food.quantity_placeholder')}
                   className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
                   style={{ border: '1px solid var(--border)' }}
                 />
@@ -338,7 +340,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
             )}
 
             <div>
-              <div className="eyebrow mb-1.5">Tags</div>
+              <div className="eyebrow mb-1.5">{t('log_food.tags')}</div>
               <div className="flex flex-wrap gap-1.5">
                 {commonTags.map((t) => {
                   const on = selectedTags.includes(t);
@@ -362,12 +364,12 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
             </div>
 
             <div>
-              <div className="eyebrow mb-1.5">Notes (optional)</div>
+              <div className="eyebrow mb-1.5">{t('log_food.notes', { optional: t('common.optional') })}</div>
               <textarea
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Anything to remember?"
+                placeholder={t('log_food.notes_placeholder')}
                 className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
                 style={{ border: '1px solid var(--border)' }}
               />
@@ -375,7 +377,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
 
             {macros && (
               <div className="card p-3">
-                <div className="eyebrow mb-1.5">Macros (estimated)</div>
+                <div className="eyebrow mb-1.5">{t('recipes.macros')}</div>
                 <div className="grid grid-cols-4 gap-2 text-[12.5px] ink-soft">
                   <div><span className="muted">kcal</span> {macros.calories ?? '—'}</div>
                   <div><span className="muted">P</span> {macros.protein ?? '—'}g</div>
@@ -395,7 +397,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
                 className="px-4 py-3 rounded-full text-[13px]"
                 style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"

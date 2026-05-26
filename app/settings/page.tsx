@@ -13,12 +13,15 @@ import { runScan } from '@/lib/autoScanScheduler';
 import {
   applyBackupPayload, buildBackupPayload, decryptBackup, downloadFile, encryptBackup,
 } from '@/lib/backup';
+import { useT, LOCALE_LABEL, type Locale } from '@/lib/i18n';
 import PageHeader from '@/components/ui/PageHeader';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
   const [currentVibe, setCurrentVibe] = useState<VibeId>('clinical');
   const [currentAccent, setCurrentAccent] = useState<string>('#3f5a3c');
+
+  const { t, locale, setLocale } = useT();
 
   const fastingSettings = useAppStore((s) => s.fastingSettings);
   const setFastingSettings = useAppStore((s) => s.setFastingSettings);
@@ -50,10 +53,31 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <PageHeader eyebrow="Profile" title="Settings" />
+      <PageHeader eyebrow={t('settings.eyebrow')} title={t('settings.title')} />
 
-      <Section title="Appearance" eyebrow="Visual">
-        <Field label="Vibe">
+      <Section title={t('settings.appearance')} eyebrow={t('settings.eyebrow_visual')}>
+        <Field label={t('settings.language')}>
+          <div className="grid grid-cols-2 gap-2">
+            {(['en', 'el'] as Locale[]).map((l) => {
+              const on = locale === l;
+              return (
+                <button
+                  key={l}
+                  onClick={() => setLocale(l)}
+                  className="px-3 py-2 rounded-card text-[13px] transition-colors"
+                  style={{
+                    background: on ? 'var(--ink)' : 'transparent',
+                    color: on ? 'var(--bg)' : 'var(--ink)',
+                    border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                  }}
+                >
+                  {LOCALE_LABEL[l]}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+        <Field label={t('settings.vibe')}>
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(VIBES) as VibeId[]).map((id) => {
               const v = VIBES[id];
@@ -85,7 +109,7 @@ export default function SettingsPage() {
           </div>
         </Field>
 
-        <Field label="Accent">
+        <Field label={t('settings.accent')}>
           <div className="flex flex-wrap gap-2">
             {vibe.accents.map((a) => {
               const on = currentAccent === a.hex;
@@ -108,7 +132,7 @@ export default function SettingsPage() {
           </div>
         </Field>
 
-        <Field label="Mode">
+        <Field label={t('settings.mode')}>
           <div className="grid grid-cols-3 gap-2">
             {(['light', 'dark', 'system'] as Theme[]).map((t) => {
               const on = currentTheme === t;
@@ -131,15 +155,15 @@ export default function SettingsPage() {
         </Field>
       </Section>
 
-      <Section title="Fasting" eyebrow="Schedule">
+      <Section title={t('settings.fasting')} eyebrow={t('settings.fasting_eyebrow')}>
         <Toggle
-          label="Enable fasting status"
+          label={t('settings.fasting_enable')}
           checked={fastingSettings.enabled}
           onChange={(v) => setFastingSettings({ ...fastingSettings, enabled: v })}
         />
         {fastingSettings.enabled && (
           <>
-            <Field label="Fasting window (hours)">
+            <Field label={t('settings.fasting_window')}>
               <input
                 type="number" min={1} max={24}
                 value={fastingSettings.fastingWindow}
@@ -148,7 +172,7 @@ export default function SettingsPage() {
                 style={{ border: '1px solid var(--border)' }}
               />
             </Field>
-            <Field label="Eating window (hours)">
+            <Field label={t('settings.eating_window')}>
               <input
                 type="number" min={1} max={24}
                 value={fastingSettings.eatingWindow}
@@ -161,17 +185,17 @@ export default function SettingsPage() {
         )}
       </Section>
 
-      <Section title="Auto-scan photos" eyebrow="Album">
+      <Section title={t('settings.auto_scan')} eyebrow={t('settings.auto_scan_eyebrow')}>
         <p className="text-[12.5px] muted m-0">
-          When the app is open, prompts you to pick recent album photos on schedule. Dedups against already-processed images.
+          {t('settings.auto_scan_body')}
         </p>
         <Toggle
-          label="Enable auto-scan"
+          label={t('settings.auto_scan_enable')}
           checked={autoScanSettings.enabled}
           onChange={(v) => setAutoScanSettings({ ...autoScanSettings, enabled: v })}
         />
         {autoScanSettings.enabled && (
-          <Field label="Frequency">
+          <Field label={t('settings.frequency')}>
             <div className="flex gap-2">
               {(['manual', 'hourly', 'daily'] as const).map((f) => {
                 const on = autoScanSettings.frequency === f;
@@ -210,7 +234,7 @@ export default function SettingsPage() {
           className="px-3 py-2 rounded-full text-[13px]"
           style={{ background: 'var(--ink)', color: 'var(--bg)' }}
         >
-          Scan now
+          {t('settings.scan_now')}
         </button>
         {autoScanSettings.lastScanTime && (
           <p className="text-[11.5px] muted m-0 mt-1">
@@ -219,9 +243,9 @@ export default function SettingsPage() {
         )}
       </Section>
 
-      <Section title="Recipe sources" eyebrow="Web">
+      <Section title={t('settings.recipe_sources')} eyebrow={t('settings.recipe_sources_eyebrow')}>
         <p className="text-[12.5px] muted m-0">
-          URLs the AI scrapes when you fetch recipes. Disable individual sources to filter them out.
+          {t('settings.recipe_sources_body')}
         </p>
         <div className="space-y-1.5">
           {recipeSourcesSettings.sources.map((s, idx) => (
@@ -264,7 +288,7 @@ export default function SettingsPage() {
             className="px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
           >
-            + Add URL
+{t('settings.add_url')}
           </button>
           <button
             onClick={async () => {
@@ -305,12 +329,12 @@ export default function SettingsPage() {
             className="px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            Fetch now
+{t('settings.fetch_now')}
           </button>
         </div>
       </Section>
 
-      <Section title="Data" eyebrow="Export · Manage">
+      <Section title={t('settings.data')} eyebrow={t('settings.data_eyebrow')}>
         <div className="space-y-1.5">
           {[
             { href: '/timeline',     label: 'Timeline view' },
@@ -352,7 +376,7 @@ export default function SettingsPage() {
             className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
             style={{ border: '1px solid var(--border)' }}
           >
-            Export simple JSON for doctor →
+{t('settings.export_doctor')}
           </button>
           <button
             onClick={() => {
@@ -366,14 +390,14 @@ export default function SettingsPage() {
             className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] transition-colors"
             style={{ border: '1px solid var(--border)', color: '#c44' }}
           >
-            Delete all data →
+{t('settings.delete_all')}
           </button>
         </div>
       </Section>
 
-      <Section title="About" eyebrow="Meta">
+      <Section title={t('settings.about')} eyebrow={t('settings.about_eyebrow')}>
         <p className="text-[12.5px] ink-soft m-0">
-          Digestive Diary · v0.2 · A non-judgmental tracking tool. Not medical advice.
+          {t('settings.about_body')}
         </p>
       </Section>
     </div>
@@ -402,6 +426,7 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
 }
 
 function BackupBlock() {
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [passOpen, setPassOpen] = useState<null | 'export' | 'import'>(null);
@@ -479,9 +504,9 @@ function BackupBlock() {
       className="px-3 py-3 rounded-card"
       style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)' }}
     >
-      <div className="eyebrow mb-1.5">Backup</div>
+      <div className="eyebrow mb-1.5">{t('settings.backup_eyebrow')}</div>
       <p className="m-0 text-[12.5px] muted mb-2.5">
-        Save everything locally so you don&apos;t lose data when clearing browser storage. Encryption is optional but recommended.
+        {t('settings.backup_body')}
       </p>
       <div className="flex flex-wrap gap-2">
         <button
@@ -489,20 +514,20 @@ function BackupBlock() {
           className="px-3 py-1.5 rounded-full text-[12.5px]"
           style={{ background: 'var(--ink)', color: 'var(--bg)' }}
         >
-          Export JSON
+          {t('settings.backup_export')}
         </button>
         <button
           onClick={() => { setPassOpen('export'); setMsg(null); }}
           className="px-3 py-1.5 rounded-full text-[12.5px]"
           style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
         >
-          Export encrypted
+          {t('settings.backup_export_enc')}
         </button>
         <label
           className="px-3 py-1.5 rounded-full text-[12.5px] cursor-pointer"
           style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
         >
-          Import backup
+{t('settings.backup_import')}
           <input
             type="file"
             accept="application/json,.json"

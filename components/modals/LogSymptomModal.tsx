@@ -8,6 +8,7 @@ import { rankSuspectFoods } from '@/lib/suspectFoods';
 import { generateInsights } from '@/lib/generateInsights';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
 import BodyMapPicker from '@/components/ui/BodyMapPicker';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', mi
 const fmtShortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 export default function LogSymptomModal({ isOpen, onClose }: Props) {
+  const { t } = useT();
   const [type, setType] = useState('');
   const [customType, setCustomType] = useState('');
   const [severity, setSeverity] = useState<SeverityLevel>(5);
@@ -179,8 +181,8 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
         <div className="px-5 pt-2.5 pb-6">
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="m-0 font-heading text-[22px] tracking-head ink">Log symptom</h2>
-            <button onClick={onClose} className="muted hover:text-ink" aria-label="Close">
+            <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('log_symptom.title')}</h2>
+            <button onClick={onClose} className="muted hover:text-ink" aria-label={t('common.close')}>
               <IconClose size={18} />
             </button>
           </div>
@@ -222,7 +224,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
 
             <div>
               <div className="flex items-baseline justify-between mb-1.5">
-                <div className="eyebrow">Severity</div>
+                <div className="eyebrow">{t('log_symptom.severity')}</div>
                 <span className="font-mono text-[11px] muted">{severity}/10</span>
               </div>
               <input
@@ -238,7 +240,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
             </div>
 
             <label className="block">
-              <span className="eyebrow">Duration</span>
+              <span className="eyebrow">{t('log_symptom.duration')}</span>
               <input
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
@@ -249,7 +251,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
             </label>
 
             <div>
-              <div className="eyebrow mb-1.5">Location (optional)</div>
+              <div className="eyebrow mb-1.5">{t('log_symptom.location')}</div>
               <BodyMapPicker value={locations} onChange={setLocations} />
             </div>
 
@@ -265,7 +267,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
                   >
                     <IconSpark size={11} stroke={2.2} />
                   </div>
-                  <div className="eyebrow">Likely culprits</div>
+                  <div className="eyebrow">{t('log_symptom.suspects')}</div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {suspectFoods.map((c) => {
@@ -295,7 +297,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
             )}
 
             <label className="block">
-              <span className="eyebrow">Link to food (optional)</span>
+              <span className="eyebrow">{t('log_symptom.link_food')}</span>
               <select
                 value={linkedFoodId}
                 onChange={(e) => setLinkedFoodId(e.target.value)}
@@ -312,7 +314,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
             </label>
 
             <label className="block">
-              <span className="eyebrow">Link to previous {effectiveType || 'symptom'} (optional)</span>
+              <span className="eyebrow">{t('log_symptom.link_symptom', { type: effectiveType || t('home.btn_symptom').toLowerCase() })}</span>
               <select
                 value={linkedSymptomId}
                 onChange={(e) => setLinkedSymptomId(e.target.value)}
@@ -329,7 +331,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
             </label>
 
             <div>
-              <div className="eyebrow mb-1.5">Photo (for visible symptoms)</div>
+              <div className="eyebrow mb-1.5">{t('log_symptom.photo_label')}</div>
               <input
                 ref={fileRef}
                 type="file"
@@ -347,7 +349,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
                   className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-card text-[13px] ink-soft"
                   style={{ border: '2px dashed var(--border-strong)' }}
                 >
-                  <IconCamera size={15} /> Take or upload photo
+                  <IconCamera size={15} /> {t('log_symptom.photo_upload')}
                 </button>
               ) : (
                 <div className="space-y-2">
@@ -371,7 +373,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
                       className="w-full px-3 py-2 rounded-full text-[12.5px] disabled:opacity-50"
                       style={{ background: 'var(--ink)', color: 'var(--bg)' }}
                     >
-                      {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+                      {analyzing ? t('log_symptom.analyzing') : t('log_symptom.analyze')}
                     </button>
                   )}
                   {aiAnalysis && (

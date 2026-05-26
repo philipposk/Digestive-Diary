@@ -12,10 +12,12 @@ import PageHeader from '@/components/ui/PageHeader';
 import AIAnnotation from '@/components/ui/AIAnnotation';
 import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import { IconBowl, IconPulse, IconMoon, IconSearch } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function HomePage() {
+  const { t } = useT();
   const [today] = useState(new Date());
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [showSymptomModal, setShowSymptomModal] = useState(false);
@@ -208,10 +210,10 @@ export default function HomePage() {
         <PageHeader
           eyebrow={dateSub}
           title={dateLine}
-          subtitle={`${counts.food} meals · ${counts.symptom} symptoms logged`}
+          subtitle={t('home.meals_symptoms', { food: counts.food, sym: counts.symptom })}
           action={
             <button
-              aria-label="Search"
+              aria-label={t('common.search')}
               onClick={() => setShowSearchResults((v) => !v)}
               className="pill"
               style={{ padding: '6px 8px' }}
@@ -225,15 +227,15 @@ export default function HomePage() {
           <div className="mx-5 mb-4 card p-4 relative">
             <button
               onClick={handleDismissWelcome}
-              aria-label="Dismiss"
+              aria-label={t('common.close')}
               className="absolute top-2.5 right-2.5 muted hover:text-ink"
             >
               ✕
             </button>
             <div className="pr-6">
-              <div className="eyebrow mb-1">Welcome</div>
+              <div className="eyebrow mb-1">{t('home.welcome_title')}</div>
               <p className="text-[13.5px] ink-soft leading-relaxed">
-                Track food, symptoms, patterns. Log what you eat and how you feel. Not medical advice.
+                {t('home.welcome_body')}
               </p>
             </div>
           </div>
@@ -245,14 +247,14 @@ export default function HomePage() {
             style={{ background: 'var(--surface-alt)', border: '1px dashed var(--border-strong)' }}
           >
             <div>
-              <div className="eyebrow mb-0.5">Demo data</div>
-              <p className="text-[12.5px] ink-soft">Sample data shown. Clear to start fresh.</p>
+              <div className="eyebrow mb-0.5">{t('home.demo_label')}</div>
+              <p className="text-[12.5px] ink-soft">{t('home.demo_body')}</p>
             </div>
             <button
               onClick={handleClearDemoData}
               className="pill pill-strong text-xs"
             >
-              Clear
+              {t('common.clear')}
             </button>
           </div>
         )}
@@ -264,7 +266,7 @@ export default function HomePage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search foods, symptoms, experiments…"
+              placeholder={t('home.search_placeholder')}
               className="w-full bg-transparent border-0 outline-none text-[14px] ink font-body"
             />
             {searchQuery.trim() && (
@@ -328,8 +330,8 @@ export default function HomePage() {
 
         {(smartTip || smartTipLoading) && (
           <div className="mx-5 mb-4">
-            <AIAnnotation label="Worth noticing">
-              {smartTipLoading && !smartTip ? <span className="muted">Thinking…</span> : smartTip}
+            <AIAnnotation label={t('home.smart_label')}>
+              {smartTipLoading && !smartTip ? <span className="muted">{t('home.thinking')}</span> : smartTip}
             </AIAnnotation>
           </div>
         )}
@@ -337,17 +339,17 @@ export default function HomePage() {
         <div className="mx-5 mb-6 grid grid-cols-3 gap-2">
           <ActionButton
             primary
-            label="Food"
+            label={t('home.btn_food')}
             icon={<IconBowl size={18} />}
             onClick={() => setShowFoodModal(true)}
           />
           <ActionButton
-            label="Symptom"
+            label={t('home.btn_symptom')}
             icon={<IconPulse size={18} />}
             onClick={() => setShowSymptomModal(true)}
           />
           <ActionButton
-            label="Context"
+            label={t('home.btn_context')}
             icon={<IconMoon size={18} />}
             onClick={() => setShowContextModal(true)}
           />
@@ -355,11 +357,11 @@ export default function HomePage() {
 
         <section className="px-5 pb-10">
           <div className="flex items-baseline justify-between mb-1.5">
-            <h2 className="m-0 font-heading text-[17px] font-semibold tracking-head ink">Stream</h2>
-            <span className="eyebrow">Newest first</span>
+            <h2 className="m-0 font-heading text-[17px] font-semibold tracking-head ink">{t('home.stream')}</h2>
+            <span className="eyebrow">{t('home.newest')}</span>
           </div>
           {todayItems.length === 0 ? (
-            <p className="muted text-[13px] py-3">Nothing logged today. Start with food, symptom, or context above.</p>
+            <p className="muted text-[13px] py-3">{t('home.empty')}</p>
           ) : (
             todayItems.map((it, i, arr) => (
               <TimelineRow key={it.id} item={it} prev={i > 0} next={i < arr.length - 1} />

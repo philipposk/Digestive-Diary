@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { SleepQuality, StressLevel, ActivityLevel, BowelType, BristolType, CyclePhase, FlowLevel } from '@/types';
 import { IconClose } from '@/components/ui/Icon';
 import BristolPicker from '@/components/ui/BristolPicker';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   isOpen: boolean;
@@ -45,6 +46,7 @@ function ChipRow<T extends string>({
 }
 
 export default function LogContextModal({ isOpen, onClose }: Props) {
+  const { t } = useT();
   const [sleepQuality, setSleepQuality] = useState<SleepQuality | undefined>();
   const [sleepDuration, setSleepDuration] = useState<number | undefined>();
   const [sleepStart, setSleepStart] = useState('');
@@ -128,7 +130,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
         <div className="px-5 pt-2.5 pb-6">
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="m-0 font-heading text-[22px] tracking-head ink">Log context</h2>
+            <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('log_context.title')}</h2>
             <button onClick={onClose} className="muted hover:text-ink" aria-label="Close">
               <IconClose size={18} />
             </button>
@@ -136,7 +138,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
 
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <div className="eyebrow mb-1.5">Sleep quality</div>
+              <div className="eyebrow mb-1.5">{t('log_context.sleep_quality')}</div>
               <ChipRow<SleepQuality>
                 options={['poor', 'ok', 'good']}
                 value={sleepQuality}
@@ -146,7 +148,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
 
             <div className="grid grid-cols-3 gap-3">
               <label className="block">
-                <span className="eyebrow">Duration (h)</span>
+                <span className="eyebrow">{t('log_context.duration_h')}</span>
                 <input
                   type="number" min={0} max={24} step={0.5}
                   value={sleepDuration ?? ''}
@@ -157,7 +159,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Start</span>
+                <span className="eyebrow">{t('log_context.start')}</span>
                 <input
                   type="time"
                   value={sleepStart}
@@ -167,7 +169,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Wake</span>
+                <span className="eyebrow">{t('log_context.wake')}</span>
                 <input
                   type="time"
                   value={sleepEnd}
@@ -179,7 +181,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             </div>
 
             <div>
-              <div className="eyebrow mb-1.5">Stress</div>
+              <div className="eyebrow mb-1.5">{t('log_context.stress')}</div>
               <ChipRow<StressLevel>
                 options={['low', 'medium', 'high']}
                 value={stressLevel}
@@ -188,7 +190,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             </div>
 
             <div>
-              <div className="eyebrow mb-1.5">Activity</div>
+              <div className="eyebrow mb-1.5">{t('log_context.activity')}</div>
               <ChipRow<ActivityLevel>
                 options={['none', 'light', 'intense']}
                 value={activityLevel}
@@ -197,7 +199,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             </div>
 
             <div>
-              <div className="eyebrow mb-1.5">Bowel movement today?</div>
+              <div className="eyebrow mb-1.5">{t('log_context.bowel')}</div>
               <div className="flex gap-2">
                 {(['yes', 'no'] as const).map((v) => {
                   const isYes = v === 'yes';
@@ -224,11 +226,11 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             {bowelMovement === true && (
               <>
                 <div>
-                  <div className="eyebrow mb-1.5">Bristol stool scale</div>
+                  <div className="eyebrow mb-1.5">{t('log_context.bristol')}</div>
                   <BristolPicker value={bristolType} onChange={setBristolType} />
                 </div>
                 <div>
-                  <div className="eyebrow mb-1.5">Quality</div>
+                  <div className="eyebrow mb-1.5">{t('log_context.quality')}</div>
                   <ChipRow<BowelType>
                     options={['normal', 'loose', 'hard', 'none']}
                     value={bowelType}
@@ -239,7 +241,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             )}
 
             <div>
-              <div className="eyebrow mb-1.5">Cycle phase (optional)</div>
+              <div className="eyebrow mb-1.5">{t('log_context.cycle')}</div>
               <ChipRow<CyclePhase>
                 options={['menses', 'follicular', 'ovulation', 'luteal']}
                 value={cyclePhase}
@@ -249,7 +251,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
 
             {cyclePhase === 'menses' && (
               <div>
-                <div className="eyebrow mb-1.5">Flow</div>
+                <div className="eyebrow mb-1.5">{t('log_context.flow')}</div>
                 <ChipRow<FlowLevel>
                   options={['spotting', 'light', 'medium', 'heavy']}
                   value={cycleFlow}
@@ -259,7 +261,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             )}
 
             <label className="block">
-              <span className="eyebrow">Hydration (ml)</span>
+              <span className="eyebrow">{t('log_context.hydration')}</span>
               <input
                 type="number" min={0} max={6000} step={50}
                 value={hydrationMl ?? ''}
@@ -271,7 +273,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
             </label>
 
             <label className="block">
-              <span className="eyebrow">Notes</span>
+              <span className="eyebrow">{t('common.notes')}</span>
               <textarea
                 rows={2}
                 value={notes}
@@ -289,14 +291,14 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
                 className="px-4 py-2.5 rounded-full text-[13px]"
                 style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 px-4 py-2.5 rounded-full text-[14px] font-medium"
                 style={{ background: 'var(--ink)', color: 'var(--bg)' }}
               >
-                Save
+                {t('common.save')}
               </button>
             </div>
           </form>

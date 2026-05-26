@@ -9,17 +9,19 @@ import {
   IconFlask,
   IconCog,
 } from '@/components/ui/Icon';
-
-const navItems = [
-  { href: '/',            label: 'Today',     icon: IconBowl,     match: (p: string) => p === '/' },
-  { href: '/timeline',    label: 'Timeline',  icon: IconPulse,    match: (p: string) => p.startsWith('/timeline') || p.startsWith('/calendar') },
-  { href: '/insights',    label: 'Insights',  icon: IconSpark,    match: (p: string) => p.startsWith('/insights') || p.startsWith('/realizations') },
-  { href: '/experiments', label: 'Lab',       icon: IconFlask,    match: (p: string) => p.startsWith('/experiments') || p.startsWith('/recipes') || p.startsWith('/sources') || p.startsWith('/macros') },
-  { href: '/settings',    label: 'Profile',   icon: IconCog,      match: (p: string) => p.startsWith('/settings') || p.startsWith('/admin') },
-];
+import { useT } from '@/lib/i18n';
 
 export default function BottomNav() {
   const pathname = usePathname() || '/';
+  const { t } = useT();
+
+  const navItems = [
+    { href: '/',            label: t('nav.today'),    icon: IconBowl,  match: (p: string) => p === '/' },
+    { href: '/timeline',    label: t('nav.timeline'), icon: IconPulse, match: (p: string) => p.startsWith('/timeline') || p.startsWith('/calendar') },
+    { href: '/insights',    label: t('nav.insights'), icon: IconSpark, match: (p: string) => p.startsWith('/insights') || p.startsWith('/realizations') },
+    { href: '/experiments', label: t('nav.lab'),      icon: IconFlask, match: (p: string) => p.startsWith('/experiments') || p.startsWith('/recipes') || p.startsWith('/sources') || p.startsWith('/macros') },
+    { href: '/settings',    label: t('nav.profile'),  icon: IconCog,   match: (p: string) => p.startsWith('/settings') || p.startsWith('/admin') },
+  ];
 
   return (
     <nav

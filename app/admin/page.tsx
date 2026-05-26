@@ -3,6 +3,7 @@
 import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
 import { Dot } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
@@ -13,6 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function AdminPage() {
+  const { t } = useT();
   const notifs = useAppStore((s) => s.adminNotifications);
   const resolveOne = useAppStore((s) => s.resolveAdminNotification);
   const clearAll = useAppStore((s) => s.clearAdminNotifications);
@@ -23,29 +25,29 @@ export default function AdminPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="Diagnostics"
-        title="Admin notifications"
-        subtitle="System messages: failed recipe scrapes, API errors, other issues."
+        eyebrow={t('admin.eyebrow')}
+        title={t('admin.title')}
+        subtitle={t('admin.subtitle')}
       />
 
       <section className="px-5 pb-10">
         {notifs.length === 0 ? (
           <div className="card p-4 muted text-[13.5px]">
-            Nothing here. The app will flag system errors as they happen.
+            {t('admin.empty')}
           </div>
         ) : (
           <>
             {open.length > 0 && (
               <div className="mb-5">
                 <div className="flex items-baseline justify-between mb-2">
-                  <h2 className="m-0 font-heading text-[17px] tracking-head ink">Active · {open.length}</h2>
+                  <h2 className="m-0 font-heading text-[17px] tracking-head ink">{t('admin.active_n', { n: open.length })}</h2>
                   <button
                     onClick={() => {
-                      if (confirm('Mark all as resolved?')) open.forEach((n) => resolveOne(n.id));
+                      if (confirm(t('admin.resolve_all') + '?')) open.forEach((n) => resolveOne(n.id));
                     }}
                     className="text-[12px] text-accent hover:underline"
                   >
-                    Resolve all
+                    {t('admin.resolve_all')}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -61,7 +63,7 @@ export default function AdminPage() {
                       <p className="m-0 text-[13.5px] ink-soft">{n.message}</p>
                       {n.details && (
                         <details className="mt-2">
-                          <summary className="text-[12px] muted cursor-pointer">Show details</summary>
+                          <summary className="text-[12px] muted cursor-pointer">{t('admin.show_details')}</summary>
                           <pre
                             className="mt-1 p-2 rounded-card text-[11px] overflow-auto max-h-40 font-mono"
                             style={{ background: 'var(--surface-alt)' }}
@@ -76,7 +78,7 @@ export default function AdminPage() {
                           className="px-3 py-1 rounded-full text-[12px]"
                           style={{ background: 'var(--ink)', color: 'var(--bg)' }}
                         >
-                          Resolve
+                          {t('admin.resolve')}
                         </button>
                       </div>
                     </article>
@@ -88,14 +90,14 @@ export default function AdminPage() {
             {done.length > 0 && (
               <div>
                 <div className="flex items-baseline justify-between mb-2">
-                  <h2 className="m-0 font-heading text-[16px] tracking-head muted">Resolved · {done.length}</h2>
+                  <h2 className="m-0 font-heading text-[16px] tracking-head muted">{t('admin.resolved_n', { n: done.length })}</h2>
                   <button
                     onClick={() => {
-                      if (confirm('Clear all resolved notifications?')) clearAll();
+                      if (confirm(t('admin.clear_all') + '?')) clearAll();
                     }}
                     className="text-[12px] text-accent hover:underline"
                   >
-                    Clear all
+                    {t('admin.clear_all')}
                   </button>
                 </div>
                 <div className="space-y-2 opacity-65">

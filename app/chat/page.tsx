@@ -5,8 +5,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 import { IconChevL, IconMic, IconMore, IconUpRight } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 function ChatPageContent() {
+  const { t } = useT();
   const params = useSearchParams();
   const router = useRouter();
   const queryParam = params.get('query');
@@ -66,7 +68,7 @@ function ChatPageContent() {
       const data = await res.json();
       addChatMessage({ role: 'assistant', content: data.response });
     } catch {
-      addChatMessage({ role: 'assistant', content: 'Sorry, I hit an error. Try again.' });
+      addChatMessage({ role: 'assistant', content: t('chat.error') });
     } finally {
       setLoading(false);
     }
@@ -93,11 +95,11 @@ function ChatPageContent() {
           onClick={() => router.back()}
           className="inline-flex items-center gap-1 muted hover:text-ink text-[13px]"
         >
-          <IconChevL size={16} /> Back
+          <IconChevL size={16} /> {t('common.back')}
         </button>
         <div className="text-center">
-          <div className="font-heading text-[16px] tracking-head ink">Ask the diary</div>
-          <div className="eyebrow">Grounded in your logs</div>
+          <div className="font-heading text-[16px] tracking-head ink">{t('chat.title')}</div>
+          <div className="eyebrow">{t('chat.subtitle')}</div>
         </div>
         <div className="relative">
           <button
@@ -116,7 +118,7 @@ function ChatPageContent() {
                 onClick={() => { clearChatSession(); setMenuOpen(false); }}
                 className="block w-full text-left px-3 py-2 hover:bg-surf-alt rounded-md ink-soft"
               >
-                Clear chat
+                {t('chat.clear')}
               </button>
             </div>
           )}
@@ -126,12 +128,12 @@ function ChatPageContent() {
       <div className="flex-1 px-5 py-4 space-y-4">
         {messages.length === 0 ? (
           <div className="card p-4">
-            <div className="eyebrow mb-1">Try asking</div>
+            <div className="eyebrow mb-1">{t('chat.empty_title')}</div>
             <ul className="text-[13.5px] ink-soft space-y-1.5">
-              <li>· What foods most often precede my bloating?</li>
-              <li>· Did the no-dairy experiment help me?</li>
-              <li>· Summarize the last 7 days.</li>
-              <li>· What should I track more carefully?</li>
+              <li>{t('chat.empty_1')}</li>
+              <li>{t('chat.empty_2')}</li>
+              <li>{t('chat.empty_3')}</li>
+              <li>{t('chat.empty_4')}</li>
             </ul>
           </div>
         ) : (
@@ -156,7 +158,7 @@ function ChatPageContent() {
         {loading && (
           <div className="flex items-start">
             <div className="px-3.5 py-2.5 rounded-2xl text-[13px] muted" style={{ border: '1px solid var(--border)' }}>
-              Thinking…
+              {t('chat.thinking')}
             </div>
           </div>
         )}
@@ -169,7 +171,7 @@ function ChatPageContent() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your patterns…"
+            placeholder={t('chat.placeholder')}
             disabled={loading}
             className="flex-1 bg-transparent border-0 outline-none text-[14px] ink"
           />

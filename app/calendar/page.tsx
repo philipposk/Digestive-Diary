@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
 import { IconChevL, IconChevR, Dot } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 const fmt = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 export default function CalendarPage() {
+  const { t } = useT();
   const foodLogs = useAppStore((s) => s.foodLogs);
   const symptoms = useAppStore((s) => s.symptoms);
   const [cursor, setCursor] = useState(() => {
@@ -68,7 +70,7 @@ export default function CalendarPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="Calendar"
+        eyebrow={t('calendar.eyebrow')}
         title={monthName}
         action={
           <div className="flex gap-1">
@@ -126,10 +128,10 @@ export default function CalendarPage() {
       <div className="mx-5 pb-3 flex items-center gap-3.5 text-[11px] muted">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)' }} />
-          active day
+          {t('calendar.legend_active')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <Dot size={5} color="var(--accent)" /> symptom
+          <Dot size={5} color="var(--accent)" /> {t('calendar.legend_symptom')}
         </span>
       </div>
 
@@ -142,7 +144,7 @@ export default function CalendarPage() {
         </div>
         <div className="card p-3.5">
           {[...selectedDayFoods, ...selectedDaySymptoms].length === 0 ? (
-            <div className="muted text-[13px]">Nothing logged this day.</div>
+            <div className="muted text-[13px]">{t('calendar.day_empty')}</div>
           ) : (
             [...selectedDayFoods.map((f) => ({ kind: 'food' as const, ...f })),
              ...selectedDaySymptoms.map((s) => ({ kind: 'symptom' as const, ...s }))]

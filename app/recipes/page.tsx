@@ -7,9 +7,11 @@ import { generateSampleRecipes } from '@/lib/generateRecipes';
 import PageHeader from '@/components/ui/PageHeader';
 import Tag from '@/components/ui/Tag';
 import { IconSearch, IconUpRight } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 import Link from 'next/link';
 
 export default function RecipesPage() {
+  const { t } = useT();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -152,9 +154,9 @@ export default function RecipesPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="Kitchen"
-        title="Recipes"
-        subtitle="Curated + AI-generated. Respects your active experiments."
+        eyebrow={t('recipes.eyebrow')}
+        title={t('recipes.title')}
+        subtitle={t('recipes.subtitle')}
       />
 
       <div className="mx-5 mb-4">
@@ -164,7 +166,7 @@ export default function RecipesPage() {
             value={query}
             onChange={(e) => { setQuery(e.target.value); setSelectedTag(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="e.g. gluten-free pasta, low-fodmap breakfast"
+            placeholder={t('recipes.search_placeholder')}
             className="flex-1 bg-transparent border-0 outline-none text-[14px] ink py-1"
           />
           <button
@@ -173,21 +175,21 @@ export default function RecipesPage() {
             className="px-3 py-1.5 rounded-full text-[12.5px] inline-flex items-center gap-1.5 disabled:opacity-50"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            {isLoading ? 'Searching…' : <>Ask AI <IconUpRight size={12} /></>}
+            {isLoading ? t('recipes.searching') : <>{t('recipes.ask_ai')} <IconUpRight size={12} /></>}
           </button>
         </div>
       </div>
 
       {activeExperiments.length > 0 && (
         <div className="mx-5 mb-4 card p-3 text-[12.5px] ink-soft">
-          <div className="eyebrow mb-0.5">Active experiments</div>
-          Suggestions filtered for: {activeExperiments.map((e) => e.name).join(', ')}.
+          <div className="eyebrow mb-0.5">{t('recipes.active_experiments_label')}</div>
+          {t('recipes.active_experiments_body', { names: activeExperiments.map((e) => e.name).join(', ') })}
         </div>
       )}
 
       {allRecipeTags.length > 0 && (
         <div className="mx-5 mb-4">
-          <div className="eyebrow mb-1.5">Filter by tag</div>
+          <div className="eyebrow mb-1.5">{t('recipes.filter_by_tag')}</div>
           <div className="flex flex-wrap gap-1.5">
             {allRecipeTags.map((t) => {
               const on = selectedTag === t;
@@ -208,7 +210,7 @@ export default function RecipesPage() {
             })}
             {selectedTag && (
               <button onClick={() => setSelectedTag(null)} className="text-[12px] text-accent ml-1">
-                clear
+                {t('common.clear')}
               </button>
             )}
           </div>
@@ -217,13 +219,13 @@ export default function RecipesPage() {
 
       <section className="px-5 pb-10">
         <div className="flex items-baseline justify-between mb-2">
-          <h2 className="m-0 font-heading text-[17px] tracking-head ink">Recipes</h2>
-          <span className="eyebrow">{filteredRecipes.length} found</span>
+          <h2 className="m-0 font-heading text-[17px] tracking-head ink">{t('recipes.title')}</h2>
+          <span className="eyebrow">{filteredRecipes.length} {t('common.found')}</span>
         </div>
 
         {filteredRecipes.length === 0 ? (
           <div className="card p-4 muted text-[13.5px]">
-            No recipes match. Try a different tag or ask the AI.
+            {t('recipes.no_results')}
           </div>
         ) : (
           <div className="space-y-2.5">
@@ -260,7 +262,7 @@ export default function RecipesPage() {
                       )}
                       {r.ingredients.length > 0 && (
                         <div className="mt-3">
-                          <div className="eyebrow mb-1.5">Ingredients</div>
+                          <div className="eyebrow mb-1.5">{t('recipes.ingredients')}</div>
                           <ul className="list-disc list-inside text-[13px] ink-soft space-y-0.5">
                             {r.ingredients.map((i, k) => <li key={k}>{i}</li>)}
                           </ul>
@@ -268,7 +270,7 @@ export default function RecipesPage() {
                       )}
                       {r.instructions.length > 0 && (
                         <div className="mt-3">
-                          <div className="eyebrow mb-1.5">Steps</div>
+                          <div className="eyebrow mb-1.5">{t('recipes.steps')}</div>
                           <ol className="list-decimal list-inside text-[13px] ink-soft space-y-1">
                             {r.instructions.map((s, k) => <li key={k}>{s}</li>)}
                           </ol>
@@ -293,16 +295,16 @@ export default function RecipesPage() {
         )}
 
         <div className="mt-6 card p-4">
-          <div className="eyebrow mb-1">Ask the diary</div>
+          <div className="eyebrow mb-1">{t('recipes.ask_diary_label')}</div>
           <p className="m-0 text-[13px] ink-soft mb-2">
-            Want personalized suggestions based on your last 30 days of meals?
+            {t('recipes.ask_diary_body')}
           </p>
           <Link
             href="/chat?query=Suggest recipes for me based on what I've been eating and active experiments."
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            Open chat <IconUpRight size={12} />
+            {t('recipes.open_chat')} <IconUpRight size={12} />
           </Link>
         </div>
       </section>

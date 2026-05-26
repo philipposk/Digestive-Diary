@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
 import { IconPlus, IconClose, IconTrash } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 const fmt = (d: Date) =>
   `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 export default function RealizationsPage() {
+  const { t } = useT();
   const realizations = useAppStore((s) => s.realizations);
   const addRealization = useAppStore((s) => s.addRealization);
   const deleteRealization = useAppStore((s) => s.deleteRealization);
@@ -28,16 +30,16 @@ export default function RealizationsPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="Notes to self"
-        title="Realizations"
-        subtitle="Observations you want to remember and have the AI use as context."
+        eyebrow={t('realizations.eyebrow')}
+        title={t('realizations.title')}
+        subtitle={t('realizations.subtitle')}
         action={
           <button
             onClick={() => setOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            <IconPlus size={13} /> Add
+            <IconPlus size={13} /> {t('common.add')}
           </button>
         }
       />
@@ -45,7 +47,7 @@ export default function RealizationsPage() {
       <section className="px-5 pb-10">
         {realizations.length === 0 ? (
           <div className="card p-4 muted text-[13.5px]">
-            No realizations yet. Add the first one — even half-formed thoughts help.
+            {t('realizations.empty')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -81,8 +83,8 @@ export default function RealizationsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <h2 className="m-0 font-heading text-[22px] tracking-head ink">Add realization</h2>
-              <button onClick={() => setOpen(false)} className="muted hover:text-ink" aria-label="Close">
+              <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('realizations.add_title')}</h2>
+              <button onClick={() => setOpen(false)} className="muted hover:text-ink" aria-label={t('common.close')}>
                 <IconClose size={18} />
               </button>
             </div>
@@ -92,7 +94,7 @@ export default function RealizationsPage() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={6}
-                placeholder="E.g. 'Bloating seems worse after high-fiber meals.'"
+                placeholder={t('realizations.placeholder')}
                 className="w-full px-3 py-2.5 rounded-card text-[14px] ink bg-app outline-none"
                 style={{ border: '1px solid var(--border)' }}
               />
@@ -103,7 +105,7 @@ export default function RealizationsPage() {
                   className="px-4 py-2 rounded-full text-[13px]"
                   style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -111,7 +113,7 @@ export default function RealizationsPage() {
                   className="flex-1 px-4 py-2 rounded-full text-[13px] disabled:opacity-50"
                   style={{ background: 'var(--ink)', color: 'var(--bg)' }}
                 >
-                  Save
+                  {t('common.save')}
                 </button>
               </div>
             </form>

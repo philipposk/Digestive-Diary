@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Confidence from '@/components/ui/Confidence';
 import AIAnnotation from '@/components/ui/AIAnnotation';
 import { IconChevR, IconSpark } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 const CATEGORY_LABELS: Record<string, string> = {
   food: 'Food',
@@ -21,6 +22,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function InsightsPage() {
+  const { t } = useT();
   const foodLogs = useAppStore((s) => s.foodLogs);
   const symptoms = useAppStore((s) => s.symptoms);
   const experiments = useAppStore((s) => s.experiments);
@@ -56,9 +58,9 @@ export default function InsightsPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow="This week"
-        title="Insights"
-        subtitle="Patterns surface as you log. Nothing here is medical advice."
+        eyebrow={t('insights.this_week')}
+        title={t('insights.title')}
+        subtitle={t('insights.subtitle')}
       />
 
       <div className="mx-5 mb-5 p-4 rounded-card" style={{ border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>
@@ -69,7 +71,7 @@ export default function InsightsPage() {
           >
             <IconSpark size={11} stroke={2} />
           </div>
-          <div className="eyebrow">Weekly note</div>
+          <div className="eyebrow">{t('insights.weekly_note')}</div>
         </div>
         <p className="m-0 text-[14px] leading-snug ink-soft">{weeklyNote}</p>
       </div>
@@ -87,7 +89,7 @@ export default function InsightsPage() {
                 border: `1px solid ${selectedCategory === c ? 'var(--ink)' : 'var(--border)'}`,
               }}
             >
-              {c === 'all' ? 'All' : CATEGORY_LABELS[c] ?? c}
+              {c === 'all' ? t('common.all') : CATEGORY_LABELS[c] ?? c}
             </button>
           ))}
         </div>
@@ -95,13 +97,13 @@ export default function InsightsPage() {
 
       <section className="px-5 pb-10">
         <div className="flex items-baseline justify-between mb-2.5">
-          <h2 className="m-0 font-heading text-[18px] font-semibold tracking-head ink">Patterns</h2>
-          <span className="eyebrow">{filtered.length} found</span>
+          <h2 className="m-0 font-heading text-[18px] font-semibold tracking-head ink">{t('insights.patterns')}</h2>
+          <span className="eyebrow">{filtered.length} {t('common.found')}</span>
         </div>
 
         {filtered.length === 0 ? (
           <div className="card p-4 text-[13px] ink-soft">
-            <p className="m-0">No patterns yet for this filter. Link symptoms to foods as you log to surface correlations.</p>
+            <p className="m-0">{t('insights.no_patterns')}</p>
           </div>
         ) : (
           filtered.map((p, idx) => (
@@ -161,7 +163,7 @@ export default function InsightsPage() {
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <div className="eyebrow">Pattern detail</div>
+                <div className="eyebrow">{t('insights.detail_eyebrow')}</div>
                 <h2 className="m-0 font-heading text-[24px] tracking-head ink">
                   {open.pattern.symptom}
                 </h2>
@@ -169,7 +171,7 @@ export default function InsightsPage() {
               <button
                 onClick={() => setOpen(null)}
                 className="muted hover:text-ink"
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 ✕
               </button>
@@ -177,34 +179,34 @@ export default function InsightsPage() {
             <p className="text-[13.5px] ink-soft">{open.description}</p>
             <div className="grid grid-cols-2 gap-3 my-4">
               <div>
-                <div className="eyebrow mb-1">Confidence</div>
+                <div className="eyebrow mb-1">{t('insights.confidence')}</div>
                 <Confidence level={open.confidence} />
               </div>
               <div>
-                <div className="eyebrow mb-1">Data points</div>
+                <div className="eyebrow mb-1">{t('insights.data_points')}</div>
                 <div className="font-mono text-[13px] ink">{open.dataPoints}</div>
               </div>
               {open.pattern.followsFood && (
                 <div>
-                  <div className="eyebrow mb-1">Follows</div>
+                  <div className="eyebrow mb-1">{t('insights.follows')}</div>
                   <div className="text-[13px] ink">{open.pattern.followsFood}</div>
                 </div>
               )}
               {open.pattern.timeWindow && (
                 <div>
-                  <div className="eyebrow mb-1">Window</div>
+                  <div className="eyebrow mb-1">{t('insights.window')}</div>
                   <div className="text-[13px] ink">{open.pattern.timeWindow}</div>
                 </div>
               )}
             </div>
             {open.psychologicalFlag && (
-              <AIAnnotation label="Psychological">
-                This pattern may involve emotional or stress triggers, not just food. Worth tracking context (sleep, stress) alongside.
+              <AIAnnotation label={t('insights.psych_label')}>
+                {t('insights.psych_body')}
               </AIAnnotation>
             )}
             {open.occurrences && open.occurrences.length > 0 && (
               <div className="mt-4">
-                <div className="eyebrow mb-1.5">Occurrences ({open.occurrences.length})</div>
+                <div className="eyebrow mb-1.5">{t('insights.occurrences')} ({open.occurrences.length})</div>
                 <ul className="space-y-1 text-[12.5px] ink-soft">
                   {open.occurrences.slice(0, 8).map((o, i) => (
                     <li key={i} className="flex justify-between">
@@ -216,7 +218,7 @@ export default function InsightsPage() {
               </div>
             )}
             <p className="mt-4 text-[11.5px] muted">
-              Observations from your own data only. Not a diagnosis. Consult a clinician for medical questions.
+              {t('insights.disclaimer')}
             </p>
           </div>
         </div>

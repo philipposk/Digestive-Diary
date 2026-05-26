@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import Sparkline from '@/components/ui/Sparkline';
 import { IconFilter, IconDownRight, IconUpRight } from '@/components/ui/Icon';
+import { useT } from '@/lib/i18n';
 
 type SortOrder = 'newest' | 'oldest';
 
@@ -18,6 +19,7 @@ interface SummaryResult {
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function TimelinePage() {
+  const { t } = useT();
   const [filter, setFilter] = useState<'all' | 'food' | 'symptom' | 'context'>('all');
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
@@ -175,10 +177,10 @@ export default function TimelinePage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow={`Last ${days} days`}
-        title="Timeline"
+        eyebrow={t('timeline.last_days', { n: days })}
+        title={t('timeline.title')}
         action={
-          <button className="pill" aria-label="Filters" style={{ padding: '6px 8px' }}>
+          <button className="pill" aria-label={t('timeline.filter')} style={{ padding: '6px 8px' }}>
             <IconFilter size={15} />
           </button>
         }
@@ -207,7 +209,7 @@ export default function TimelinePage() {
 
       <div className="mx-5 mb-4 grid grid-cols-2 gap-3">
         <div>
-          <div className="eyebrow mb-1">Range</div>
+          <div className="eyebrow mb-1">{t('timeline.range')}</div>
           <div className="flex gap-1.5">
             {(['7d', '14d', '30d'] as const).map((r) => (
               <button
@@ -226,7 +228,7 @@ export default function TimelinePage() {
           </div>
         </div>
         <div>
-          <div className="eyebrow mb-1">Sort</div>
+          <div className="eyebrow mb-1">{t('timeline.sort')}</div>
           <div className="flex gap-1.5">
             {(['newest', 'oldest'] as const).map((o) => (
               <button
@@ -248,10 +250,10 @@ export default function TimelinePage() {
 
       <div className="mx-5 mb-5 card p-3.5 flex items-center justify-between gap-3">
         <div>
-          <div className="eyebrow">Symptom severity · 14d</div>
+          <div className="eyebrow">{t('timeline.sev_label')}</div>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="font-heading text-[26px] font-semibold tracking-head ink">{avgPerDay.toFixed(1)}</span>
-            <span className="text-xs muted">avg / day</span>
+            <span className="text-xs muted">{t('timeline.avg_day')}</span>
             {deltaPct !== 0 && (
               <span className="ml-1.5 text-[11.5px] inline-flex items-center gap-1 text-accent">
                 {deltaPct < 0 ? <IconDownRight size={11} /> : <IconUpRight size={11} />}
@@ -266,8 +268,8 @@ export default function TimelinePage() {
       <div className="mx-5 mb-5 card p-3.5">
         <div className="flex items-center justify-between gap-3 mb-2">
           <div>
-            <div className="eyebrow">AI summary · last {days} days</div>
-            <p className="text-[11.5px] muted mt-0.5">Patterns and trends, not medical advice.</p>
+            <div className="eyebrow">{t('timeline.summary_label', { n: days })}</div>
+            <p className="text-[11.5px] muted mt-0.5">{t('timeline.summary_body')}</p>
           </div>
           <button
             onClick={handleSummarize}
@@ -275,7 +277,7 @@ export default function TimelinePage() {
             className="px-3 py-1.5 text-xs rounded-full disabled:opacity-50"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
           >
-            {summaryLoading ? 'Summarizing…' : summary ? 'Refresh' : 'Summarize'}
+            {summaryLoading ? t('timeline.summarizing') : summary ? t('common.refresh') : t('timeline.summarize')}
           </button>
         </div>
         {summaryError && <p className="text-[12px]" style={{ color: '#c44' }}>{summaryError}</p>}
@@ -292,13 +294,17 @@ export default function TimelinePage() {
       </div>
 
       {grouped.length === 0 ? (
-        <div className="mx-5 mb-10 card p-4 muted text-[13px]">No entries in the selected range.</div>
+        <div className="mx-5 mb-10 card p-4 muted text-[13px]">{t('timeline.no_entries')}</div>
       ) : (
         grouped.map((g) => (
           <section key={g.label} className="px-5 pb-4">
             <div className="flex items-baseline gap-2.5 mt-1 mb-1">
-              <h2 className="m-0 font-heading text-[22px] tracking-head ink">{g.label}</h2>
-              <span className="eyebrow">{g.items.length} entries</span>
+              <h2 className="m-0 font-heading text-[22px] tracking-head ink">{
+                g.label === 'Today' ? t('timeline.today') :
+                g.label === 'Yesterday' ? t('timeline.yesterday') :
+                g.label
+              }</h2>
+              <span className="eyebrow">{t('timeline.entries', { n: g.items.length })}</span>
             </div>
             {g.items.map((it, i, arr) => (
               <TimelineRow key={it.id} item={it} prev={i > 0} next={i < arr.length - 1} />

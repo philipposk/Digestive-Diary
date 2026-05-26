@@ -3,18 +3,19 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
+import { useT } from '@/lib/i18n';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
-const ROWS: Array<{ key: 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'; label: string; unit: string }> = [
-  { key: 'calories', label: 'Calories', unit: 'kcal' },
-  { key: 'protein',  label: 'Protein',  unit: 'g' },
-  { key: 'carbs',    label: 'Carbs',    unit: 'g' },
-  { key: 'fat',      label: 'Fat',      unit: 'g' },
-  { key: 'fiber',    label: 'Fiber',    unit: 'g' },
-];
-
 export default function MacrosPage() {
+  const { t } = useT();
+  const ROWS: Array<{ key: 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'; label: string; unit: string }> = [
+    { key: 'calories', label: t('macros.calories'), unit: 'kcal' },
+    { key: 'protein',  label: t('macros.protein'),  unit: 'g' },
+    { key: 'carbs',    label: t('macros.carbs'),    unit: 'g' },
+    { key: 'fat',      label: t('macros.fat'),      unit: 'g' },
+    { key: 'fiber',    label: t('macros.fiber'),    unit: 'g' },
+  ];
   const foodLogs = useAppStore((s) => s.foodLogs);
   const macroGoals = useAppStore((s) => s.macroGoals);
   const setMacroGoals = useAppStore((s) => s.setMacroGoals);
@@ -45,9 +46,9 @@ export default function MacrosPage() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
-        eyebrow={`Macros · ${dateSub}`}
+        eyebrow={t('macros.eyebrow', { date: dateSub })}
         title={dateLine}
-        subtitle="Optional goals. Not a calorie counter; macros are for context, not judgment."
+        subtitle={t('macros.subtitle')}
       />
 
       <section className="px-5 mb-6">
@@ -69,7 +70,7 @@ export default function MacrosPage() {
                     <div className="h-full" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
                   </div>
                 ) : (
-                  <div className="text-[11.5px] muted">No goal set</div>
+                  <div className="text-[11.5px] muted">{t('macros.no_goal')}</div>
                 )}
               </div>
             );
@@ -78,7 +79,7 @@ export default function MacrosPage() {
       </section>
 
       <section className="px-5 pb-10">
-        <h2 className="m-0 mb-2 font-heading text-[17px] tracking-head ink">Daily goals</h2>
+        <h2 className="m-0 mb-2 font-heading text-[17px] tracking-head ink">{t('macros.goals')}</h2>
         <div className="card p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             {ROWS.map((row) => (
@@ -104,7 +105,7 @@ export default function MacrosPage() {
             onClick={() => setMacroGoals(null)}
             className="text-[12px] text-accent hover:underline"
           >
-            Clear all goals
+            {t('macros.clear')}
           </button>
         </div>
       </section>
