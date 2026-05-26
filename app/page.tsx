@@ -369,7 +369,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="mx-5 mb-6 grid grid-cols-3 gap-2">
+        <div className="mx-5 mb-3 grid grid-cols-3 gap-2">
           <ActionButton
             primary
             label={t('home.btn_food')}
@@ -387,6 +387,10 @@ export default function HomePage() {
             onClick={() => setShowContextModal(true)}
           />
         </div>
+
+        <QuickFactors />
+
+        <div className="h-3" />
 
         <section className="px-5 pb-10">
           <div className="flex items-baseline justify-between mb-1.5">
@@ -444,5 +448,79 @@ function ActionButton({
       {icon}
       <span className="text-[12.5px] font-medium">{label}</span>
     </button>
+  );
+}
+
+function QuickFactors() {
+  const medications = useAppStore((s) => s.medications);
+  const customFactors = useAppStore((s) => s.customFactors);
+  const addMedicationLog = useAppStore((s) => s.addMedicationLog);
+  const addCustomFactorLog = useAppStore((s) => s.addCustomFactorLog);
+
+  const activeMeds = medications.filter((m) => m.active);
+  const activeFactors = customFactors.filter((f) => f.active);
+  const items: Array<{ key: string; label: string; sub?: string; onClick: () => void }> = [];
+
+  activeMeds.forEach((m) => {
+    items.push({
+      key: `med-${m.id}`,
+      label: `💊 ${m.name}`,
+      sub: m.dose,
+      onClick: () => addMedicationLog({ medicationId: m.id }),
+    });
+  });
+  activeFactors.forEach((f) => {
+    if (f.scale === 'yesno') {
+      items.push({
+        key: `f-${f.id}-yes`,
+        label: `${f.label}: yes`,
+        onClick: () => addCustomFactorLog({ factorId: f.id, value: 1 }),
+      });
+    } else if (f.scale === 'severity') {
+      // 3 quick-tap buckets: low (3) / med (6) / high (9)
+      items.push({
+        key: `f-${f.id}-low`,
+        label: f.label,
+        sub: 'low (3)',
+        onClick: () => addCustomFactorLog({ factorId: f.id, value: 3 }),
+      });
+      items.push({
+        key: `f-${f.id}-med`,
+        label: f.label,
+        sub: 'med (6)',
+        onClick: () => addCustomFactorLog({ factorId: f.id, value: 6 }),
+      });
+      items.push({
+        key: `f-${f.id}-hi`,
+        label: f.label,
+        sub: 'high (9)',
+        onClick: () => addCustomFactorLog({ factorId: f.id, value: 9 }),
+      });
+    }
+  });
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mx-5 mb-3 -mt-1 flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+      {items.map((it) => (
+        <button
+          key={it.key}
+          onClick={it.onClick}
+          className="flex-shrink-0 px-3 py-2 rounded-card text-left transition-colors"
+          style={{
+            background: 'var(--surface-alt)',
+            border: '1px solid var(--border)',
+            color: 'var(--ink)',
+            minWidth: 80,
+          }}
+        >
+          <div className="text-[12.5px] font-medium leading-tight truncate" style={{ maxWidth: 140 }}>
+            {it.label}
+          </div>
+          {it.sub && <div className="text-[10.5px] muted font-mono mt-0.5">{it.sub}</div>}
+        </button>
+      ))}
+    </div>
   );
 }
