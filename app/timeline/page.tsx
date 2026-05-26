@@ -220,11 +220,12 @@ export default function TimelinePage() {
       <div className="mx-5 mb-4 flex gap-1.5 flex-wrap">
         {(['all', 'food', 'symptom', 'context'] as const).map((f) => {
           const active = filter === f;
+          const label = t(`timeline.filter_${f}` as any);
           return (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className="px-3 py-1 rounded-full text-xs capitalize transition-colors"
+              className="px-3 py-1 rounded-full text-xs transition-colors"
               style={{
                 background: active ? 'var(--ink)' : 'transparent',
                 color: active ? 'var(--bg)' : 'var(--ink-soft)',
@@ -232,7 +233,7 @@ export default function TimelinePage() {
                 fontWeight: 500,
               }}
             >
-              {f}
+              {label}
             </button>
           );
         })}

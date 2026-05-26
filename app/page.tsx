@@ -320,20 +320,30 @@ export default function HomePage() {
               className="w-full bg-transparent border-0 outline-none text-[14px] ink font-body"
             />
             {searchQuery.trim() && (
-              <div className="mt-3 space-y-2 text-[13px] ink-soft">
+              <div className="mt-3 space-y-3 text-[13px] ink-soft">
                 {searchResults.foods.length > 0 && (
                   <div>
-                    <div className="eyebrow mb-1">Foods · {searchResults.foods.length}</div>
+                    <div className="eyebrow mb-1">{t('timeline.filter_food')} · {searchResults.foods.length}</div>
                     {searchResults.foods.map((l) => (
-                      <div key={l.id} className="py-1">{l.food}{l.tags.length ? ` · ${l.tags.join(', ')}` : ''}</div>
+                      <div key={l.id} className="py-1.5 flex items-baseline justify-between gap-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                        <span className="ink truncate">{l.food}</span>
+                        <span className="font-mono text-[10.5px] muted flex-shrink-0">
+                          {toDate(l.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
                     ))}
                   </div>
                 )}
                 {searchResults.symptoms.length > 0 && (
                   <div>
-                    <div className="eyebrow mb-1">Symptoms · {searchResults.symptoms.length}</div>
+                    <div className="eyebrow mb-1">{t('timeline.filter_symptom')} · {searchResults.symptoms.length}</div>
                     {searchResults.symptoms.map((s) => (
-                      <div key={s.id} className="py-1">{s.type} · {s.severity}/10</div>
+                      <div key={s.id} className="py-1.5 flex items-baseline justify-between gap-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                        <span className="ink">{s.type}</span>
+                        <span className="font-mono text-[10.5px] muted flex-shrink-0">
+                          {s.severity}/10 · {toDate(s.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -341,11 +351,17 @@ export default function HomePage() {
                   <div>
                     <div className="eyebrow mb-1">Experiments · {searchResults.experiments.length}</div>
                     {searchResults.experiments.map((e) => (
-                      <div key={e.id} className="py-1">{e.name}{e.active ? ' · active' : ''}</div>
+                      <div key={e.id} className="py-1.5 flex items-baseline justify-between gap-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                        <span className="ink">{e.name}</span>
+                        {e.active && <span className="text-[10.5px] text-accent flex-shrink-0">active</span>}
+                      </div>
                     ))}
                   </div>
                 )}
-                <Link href={`/chat?query=${encodeURIComponent(searchQuery)}`} className="block mt-3 text-[12.5px] text-accent">
+                {searchResults.foods.length === 0 && searchResults.symptoms.length === 0 && searchResults.experiments.length === 0 && (
+                  <p className="muted text-[12.5px]">No matches found.</p>
+                )}
+                <Link href={`/chat?query=${encodeURIComponent(searchQuery)}`} className="block mt-1 text-[12.5px] text-accent">
                   Ask the diary about &quot;{searchQuery}&quot; →
                 </Link>
               </div>

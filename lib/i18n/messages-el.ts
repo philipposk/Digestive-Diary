@@ -70,6 +70,10 @@ export const el: Record<string, string> = {
   'timeline.today':     'Σήμερα',
   'timeline.yesterday': 'Χθες',
   'timeline.entries':   '{n} καταχωρήσεις',
+  'timeline.filter_all':     'Όλα',
+  'timeline.filter_food':    'Φαγητό',
+  'timeline.filter_symptom': 'Σύμπτωμα',
+  'timeline.filter_context': 'Πλαίσιο',
 
   // Insights
   'insights.title':         'Συμπεράσματα',

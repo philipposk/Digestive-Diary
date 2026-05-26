@@ -67,6 +67,10 @@ export const en: Record<string, string> = {
   'timeline.today':     'Today',
   'timeline.yesterday': 'Yesterday',
   'timeline.entries':   '{n} entries',
+  'timeline.filter_all':     'All',
+  'timeline.filter_food':    'Food',
+  'timeline.filter_symptom': 'Symptom',
+  'timeline.filter_context': 'Context',
 
   // Insights
   'insights.title':         'Insights',
