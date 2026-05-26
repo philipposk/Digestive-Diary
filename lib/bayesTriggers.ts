@@ -3,7 +3,7 @@
 // vs P(symptom in window | did NOT eat food today). Report Bayes factor and
 // supporting counts. Results are descriptive, never causal.
 
-import { FoodLog, Symptom, Pattern } from '@/types';
+import { FoodLog, Symptom, Pattern, Medication, MedicationLog, CustomFactor, CustomFactorLog } from '@/types';
 import { INSIGHTS_CONFIG } from './insightsConfig';
 import { canonicalizeFoodNames, foodKey } from './foodNormalize';
 
@@ -178,6 +178,185 @@ export function computeBayesTriggers(
         followsFood: r.food,
         timeWindow: lagLabel,
       },
+    });
+  });
+
+  return patterns;
+}
+
+/**
+ * Same Bayes machinery, but the "exposure" variable is a medication being taken
+ * on a given day. Surfaces patterns like "Symptoms appear less often on days you
+ * take Mebeverine" or "Symptoms appear more often the day after a med dose".
+ *
+ * Direction matters: bayesFactor > 1 means symptom is MORE likely on med days
+ * (potentially worth discussing with clinician); < 1 means less likely.
+ */
+export function computeMedicationBayes(
+  medications: Medication[],
+  medicationLogs: MedicationLog[],
+  symptoms: Symptom[]
+): Pattern[] {
+  if (medicationLogs.length === 0 || symptoms.length === 0) return [];
+  const patterns: Pattern[] = [];
+
+  // Build medication-day index.
+  const medDayIndex = new Map<string, Map<string, true>>();
+  const symptomDayIndex = new Map<string, Map<string, true>>();
+  let minMs = Number.POSITIVE_INFINITY, maxMs = Number.NEGATIVE_INFINITY;
+  const allDays = new Set<string>();
+
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const toD = (v: Date | string) => (v instanceof Date ? v : new Date(v));
+
+  medicationLogs.forEach((l) => {
+    const d = toD(l.timestamp);
+    if (d.getTime() < minMs) minMs = d.getTime();
+    if (d.getTime() > maxMs) maxMs = d.getTime();
+    const k = dayKey(d);
+    allDays.add(k);
+    const inner = medDayIndex.get(l.medicationId) ?? new Map();
+    inner.set(k, true);
+    medDayIndex.set(l.medicationId, inner);
+  });
+  symptoms.forEach((s) => {
+    const d = toD(s.timestamp);
+    if (d.getTime() < minMs) minMs = d.getTime();
+    if (d.getTime() > maxMs) maxMs = d.getTime();
+    const k = dayKey(d);
+    allDays.add(k);
+    const inner = symptomDayIndex.get(s.type) ?? new Map();
+    inner.set(k, true);
+    symptomDayIndex.set(s.type, inner);
+  });
+
+  if (minMs === Number.POSITIVE_INFINITY) return [];
+  const startDay = new Date(minMs); startDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(maxMs); endDay.setHours(0, 0, 0, 0);
+  const dayList: string[] = [];
+  const DAY = 86_400_000;
+  for (let t = startDay.getTime(); t <= endDay.getTime(); t += DAY) {
+    dayList.push(dayKey(new Date(t)));
+  }
+  if (dayList.length < 5) return [];
+
+  medDayIndex.forEach((medDays, medId) => {
+    if (medDays.size < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+    const med = medications.find((m) => m.id === medId);
+    if (!med) return;
+    symptomDayIndex.forEach((symDays, symType) => {
+      if (symDays.size < INSIGHTS_CONFIG.bayesMinSymptomDays) return;
+      let medSym = 0, medNoSym = 0, noMedSym = 0, noMedNoSym = 0;
+      for (const day of dayList) {
+        const took = medDays.has(day);
+        const had = symDays.has(day);
+        if (took && had) medSym++;
+        else if (took && !had) medNoSym++;
+        else if (!took && had) noMedSym++;
+        else noMedNoSym++;
+      }
+      const tookN = medSym + medNoSym;
+      const notN = noMedSym + noMedNoSym;
+      if (tookN < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+      if (notN < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+      const pY = medSym / tookN;
+      const pN = noMedSym / Math.max(1, notN);
+      if (pY === 0 && pN === 0) return;
+      const bf = pN === 0 ? Number.POSITIVE_INFINITY : pY / pN;
+      if (bf >= INSIGHTS_CONFIG.bayesMinBayesFactor || bf <= 1 / INSIGHTS_CONFIG.bayesMinBayesFactor) {
+        const direction = bf > 1 ? 'more often' : 'less often';
+        const confidence: Pattern['confidence'] = tookN >= 8 && (bf >= 3 || bf <= 1 / 3) ? 'high'
+          : tookN >= 5 ? 'medium' : 'low';
+        patterns.push({
+          id: crypto.randomUUID(),
+          description: `${symType} appears ${direction} on days you took ${med.name} (${Math.round(pY * 100)}% vs ${Math.round(pN * 100)}%, n=${tookN} days).`,
+          confidence,
+          dataPoints: tookN,
+          category: 'medication',
+          pattern: { symptom: symType, followsFood: `medication: ${med.name}` },
+        });
+      }
+    });
+  });
+
+  return patterns;
+}
+
+/**
+ * Threshold a custom factor (severity / number) at its median, then compute Bayes
+ * the same way. For yes/no factors, log-value === 1 is the exposure.
+ */
+export function computeFactorBayes(
+  factors: CustomFactor[],
+  factorLogs: CustomFactorLog[],
+  symptoms: Symptom[]
+): Pattern[] {
+  if (factorLogs.length === 0 || symptoms.length === 0) return [];
+  const patterns: Pattern[] = [];
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const toD = (v: Date | string) => (v instanceof Date ? v : new Date(v));
+
+  const symDays = new Map<string, Map<string, true>>();
+  symptoms.forEach((s) => {
+    const k = dayKey(toD(s.timestamp));
+    const inner = symDays.get(s.type) ?? new Map<string, true>();
+    inner.set(k, true);
+    symDays.set(s.type, inner);
+  });
+
+  factors.forEach((f) => {
+    const myLogs = factorLogs.filter((l) => l.factorId === f.id);
+    if (myLogs.length < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+
+    // Compute threshold.
+    let threshold: number;
+    if (f.scale === 'yesno') threshold = 0.5;
+    else if (f.scale === 'severity') threshold = 5;
+    else {
+      const sorted = myLogs.map((l) => l.value).sort((a, b) => a - b);
+      threshold = sorted[Math.floor(sorted.length / 2)];
+    }
+
+    const highDays = new Set<string>();
+    const allDays = new Set<string>();
+    myLogs.forEach((l) => {
+      const k = dayKey(toD(l.timestamp));
+      allDays.add(k);
+      if (l.value >= threshold) highDays.add(k);
+    });
+    if (highDays.size < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+
+    symDays.forEach((sdays, symType) => {
+      if (sdays.size < INSIGHTS_CONFIG.bayesMinSymptomDays) return;
+      let hiSym = 0, hiNo = 0, loSym = 0, loNo = 0;
+      allDays.forEach((day) => {
+        const high = highDays.has(day);
+        const had = sdays.has(day);
+        if (high && had) hiSym++;
+        else if (high && !had) hiNo++;
+        else if (!high && had) loSym++;
+        else loNo++;
+      });
+      const hiN = hiSym + hiNo;
+      const loN = loSym + loNo;
+      if (hiN < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+      if (loN < INSIGHTS_CONFIG.bayesMinFoodOccurrences) return;
+      const pY = hiSym / hiN;
+      const pN = loSym / Math.max(1, loN);
+      if (pY === 0 && pN === 0) return;
+      const bf = pN === 0 ? Number.POSITIVE_INFINITY : pY / pN;
+      if (bf >= INSIGHTS_CONFIG.bayesMinBayesFactor || bf <= 1 / INSIGHTS_CONFIG.bayesMinBayesFactor) {
+        const dir = bf > 1 ? 'more often' : 'less often';
+        const cmp = f.scale === 'yesno' ? `${f.label} = yes` : `${f.label} ≥ ${threshold}${f.unit ? ` ${f.unit}` : ''}`;
+        patterns.push({
+          id: crypto.randomUUID(),
+          description: `${symType} appears ${dir} when ${cmp} (${Math.round(pY * 100)}% vs ${Math.round(pN * 100)}%, n=${hiN} days).`,
+          confidence: hiN >= 8 ? 'high' : hiN >= 5 ? 'medium' : 'low',
+          dataPoints: hiN,
+          category: 'factor',
+          pattern: { symptom: symType, followsFood: `factor: ${f.label}` },
+        });
+      }
     });
   });
 

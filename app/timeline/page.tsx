@@ -32,6 +32,10 @@ export default function TimelinePage() {
   const symptoms = useAppStore((s) => s.symptoms);
   const contexts = useAppStore((s) => s.contexts);
   const experiments = useAppStore((s) => s.experiments);
+  const medications = useAppStore((s) => s.medications);
+  const medicationLogs = useAppStore((s) => s.medicationLogs);
+  const customFactors = useAppStore((s) => s.customFactors);
+  const customFactorLogs = useAppStore((s) => s.customFactorLogs);
 
   const days = dateRange === '7d' ? 7 : dateRange === '14d' ? 14 : 30;
   const startMs = useMemo(() => {
@@ -85,6 +89,9 @@ export default function TimelinePage() {
             ctx.sleepQuality && `sleep ${ctx.sleepQuality}`,
             ctx.stressLevel && `stress ${ctx.stressLevel}`,
             ctx.activityLevel && ctx.activityLevel !== 'none' && `activity ${ctx.activityLevel}`,
+            ctx.bristolType && `bristol type ${ctx.bristolType}`,
+            ctx.cyclePhase && `cycle ${ctx.cyclePhase}`,
+            ctx.hydrationMl && `${ctx.hydrationMl}ml water`,
           ].filter(Boolean) as string[];
           items.push({
             id: ctx.id,
@@ -95,10 +102,39 @@ export default function TimelinePage() {
           });
         }
       });
+      medicationLogs.forEach((log) => {
+        const t = toDate(log.timestamp);
+        if (t.getTime() >= startMs) {
+          const med = medications.find((m) => m.id === log.medicationId);
+          items.push({
+            id: log.id,
+            kind: 'context',
+            timestamp: t,
+            title: `💊 ${med?.name ?? 'Medication'}`,
+            detail: med?.dose,
+            note: log.notes,
+          });
+        }
+      });
+      customFactorLogs.forEach((log) => {
+        const t = toDate(log.timestamp);
+        if (t.getTime() >= startMs) {
+          const f = customFactors.find((cf) => cf.id === log.factorId);
+          if (!f) return;
+          const display = f.scale === 'yesno' ? (log.value ? 'yes' : 'no') : `${log.value}${f.unit ? ` ${f.unit}` : ''}`;
+          items.push({
+            id: log.id,
+            kind: 'context',
+            timestamp: t,
+            title: `${f.label}: ${display}`,
+            note: log.notes,
+          });
+        }
+      });
     }
     items.sort((a, b) => sortOrder === 'newest' ? b.timestamp.getTime() - a.timestamp.getTime() : a.timestamp.getTime() - b.timestamp.getTime());
     return items;
-  }, [foodLogs, symptoms, contexts, filter, startMs, sortOrder]);
+  }, [foodLogs, symptoms, contexts, medicationLogs, medications, customFactorLogs, customFactors, filter, startMs, sortOrder]);
 
   // Build per-day buckets for "Today / Yesterday / DD MMM" sections.
   const grouped = useMemo(() => {

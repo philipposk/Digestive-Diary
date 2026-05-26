@@ -17,6 +17,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   experiment: 'Experiment',
   trend: 'Trend',
   bayes: 'Probability',
+  medication: 'Medication',
+  factor: 'Factor',
 };
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
@@ -26,10 +28,17 @@ export default function InsightsPage() {
   const foodLogs = useAppStore((s) => s.foodLogs);
   const symptoms = useAppStore((s) => s.symptoms);
   const experiments = useAppStore((s) => s.experiments);
+  const medications = useAppStore((s) => s.medications);
+  const medicationLogs = useAppStore((s) => s.medicationLogs);
+  const customFactors = useAppStore((s) => s.customFactors);
+  const customFactorLogs = useAppStore((s) => s.customFactorLogs);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [open, setOpen] = useState<Pattern | null>(null);
 
-  const insights = useMemo(() => generateInsights(foodLogs, symptoms, experiments), [foodLogs, symptoms, experiments]);
+  const insights = useMemo(
+    () => generateInsights(foodLogs, symptoms, experiments, medications, medicationLogs, customFactors, customFactorLogs),
+    [foodLogs, symptoms, experiments, medications, medicationLogs, customFactors, customFactorLogs]
+  );
 
   const categories = useMemo(() => {
     const set = new Set<string>();

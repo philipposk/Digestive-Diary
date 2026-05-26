@@ -30,6 +30,10 @@ export default function HomePage() {
   const [smartTipLoading, setSmartTipLoading] = useState(false);
 
   const symptoms = useAppStore((s) => s.symptoms);
+  const medications = useAppStore((s) => s.medications);
+  const medicationLogs = useAppStore((s) => s.medicationLogs);
+  const customFactors = useAppStore((s) => s.customFactors);
+  const customFactorLogs = useAppStore((s) => s.customFactorLogs);
   const setFoodLogs = useAppStore((s) => s.setFoodLogs);
   const setSymptoms = useAppStore((s) => s.setSymptoms);
   const setContexts = useAppStore((s) => s.setContexts);
@@ -166,8 +170,37 @@ export default function HomePage() {
         });
       }
     });
+    medicationLogs.forEach((log) => {
+      const t = toDate(log.timestamp);
+      if (t >= start && t <= end) {
+        const med = medications.find((m) => m.id === log.medicationId);
+        items.push({
+          id: log.id,
+          kind: 'context',
+          timestamp: t,
+          title: `💊 ${med?.name ?? 'Medication'}`,
+          detail: med?.dose,
+          note: log.notes,
+        });
+      }
+    });
+    customFactorLogs.forEach((log) => {
+      const t = toDate(log.timestamp);
+      if (t >= start && t <= end) {
+        const f = customFactors.find((cf) => cf.id === log.factorId);
+        if (!f) return;
+        const display = f.scale === 'yesno' ? (log.value ? 'yes' : 'no') : `${log.value}${f.unit ? ` ${f.unit}` : ''}`;
+        items.push({
+          id: log.id,
+          kind: 'context',
+          timestamp: t,
+          title: `${f.label}: ${display}`,
+          note: log.notes,
+        });
+      }
+    });
     return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  }, [foodLogs, symptoms, today]);
+  }, [foodLogs, symptoms, today, medicationLogs, medications, customFactorLogs, customFactors]);
 
   const counts = useMemo(() => ({
     food: todayItems.filter((i) => i.kind === 'food').length,

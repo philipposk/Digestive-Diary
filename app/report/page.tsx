@@ -25,6 +25,10 @@ function ReportContent() {
   const contexts = useAppStore((s) => s.contexts);
   const experiments = useAppStore((s) => s.experiments);
   const realizations = useAppStore((s) => s.realizations);
+  const medications = useAppStore((s) => s.medications);
+  const medicationLogs = useAppStore((s) => s.medicationLogs);
+  const customFactors = useAppStore((s) => s.customFactors);
+  const customFactorLogs = useAppStore((s) => s.customFactorLogs);
 
   const days = range === '7d' ? 7 : range === '14d' ? 14 : range === '30d' ? 30 : range === '60d' ? 60 : 90;
   const startMs = useMemo(() => Date.now() - days * 86_400_000, [days]);
@@ -42,9 +46,18 @@ function ReportContent() {
     [contexts, startMs]
   );
 
+  const rangeMedLogs = useMemo(
+    () => medicationLogs.filter((l) => toDate(l.timestamp).getTime() >= startMs),
+    [medicationLogs, startMs]
+  );
+  const rangeFactorLogs = useMemo(
+    () => customFactorLogs.filter((l) => toDate(l.timestamp).getTime() >= startMs),
+    [customFactorLogs, startMs]
+  );
+
   const insights = useMemo(
-    () => generateInsights(rangeFoods, rangeSymptoms, experiments),
-    [rangeFoods, rangeSymptoms, experiments]
+    () => generateInsights(rangeFoods, rangeSymptoms, experiments, medications, rangeMedLogs, customFactors, rangeFactorLogs),
+    [rangeFoods, rangeSymptoms, experiments, medications, rangeMedLogs, customFactors, rangeFactorLogs]
   );
 
   // Severity timeline per day (max severity per day so a single big episode shows).
@@ -288,6 +301,76 @@ function ReportContent() {
           </ol>
         )}
       </section>
+
+      <section className="mb-6">
+        <h2 className="font-heading text-[16px] tracking-head ink m-0 mb-2">Medications</h2>
+        {medications.length === 0 ? (
+          <p className="text-[12.5px] muted">No medications on file.</p>
+        ) : (
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="eyebrow text-left">
+                <th className="py-1 pr-2">Name</th>
+                <th className="py-1 pr-2" style={{ width: 100 }}>Dose</th>
+                <th className="py-1 pr-2" style={{ width: 80 }}>Status</th>
+                <th className="py-1 pr-2" style={{ width: 60 }}>Doses</th>
+              </tr>
+            </thead>
+            <tbody>
+              {medications.map((m) => {
+                const taken = rangeMedLogs.filter((l) => l.medicationId === m.id).length;
+                return (
+                  <tr key={m.id} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td className="py-1 pr-2 ink">{m.name}</td>
+                    <td className="py-1 pr-2 muted">{m.dose || '—'}</td>
+                    <td className="py-1 pr-2 muted">{m.active ? 'active' : 'inactive'}</td>
+                    <td className="py-1 pr-2 font-mono text-[11px]">{taken}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {customFactors.length > 0 && (
+        <section className="mb-6">
+          <h2 className="font-heading text-[16px] tracking-head ink m-0 mb-2">Custom factors</h2>
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="eyebrow text-left">
+                <th className="py-1 pr-2">Label</th>
+                <th className="py-1 pr-2" style={{ width: 100 }}>Scale</th>
+                <th className="py-1 pr-2" style={{ width: 80 }}>Logs</th>
+                <th className="py-1 pr-2" style={{ width: 110 }}>Avg / mode</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customFactors.map((f) => {
+                const logs = rangeFactorLogs.filter((l) => l.factorId === f.id);
+                let stat = '—';
+                if (logs.length > 0) {
+                  if (f.scale === 'yesno') {
+                    const yes = logs.filter((l) => l.value === 1).length;
+                    stat = `${Math.round(yes / logs.length * 100)}% yes`;
+                  } else {
+                    const avg = logs.reduce((a, l) => a + l.value, 0) / logs.length;
+                    stat = `avg ${avg.toFixed(1)}${f.unit ? ` ${f.unit}` : ''}`;
+                  }
+                }
+                return (
+                  <tr key={f.id} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td className="py-1 pr-2 ink">{f.label}</td>
+                    <td className="py-1 pr-2 muted">{f.scale}</td>
+                    <td className="py-1 pr-2 font-mono text-[11px]">{logs.length}</td>
+                    <td className="py-1 pr-2 ink-soft">{stat}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="mb-6">
         <h2 className="font-heading text-[16px] tracking-head ink m-0 mb-2">Experiments</h2>
