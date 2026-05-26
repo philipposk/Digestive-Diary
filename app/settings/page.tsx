@@ -6,8 +6,17 @@ import { useAppStore } from '@/lib/store';
 import {
   getTheme, setTheme, applyTheme,
   getVibeId, setVibe, getAccentHex, setAccent,
-  type Theme,
+  getTextSize, setTextSize,
+  getDyslexia, setDyslexia,
+  getHighContrast, setHighContrast,
+  getReduceMotion, setReduceMotion,
+  type Theme, type TextSize,
 } from '@/lib/theme';
+import {
+  getReminderSettings, setReminderSettings,
+  ensureNotificationPermission,
+  type ReminderSettings,
+} from '@/lib/reminders';
 import { VIBES, VibeId } from '@/lib/themeTokens';
 import { runScan } from '@/lib/autoScanScheduler';
 import {
@@ -21,6 +30,12 @@ export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
   const [currentVibe, setCurrentVibe] = useState<VibeId>('clinical');
   const [currentAccent, setCurrentAccent] = useState<string>('#3f5a3c');
+  const [textSize, setTextSizeState] = useState<TextSize>('normal');
+  const [dyslexia, setDyslexiaState] = useState(false);
+  const [highContrast, setHighContrastState] = useState(false);
+  const [reduceMotion, setReduceMotionState] = useState(false);
+  const [reminders, setReminders] = useState<ReminderSettings>({ enabled: false, postMealMinutes: 120, eveningSummaryHour: 21 });
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission | 'unsupported'>('default');
 
   const { t, locale, setLocale } = useT();
 
@@ -38,6 +53,13 @@ export default function SettingsPage() {
     setCurrentTheme(getTheme());
     setCurrentVibe(getVibeId());
     setCurrentAccent(getAccentHex());
+    setTextSizeState(getTextSize());
+    setDyslexiaState(getDyslexia());
+    setHighContrastState(getHighContrast());
+    setReduceMotionState(getReduceMotion());
+    setReminders(getReminderSettings());
+    if (typeof Notification === 'undefined') setNotifPerm('unsupported');
+    else setNotifPerm(Notification.permission);
   }, []);
 
   const handleThemeChange = (t: Theme) => {
@@ -154,6 +176,106 @@ export default function SettingsPage() {
             })}
           </div>
         </Field>
+      </Section>
+
+      <Section title="Accessibility" eyebrow="A11y">
+        <Field label="Text size">
+          <div className="grid grid-cols-4 gap-2">
+            {(['small', 'normal', 'large', 'huge'] as TextSize[]).map((s) => {
+              const on = textSize === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => { setTextSize(s); setTextSizeState(s); }}
+                  className="px-3 py-2 rounded-card text-[13px] capitalize"
+                  style={{
+                    background: on ? 'var(--ink)' : 'transparent',
+                    color: on ? 'var(--bg)' : 'var(--ink)',
+                    border: `1px solid ${on ? 'var(--ink)' : 'var(--border)'}`,
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+        <Toggle
+          label="High-contrast palette"
+          checked={highContrast}
+          onChange={(v) => { setHighContrast(v); setHighContrastState(v); }}
+        />
+        <Toggle
+          label="Dyslexia-friendly font"
+          checked={dyslexia}
+          onChange={(v) => { setDyslexia(v); setDyslexiaState(v); }}
+        />
+        <Toggle
+          label="Reduce motion"
+          checked={reduceMotion}
+          onChange={(v) => { setReduceMotion(v); setReduceMotionState(v); }}
+        />
+      </Section>
+
+      <Section title="Reminders" eyebrow="Nudges">
+        <p className="text-[12.5px] muted m-0">
+          Local browser notifications only. Nothing is sent to a server. Works while a tab is open.
+        </p>
+        {notifPerm === 'unsupported' && (
+          <p className="text-[12px]" style={{ color: '#c44' }}>This browser doesn’t support notifications.</p>
+        )}
+        {notifPerm === 'denied' && (
+          <p className="text-[12px]" style={{ color: '#c44' }}>Notifications are blocked. Re-enable them in your browser site settings.</p>
+        )}
+        {notifPerm === 'default' && (
+          <button
+            onClick={async () => {
+              const ok = await ensureNotificationPermission();
+              setNotifPerm(ok ? 'granted' : Notification.permission);
+            }}
+            className="px-3 py-1.5 rounded-full text-[12.5px]"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+          >
+            Allow notifications
+          </button>
+        )}
+        <Toggle
+          label="Enable reminders"
+          checked={reminders.enabled}
+          onChange={(v) => {
+            const next = { ...reminders, enabled: v };
+            setReminders(next); setReminderSettings(next);
+            if (v) ensureNotificationPermission().then((ok) => setNotifPerm(ok ? 'granted' : Notification.permission));
+          }}
+        />
+        {reminders.enabled && (
+          <>
+            <Field label="Post-meal nudge (minutes)">
+              <input
+                type="number" min={0} max={720} step={15}
+                value={reminders.postMealMinutes}
+                onChange={(e) => {
+                  const next = { ...reminders, postMealMinutes: Number(e.target.value) };
+                  setReminders(next); setReminderSettings(next);
+                }}
+                className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </Field>
+            <Field label="Evening summary hour (0 disables)">
+              <input
+                type="number" min={0} max={23}
+                value={reminders.eveningSummaryHour}
+                onChange={(e) => {
+                  const next = { ...reminders, eveningSummaryHour: Number(e.target.value) };
+                  setReminders(next); setReminderSettings(next);
+                }}
+                className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </Field>
+          </>
+        )}
       </Section>
 
       <Section title={t('settings.fasting')} eyebrow={t('settings.fasting_eyebrow')}>

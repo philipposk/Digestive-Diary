@@ -3,10 +3,66 @@
 import { VIBES, VibeId, DEFAULT_VIBE, DEFAULT_ACCENT, getVibe, getAccent, paletteVars } from './themeTokens';
 
 export type Theme = 'light' | 'dark' | 'system';
+export type TextSize = 'small' | 'normal' | 'large' | 'huge';
 
 const KEY_THEME = 'theme';
 const KEY_VIBE = 'theme-vibe';
 const KEY_ACCENT = 'theme-accent';
+const KEY_TEXT_SIZE = 'theme-text-size';
+const KEY_DYSLEXIA = 'theme-dyslexia';
+const KEY_HIGH_CONTRAST = 'theme-high-contrast';
+const KEY_REDUCE_MOTION = 'theme-reduce-motion';
+
+const TEXT_SIZE_PX: Record<TextSize, number> = {
+  small: 14,
+  normal: 16,
+  large: 18,
+  huge: 20,
+};
+
+export function getTextSize(): TextSize {
+  if (typeof window === 'undefined') return 'normal';
+  return (localStorage.getItem(KEY_TEXT_SIZE) as TextSize | null) || 'normal';
+}
+
+export function setTextSize(s: TextSize) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(KEY_TEXT_SIZE, s);
+  applyTheme();
+}
+
+export function getDyslexia(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(KEY_DYSLEXIA) === 'true';
+}
+
+export function setDyslexia(v: boolean) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(KEY_DYSLEXIA, String(v));
+  applyTheme();
+}
+
+export function getHighContrast(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(KEY_HIGH_CONTRAST) === 'true';
+}
+
+export function setHighContrast(v: boolean) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(KEY_HIGH_CONTRAST, String(v));
+  applyTheme();
+}
+
+export function getReduceMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(KEY_REDUCE_MOTION) === 'true';
+}
+
+export function setReduceMotion(v: boolean) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(KEY_REDUCE_MOTION, String(v));
+  applyTheme();
+}
 
 export function getTheme(): Theme {
   if (typeof window === 'undefined') return 'system';
@@ -56,6 +112,15 @@ export function applyTheme(theme: Theme = getTheme()) {
   for (const [k, v] of Object.entries(vars)) {
     root.style.setProperty(k, v);
   }
+
+  // Accessibility toggles
+  const size = getTextSize();
+  root.style.setProperty('font-size', TEXT_SIZE_PX[size] + 'px');
+  root.setAttribute('data-text-size', size);
+
+  root.classList.toggle('dyslexia', getDyslexia());
+  root.classList.toggle('high-contrast', getHighContrast());
+  root.classList.toggle('reduce-motion', getReduceMotion());
 }
 
 export function setTheme(theme: Theme) {

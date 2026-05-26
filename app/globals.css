@@ -125,3 +125,52 @@ body {
   .text-pretty  { text-wrap: pretty; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
 }
+
+/* OpenDyslexic substitute: stack DM Sans + system letter-spacing tweaks.
+   The actual OpenDyslexic font is GPL/OFL and would need a separate file;
+   for now we fall back to DM Sans with letter spacing that helps a similar set of readers. */
+html.dyslexia,
+html.dyslexia body {
+  font-family: var(--font-dm-sans), system-ui, sans-serif !important;
+  letter-spacing: 0.015em !important;
+  word-spacing: 0.08em;
+}
+html.dyslexia h1, html.dyslexia h2, html.dyslexia h3, html.dyslexia h4,
+html.dyslexia .font-heading {
+  font-family: var(--font-dm-sans), system-ui, sans-serif !important;
+}
+
+/* High-contrast: stamp WCAG AAA-friendly overrides on top of the active vibe. */
+html.high-contrast {
+  --bg:          #ffffff;
+  --bg-deep:     #f5f5f5;
+  --surface:     #ffffff;
+  --surface-alt: #f0f0f0;
+  --border:        rgba(0,0,0,0.40);
+  --border-strong: rgba(0,0,0,0.65);
+  --ink:       #000000;
+  --ink-soft:  #1a1a1a;
+  --muted:     #424242;
+  --faint:     #6b6b6b;
+}
+html.dark.high-contrast {
+  --bg:          #000000;
+  --bg-deep:     #000000;
+  --surface:     #0a0a0a;
+  --surface-alt: #181818;
+  --border:        rgba(255,255,255,0.45);
+  --border-strong: rgba(255,255,255,0.75);
+  --ink:       #ffffff;
+  --ink-soft:  #ebebeb;
+  --muted:     #c5c5c5;
+  --faint:     #989898;
+}
+
+/* Reduce-motion: disable transitions + animations. */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}

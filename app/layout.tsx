@@ -6,6 +6,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import FloatingChatButton from "@/components/chat/FloatingChatButton";
 import AutoScanRunner from "@/components/AutoScanRunner";
 import PWARegister from "@/components/PWARegister";
+import RemindersRunner from "@/components/RemindersRunner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -69,6 +70,7 @@ export default function RootLayout({
           <FloatingChatButton />
           <AutoScanRunner />
           <PWARegister />
+          <RemindersRunner />
         </ThemeProvider>
       </body>
     </html>
