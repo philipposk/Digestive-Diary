@@ -49,6 +49,8 @@ export const el: Record<string, string> = {
   'home.fasting_remaining':  'απομένουν {h}ώ. για να φας',
   'home.eating_open':        'Παράθυρο φαγητού ανοιχτό',
   'home.eating_remaining':   'απομένουν {h}ώ.',
+  'home.streak':             '🔥 {n} μέρες στη σειρά',
+  'home.streak_today':       '🔥 Καταγράφηκε σήμερα',
 
   // Timeline
   'timeline.title':     'Ιστορικό',
@@ -134,6 +136,8 @@ export const el: Record<string, string> = {
   'recipes.ask_diary_label':'Ρώτα το ημερολόγιο',
   'recipes.ask_diary_body': 'Θες προσωποποιημένες προτάσεις βάσει των τελευταίων 30 ημερών;',
   'recipes.open_chat':      'Άνοιγμα συνομιλίας',
+  'recipes.search_empty_error': 'Πληκτρολόγησε αναζήτηση ή κατέγραψε πρώτα φαγητό.',
+  'recipes.search_error':       'Η αναζήτηση συνταγών απέτυχε. Δοκίμασε ξανά.',
 
   // Realizations
   'realizations.title':    'Συνειδητοποιήσεις',
@@ -217,6 +221,8 @@ export const el: Record<string, string> = {
   'log_food.transcribing': 'Μεταγραφή ήχου…',
   'log_food.parsing_food': 'Ανάλυση λεπτομερειών…',
   'log_food.analyzing':    'Ανάλυση εικόνας…',
+  'log_food.image_type_error': 'Επέλεξε αρχείο εικόνας.',
+  'log_food.image_error':      'Η ανάλυση εικόνας απέτυχε. Πληκτρολόγησε το φαγητό.',
 
   // Log symptom modal
   'log_symptom.title':        'Καταγραφή συμπτώματος',

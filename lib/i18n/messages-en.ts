@@ -46,6 +46,8 @@ export const en: Record<string, string> = {
   'home.fasting_remaining':  '{h}h until you can break',
   'home.eating_open':        'Eating window open',
   'home.eating_remaining':   '{h}h remaining',
+  'home.streak':             '🔥 {n}-day streak',
+  'home.streak_today':       '🔥 Logged today',
 
   // Timeline
   'timeline.title':     'Timeline',
@@ -131,6 +133,8 @@ export const en: Record<string, string> = {
   'recipes.ask_diary_label':'Ask the diary',
   'recipes.ask_diary_body': 'Want personalized suggestions based on your last 30 days of meals?',
   'recipes.open_chat':      'Open chat',
+  'recipes.search_empty_error': 'Type a search or log foods first.',
+  'recipes.search_error':       'Recipe search failed. Try again.',
 
   // Realizations
   'realizations.title':    'Realizations',
@@ -214,6 +218,8 @@ export const en: Record<string, string> = {
   'log_food.transcribing': 'Transcribing audio…',
   'log_food.parsing_food': 'Parsing food details…',
   'log_food.analyzing':    'Analyzing image…',
+  'log_food.image_type_error': 'Please pick an image file.',
+  'log_food.image_error':      'Image analysis failed. Enter food manually.',
 
   // Log symptom modal
   'log_symptom.title':        'Log symptom',

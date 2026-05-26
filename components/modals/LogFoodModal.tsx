@@ -34,6 +34,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
   const [parsed, setParsed] = useState<ParsedItem[] | null>(null);
   const [parseMs, setParseMs] = useState<number | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const addFoodLog = useAppStore((s) => s.addFoodLog);
   const voice = useVoiceCapture();
@@ -80,6 +81,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
       setFood(''); setQuantity(''); setSelectedTags([]); setNotes('');
       setImagePreview(null); setMacros(null); setPortionWeight(undefined);
       setParsed(null); setParseMs(null); setAnalyzing(false); setParsing(false);
+      setImageError(null);
     }
   }, [isOpen]);
 
@@ -138,7 +140,8 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { alert('Please pick an image.'); return; }
+    if (!file.type.startsWith('image/')) { setImageError(t('log_food.image_type_error')); return; }
+    setImageError(null);
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
@@ -186,7 +189,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
         }
       }
     } catch {
-      alert('Image analysis failed. Enter food manually.');
+      setImageError(t('log_food.image_error'));
     } finally {
       setAnalyzing(false);
     }
@@ -384,6 +387,8 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
             )}
             {analyzing && <p className="text-[11.5px] muted">{t('log_food.analyzing')}</p>}
             {barcodeStatus && <p className="text-[11.5px] muted">{barcodeStatus}</p>}
+            {imageError && <p className="text-[11.5px]" style={{ color: '#c44a4a' }}>{imageError}</p>}
+            {voice.error && <p className="text-[11.5px]" style={{ color: '#c44a4a' }}>{voice.error}</p>}
 
             {!parsed && (
               <div>

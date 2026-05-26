@@ -16,6 +16,7 @@ export default function RecipesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const recipes = useAppStore((s) => s.recipes);
   const setRecipes = useAppStore((s) => s.setRecipes);
@@ -111,9 +112,10 @@ export default function RecipesPage() {
 
   const handleSearch = async () => {
     if (!query.trim() && commonTags.length === 0 && activeExperiments.length === 0) {
-      alert('Type a search or log foods first.');
+      setSearchError(t('recipes.search_empty_error'));
       return;
     }
+    setSearchError(null);
     setIsLoading(true);
     try {
       const ctx: string[] = [];
@@ -125,7 +127,6 @@ export default function RecipesPage() {
         body: JSON.stringify({
           query: query.trim() || 'healthy recipes',
           context: ctx.join('. '),
-          restrictions: allRestrictions,
           dietaryRestrictions: allRestrictions,
           preferredTags: commonTags,
         }),
@@ -145,7 +146,7 @@ export default function RecipesPage() {
       }));
       setRecipes([...recipes, ...ai]);
     } catch {
-      alert('Recipe search failed. Try again.');
+      setSearchError(t('recipes.search_error'));
     } finally {
       setIsLoading(false);
     }
@@ -179,6 +180,10 @@ export default function RecipesPage() {
           </button>
         </div>
       </div>
+
+      {searchError && (
+        <p className="mx-5 mb-3 text-[12.5px]" style={{ color: '#c44a4a' }}>{searchError}</p>
+      )}
 
       {activeExperiments.length > 0 && (
         <div className="mx-5 mb-4 card p-3 text-[12.5px] ink-soft">

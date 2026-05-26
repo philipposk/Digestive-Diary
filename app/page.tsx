@@ -207,6 +207,23 @@ export default function HomePage() {
     symptom: todayItems.filter((i) => i.kind === 'symptom').length,
   }), [todayItems]);
 
+  // Consecutive days (today backwards) with at least one food or symptom log.
+  const streak = useMemo(() => {
+    const logged = new Set<string>();
+    const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    foodLogs.forEach((l) => logged.add(key(toDate(l.timestamp))));
+    symptoms.forEach((s) => logged.add(key(toDate(s.timestamp))));
+    let count = 0;
+    const now = new Date();
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      if (logged.has(key(d))) count++;
+      else break;
+    }
+    return count;
+  }, [foodLogs, symptoms]);
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return { foods: [] as FoodLog[], symptoms: [] as Symptom[], experiments: [] as typeof experiments };
     const q = searchQuery.toLowerCase();
@@ -387,6 +404,17 @@ export default function HomePage() {
             onClick={() => setShowContextModal(true)}
           />
         </div>
+
+        {streak > 0 && (
+          <div className="mx-5 mt-1 mb-2 flex items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium"
+              style={{ background: streak >= 7 ? '#5a8a3c22' : 'var(--surface-alt)', color: streak >= 7 ? '#5a8a3c' : 'var(--ink-soft)', border: '1px solid var(--border)' }}
+            >
+              {streak === 1 ? t('home.streak_today') : t('home.streak', { n: streak })}
+            </span>
+          </div>
+        )}
 
         <QuickFactors />
 

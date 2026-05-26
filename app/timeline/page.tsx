@@ -6,7 +6,7 @@ import { FoodLog, Symptom } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
 import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import Sparkline from '@/components/ui/Sparkline';
-import { IconFilter, IconDownRight, IconUpRight } from '@/components/ui/Icon';
+import { IconDownRight, IconUpRight } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
 
 type SortOrder = 'newest' | 'oldest';
@@ -215,11 +215,6 @@ export default function TimelinePage() {
       <PageHeader
         eyebrow={t('timeline.last_days', { n: days })}
         title={t('timeline.title')}
-        action={
-          <button className="pill" aria-label={t('timeline.filter')} style={{ padding: '6px 8px' }}>
-            <IconFilter size={15} />
-          </button>
-        }
       />
 
       <div className="mx-5 mb-4 flex gap-1.5 flex-wrap">
