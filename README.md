@@ -1,145 +1,23 @@
 # Digestive Diary
 
-A non-judgmental tracking app for digestive disorders. Focus on logging, pattern recognition, and insights - **NOT medical advice**.
+Digestive Diary is an app for keeping a simple, judgment-free log of what you eat and how your stomach feels. Over time it spots patterns — like a food that tends to come before discomfort — and helps you put together a clear summary to share with your doctor. It's for people managing digestive problems who want to understand their own body better. It is a tracking tool, not medical advice.
 
-## Features
+## What it does
+- Quickly log meals, with optional notes and amounts
+- Record symptoms, how bad they were (1-10), and how long they lasted
+- See everything on a timeline, in the order it happened
+- Run "experiments" to test how a diet change affects you over a period
+- Points out patterns in your data in plain language (not a diagnosis)
+- Log entries by speaking instead of typing
+- Create a tidy summary to bring to a doctor's visit
 
-- 🍽️ **Food Logging** - Quick entry with optional tags and quantities
-- 🏥 **Symptom Tracking** - Log symptoms with severity (1-10) and duration
-- 📅 **Timeline View** - Chronological view of food, symptoms, and context
-- 🧪 **Experiments** - Track diet phases and their effects
-- 💡 **Insights** - Pattern detection and descriptions (non-medical)
-- 🎤 **Voice Logging** - Use Whisper to speak your entries
-- 🤖 **AI-Powered** - Natural language parsing and smart summaries
-- 🌓 **Dark Mode** - Support for light and dark themes
-- 📤 **Export** - Generate summaries for doctor visits
+It deliberately leaves out calorie counting, nutrition scores, "good/bad" food labels, daily goals, and points or streaks.
 
-## Technology Stack
+## Status
+Working app, designed mobile-first (meant to be used comfortably on a phone browser). The folder is named "Tsekas project" but the app itself is "Digestive Diary."
 
-- **Next.js 14+** with App Router
-- **TypeScript** for type safety
-- **Tailwind CSS** for mobile-first styling
-- **OpenAI API** (GPT models + Whisper)
-- **Groq API** for fast inference
-- **Zustand** for state management
+---
+### For developers
+Built with Next.js 14 (App Router) and TypeScript, styled with Tailwind CSS (mobile-first). State managed with Zustand. AI features use the OpenAI API (GPT models plus Whisper for voice), with Groq as a faster optional backend.
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- OpenAI API key
-- Groq API key (optional, for faster suggestions)
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd "Tsekas project"
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create a `.env.local` file in the root directory:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-4. Run the development server:
-```bash
-npm run dev
-```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Project Structure
-
-```
-Tsekas project/
-├── app/                    # Next.js App Router
-│   ├── api/               # API routes (OpenAI, Groq)
-│   ├── page.tsx           # Home/Log page
-│   ├── timeline/          # Timeline page
-│   ├── experiments/       # Experiments page
-│   ├── insights/          # Insights page
-│   └── settings/          # Settings page
-├── components/            # React components
-│   ├── ui/               # Basic UI components
-│   └── navigation/       # Navigation components
-├── lib/                   # Utility functions
-├── types/                 # TypeScript type definitions
-└── public/                # Static assets
-```
-
-## Key Principles
-
-### What This App IS:
-- ✅ A logging tool for tracking food and symptoms
-- ✅ A pattern recognition tool
-- ✅ A data organization tool
-- ✅ Fast and non-judgmental
-
-### What This App IS NOT:
-- ❌ A medical device
-- ❌ A diagnostic tool
-- ❌ A treatment recommendation system
-- ❌ A calorie counter or nutrition tracker
-
-### Critical Exclusions:
-- ❌ Calorie counting
-- ❌ Nutrient breakdown
-- ❌ "Good/bad" food labels
-- ❌ Daily goals
-- ❌ Gamification
-
-## AI Features
-
-### Voice Logging (Whisper)
-Use voice to log food and symptoms - faster and easier for users with low energy.
-
-### Natural Language Food Parsing
-Speak or type naturally, and AI will extract structured data (foods, quantities, tags).
-
-### Smart Pattern Descriptions
-AI generates natural language descriptions of patterns in your data (non-medical).
-
-### Doctor-Friendly Summaries
-Generate PDF summaries for doctor visits with timeline overview and patterns.
-
-### Important:
-All AI features are **NON-MEDICAL**. They only describe patterns in your data, not provide diagnoses or medical advice.
-
-## Development
-
-### Build for Production
-```bash
-npm run build
-npm start
-```
-
-### Lint
-```bash
-npm run lint
-```
-
-## Environment Variables
-
-Required:
-- `OPENAI_API_KEY` - Your OpenAI API key
-
-Optional:
-- `GROQ_API_KEY` - Your Groq API key (for faster suggestions)
-
-## License
-
-[Add your license here]
-
-## Disclaimer
-
-This app is for logging purposes only and does not provide medical advice. Always consult with a healthcare professional for medical concerns.
-
+Key folders: `app/` (pages and API routes), `components/`, `lib/`, `types/`, `public/`. Setup: `npm install`, create `.env.local` with `OPENAI_API_KEY` (and optionally `GROQ_API_KEY`), then `npm run dev` and open http://localhost:3000. All AI features are non-medical — they describe patterns only, never diagnose.
