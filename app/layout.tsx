@@ -9,6 +9,7 @@ import RemindersRunner from "@/components/RemindersRunner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import SyncProvider from "@/components/SyncProvider";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import SiteHeader from "@/components/ui/SiteHeader";
 import SkipToContent from "@/components/ui/SkipToContent";
 import ScrollProgress from "@/components/ui/ScrollProgress";
@@ -75,6 +76,7 @@ export default function RootLayout({
       <body className="w-full bg-deep text-ink font-body">
         <AuthProvider>
           <ConfirmProvider>
+            <ToastProvider>
             <ThemeProvider>
               <SyncProvider>
               <SkipToContent />
@@ -92,6 +94,7 @@ export default function RootLayout({
               <RemindersRunner />
               </SyncProvider>
             </ThemeProvider>
+            </ToastProvider>
           </ConfirmProvider>
         </AuthProvider>
       </body>

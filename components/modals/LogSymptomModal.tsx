@@ -10,6 +10,8 @@ import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon'
 import BodyMapPicker from '@/components/ui/BodyMapPicker';
 import LazyImage from '@/components/ui/LazyImage';
 import { useT } from '@/lib/i18n';
+import { useModalA11y } from '@/lib/hooks/useModalA11y';
+import { useToast } from '@/components/ui/ToastProvider';
 
 interface Props {
   isOpen: boolean;
@@ -28,6 +30,8 @@ const fmtShortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short'
 
 export default function LogSymptomModal({ isOpen, onClose }: Props) {
   const { t } = useT();
+  const { toast } = useToast();
+  const { overlayProps } = useModalA11y(isOpen, onClose, 'log-symptom-title');
   const [type, setType] = useState('');
   const [customType, setCustomType] = useState('');
   const [severity, setSeverity] = useState<SeverityLevel>(5);
@@ -131,7 +135,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
       if (res.ok) setAiAnalysis(await res.json());
     } catch (err) {
       console.error(err);
-      alert('Photo analysis failed. Try again.');
+      toast('Photo analysis failed. Try again.');
     } finally {
       setAnalyzing(false);
     }
@@ -168,6 +172,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onClose}
+      {...overlayProps}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -182,7 +187,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
         <div className="px-5 pt-2.5 pb-6">
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('log_symptom.title')}</h2>
+            <h2 id="log-symptom-title" className="m-0 font-heading text-[22px] tracking-head ink">{t('log_symptom.title')}</h2>
             <button onClick={onClose} className="muted hover:text-ink" aria-label={t('common.close')}>
               <IconClose size={18} />
             </button>

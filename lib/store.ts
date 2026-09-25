@@ -36,6 +36,7 @@ interface AppState {
   deleteExperimentLog: (experimentId: string, logId: string) => void;
   deleteFoodLog: (id: string) => void;
   deleteSymptom: (id: string) => void;
+  deleteContext: (id: string) => void;
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearChatSession: () => void;
   addSource: (source: Omit<Source, 'id' | 'addedAt'>) => void;
@@ -56,6 +57,10 @@ interface AppState {
   setMacroGoals: (goals: MacroGoals | null) => void;
   setAutoScanSettings: (settings: AutoScanSettings) => void;
   setRecipes: (recipes: Recipe[]) => void;
+  setMedications: (medications: Medication[]) => void;
+  setMedicationLogs: (logs: MedicationLog[]) => void;
+  setCustomFactors: (factors: CustomFactor[]) => void;
+  setCustomFactorLogs: (logs: CustomFactorLog[]) => void;
   setRecipeSourcesSettings: (settings: RecipeSourcesSettings) => void;
   addAdminNotification: (notification: Omit<AdminNotification, 'id' | 'timestamp'>) => void;
   resolveAdminNotification: (id: string) => void;
@@ -447,6 +452,12 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      deleteContext: (id) => {
+        set((state) => ({
+          contexts: state.contexts.filter((c) => c.id !== id),
+        }));
+      },
+
       addRealization: (realization) => {
         const newRealization: Realization = {
           ...realization,
@@ -552,6 +563,10 @@ export const useAppStore = create<AppState>()(
       setMacroGoals: (goals) => set({ macroGoals: goals }),
       setAutoScanSettings: (settings) => set({ autoScanSettings: settings }),
       setRecipes: (recipes) => set({ recipes }),
+      setMedications: (medications) => set({ medications }),
+      setMedicationLogs: (medicationLogs) => set({ medicationLogs }),
+      setCustomFactors: (customFactors) => set({ customFactors }),
+      setCustomFactorLogs: (customFactorLogs) => set({ customFactorLogs }),
       setRecipeSourcesSettings: (settings) => set({ recipeSourcesSettings: settings }),
       addAdminNotification: (notification) => {
         const newNotification: AdminNotification = {
@@ -631,7 +646,7 @@ export const useAppStore = create<AppState>()(
       resetAllData: () => set({
         foodLogs: [], symptoms: [], contexts: [], experiments: [], realizations: [],
         chatSession: null, sources: [], photoUploads: [], recipes: [],
-        adminNotifications: [], medications: [], medicationLogs: [],
+        medications: [], medicationLogs: [],
         customFactors: [], customFactorLogs: [],
         macroGoals: null,
         fastingSettings: { enabled: false, fastingWindow: 16, eatingWindow: 8 },

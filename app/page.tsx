@@ -15,6 +15,7 @@ import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import { IconBowl, IconPulse, IconMoon, IconSearch } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useTimelineDelete } from '@/lib/hooks/useTimelineDelete';
 import { foodKey } from '@/lib/foodNormalize';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
@@ -22,6 +23,7 @@ const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 export default function HomePage() {
   const { t } = useT();
   const confirm = useConfirm();
+  const deleteEntry = useTimelineDelete();
   const [today] = useState(new Date());
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [showSymptomModal, setShowSymptomModal] = useState(false);
@@ -180,6 +182,7 @@ export default function HomePage() {
           title: log.food,
           detail: log.quantity,
           tags: log.tags,
+          onDelete: () => { void deleteEntry({ type: 'food', id: log.id }, log.food); },
         });
       }
     });
@@ -197,6 +200,7 @@ export default function HomePage() {
           note: sym.notes,
           photoUrl: sym.photoUrl,
           linkedFoodTitle: linked?.food,
+          onDelete: () => { void deleteEntry({ type: 'symptom', id: sym.id }, sym.type); },
         });
       }
     });
@@ -211,6 +215,7 @@ export default function HomePage() {
           title: `💊 ${med?.name ?? 'Medication'}`,
           detail: med?.dose,
           note: log.notes,
+          onDelete: () => { void deleteEntry({ type: 'medicationLog', id: log.id }, med?.name ?? 'Medication'); },
         });
       }
     });
@@ -226,6 +231,7 @@ export default function HomePage() {
           timestamp: t,
           title: `${f.label}: ${display}`,
           note: log.notes,
+          onDelete: () => { void deleteEntry({ type: 'customFactorLog', id: log.id }, f.label); },
         });
       }
     });
@@ -245,11 +251,12 @@ export default function HomePage() {
           timestamp: t,
           title: parts.length ? parts.join(' · ') : 'Context logged',
           note: ctx.notes,
+          onDelete: () => { void deleteEntry({ type: 'context', id: ctx.id }, parts.join(' · ') || 'Context'); },
         });
       }
     });
     return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  }, [foodLogs, symptoms, contexts, today, medicationLogs, medications, customFactorLogs, customFactors]);
+  }, [foodLogs, symptoms, contexts, today, medicationLogs, medications, customFactorLogs, customFactors, deleteEntry]);
 
   const counts = useMemo(() => ({
     food: todayItems.filter((i) => i.kind === 'food').length,

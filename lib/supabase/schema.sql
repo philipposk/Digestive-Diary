@@ -35,6 +35,7 @@ create table if not exists public.symptoms (
   linked_symptom_id uuid references public.symptoms(id) on delete set null,
   photo_url text,
   ai_analysis jsonb,
+  locations jsonb,
   timestamp timestamptz not null default now()
 );
 create index if not exists symptoms_user_ts_idx on public.symptoms (user_id, timestamp desc);
@@ -54,6 +55,10 @@ create table if not exists public.contexts (
   activity_level text,
   bowel_movement boolean,
   bowel_type text,
+  bristol_type smallint,
+  cycle_phase text,
+  cycle_flow text,
+  hydration_ml numeric,
   notes text,
   timestamp timestamptz not null default now()
 );
@@ -69,7 +74,9 @@ create table if not exists public.experiments (
   start_date timestamptz not null,
   end_date timestamptz,
   active boolean not null default true,
-  notes text
+  notes text,
+  fodmap jsonb,
+  target_days integer
 );
 create index if not exists experiments_user_idx on public.experiments (user_id, start_date desc);
 
@@ -175,6 +182,63 @@ create table if not exists public.settings (
 );
 
 ------------------------------------------------------------------------------
+-- medications + medication_logs
+------------------------------------------------------------------------------
+create table if not exists public.medications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  dose text,
+  active boolean not null default true,
+  notes text,
+  added_at timestamptz not null default now()
+);
+create index if not exists medications_user_idx on public.medications (user_id, added_at desc);
+
+create table if not exists public.medication_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  medication_id uuid not null references public.medications(id) on delete cascade,
+  notes text,
+  timestamp timestamptz not null default now()
+);
+create index if not exists medication_logs_user_idx on public.medication_logs (user_id, timestamp desc);
+
+------------------------------------------------------------------------------
+-- custom_factors + custom_factor_logs
+------------------------------------------------------------------------------
+create table if not exists public.custom_factors (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  label text not null,
+  scale text not null,
+  unit text,
+  icon text,
+  active boolean not null default true,
+  added_at timestamptz not null default now()
+);
+create index if not exists custom_factors_user_idx on public.custom_factors (user_id, added_at desc);
+
+create table if not exists public.custom_factor_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  factor_id uuid not null references public.custom_factors(id) on delete cascade,
+  value numeric not null,
+  notes text,
+  timestamp timestamptz not null default now()
+);
+create index if not exists custom_factor_logs_user_idx on public.custom_factor_logs (user_id, timestamp desc);
+
+------------------------------------------------------------------------------
+-- chat_sessions — one row per user
+------------------------------------------------------------------------------
+create table if not exists public.chat_sessions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  session jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+------------------------------------------------------------------------------
 -- Row-Level Security: every table is owner-scoped on user_id
 ------------------------------------------------------------------------------
 alter table public.food_logs           enable row level security;
@@ -188,6 +252,11 @@ alter table public.recipes             enable row level security;
 alter table public.photo_uploads       enable row level security;
 alter table public.admin_notifications enable row level security;
 alter table public.settings            enable row level security;
+alter table public.medications         enable row level security;
+alter table public.medication_logs     enable row level security;
+alter table public.custom_factors      enable row level security;
+alter table public.custom_factor_logs  enable row level security;
+alter table public.chat_sessions       enable row level security;
 
 -- Helper: apply the standard 4 policies to a table.
 do $$
@@ -196,7 +265,8 @@ begin
   for t in
     select unnest(array[
       'food_logs','symptoms','contexts','experiments','experiment_logs',
-      'realizations','sources','recipes','photo_uploads','admin_notifications','settings'
+      'realizations','sources','recipes','photo_uploads','admin_notifications','settings',
+      'medications','medication_logs','custom_factors','custom_factor_logs','chat_sessions'
     ])
   loop
     execute format($f$drop policy if exists "owner select" on public.%I$f$, t);

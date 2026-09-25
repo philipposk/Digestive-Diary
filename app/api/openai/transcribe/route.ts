@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { rateLimit } from '@/lib/rateLimit';
+import { guardApiRoute } from '@/lib/apiGuard';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,12 +9,8 @@ const openai = new OpenAI({
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB (Whisper hard limit)
 
 export async function POST(request: NextRequest) {
-  const limit = rateLimit(request, { bucket: 'transcribe', capacity: 15, refillPerMinute: 15 });
-  if (!limit.ok) {
-    const res = NextResponse.json({ error: 'rate limit exceeded' }, { status: 429 });
-    if (limit.retryAfterSec) res.headers.set('Retry-After', String(limit.retryAfterSec));
-    return res;
-  }
+  const blocked = guardApiRoute(request, { bucket: 'transcribe', capacity: 15, refillPerMinute: 15 });
+  if (blocked) return blocked;
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });

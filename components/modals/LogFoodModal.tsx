@@ -7,6 +7,7 @@ import Tag from '@/components/ui/Tag';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
 import LazyImage from '@/components/ui/LazyImage';
 import { useT } from '@/lib/i18n';
+import { useModalA11y } from '@/lib/hooks/useModalA11y';
 import { detectBarcodeFromImage, fetchProduct, hasBarcodeDetector } from '@/lib/openFoodFacts';
 
 interface Props {
@@ -42,6 +43,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
   const [barcodeStatus, setBarcodeStatus] = useState<string | null>(null);
+  const { overlayProps } = useModalA11y(isOpen, onClose, 'log-food-title');
 
   const handleBarcode = async (file: File) => {
     setBarcodeStatus('Scanning…');
@@ -232,6 +234,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onClose}
+      {...overlayProps}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -247,7 +250,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
 
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('log_food.title')}</h2>
+            <h2 id="log-food-title" className="m-0 font-heading text-[22px] tracking-head ink">{t('log_food.title')}</h2>
             <button onClick={onClose} aria-label={t('common.close')} className="muted hover:text-ink">
               <IconClose size={18} />
             </button>

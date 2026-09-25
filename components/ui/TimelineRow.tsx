@@ -1,8 +1,11 @@
+'use client';
+
 import * as React from 'react';
 import Severity, { severityColor } from './Severity';
 import Tag from './Tag';
 import LazyImage from './LazyImage';
 import { IconLink } from './Icon';
+import { useResolvedPhotoUrl } from '@/lib/hooks/useResolvedPhotoUrl';
 
 export type TimelineKind = 'food' | 'symptom' | 'context';
 
@@ -18,6 +21,7 @@ export interface TimelineItem {
   note?: string;
   linkedFoodTitle?: string;
   photoUrl?: string;
+  onDelete?: () => void;
 }
 
 interface Props {
@@ -31,8 +35,10 @@ const fmt = (d: Date) =>
 
 export default function TimelineRow({ item, prev, next }: Props) {
   const isSymptom = item.kind === 'symptom';
+  const resolvedPhoto = useResolvedPhotoUrl(item.photoUrl);
+
   return (
-    <div className="flex gap-3.5 py-2.5 relative">
+    <div className="flex gap-3.5 py-2.5 relative group">
       <div className="w-14 flex-shrink-0 text-right pt-1">
         <span className="font-mono text-[11.5px] muted tracking-mono">{fmt(item.timestamp)}</span>
       </div>
@@ -59,6 +65,16 @@ export default function TimelineRow({ item, prev, next }: Props) {
           {isSymptom && item.duration && (
             <span className="text-xs muted font-mono">· {item.duration}</span>
           )}
+          {item.onDelete && (
+            <button
+              type="button"
+              onClick={item.onDelete}
+              className="ml-auto opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-[#c44] transition-opacity"
+              aria-label={`Delete ${item.title}`}
+            >
+              Delete
+            </button>
+          )}
         </div>
         {item.detail && <div className="text-[13px] muted mt-0.5">{item.detail}</div>}
         {isSymptom && typeof item.severity === 'number' && (
@@ -84,9 +100,9 @@ export default function TimelineRow({ item, prev, next }: Props) {
             </span>
           </div>
         )}
-        {item.photoUrl && (
+        {resolvedPhoto && (
           <LazyImage
-            src={item.photoUrl}
+            src={resolvedPhoto}
             alt={`${item.title} symptom photo`}
             className="mt-2 rounded-card max-h-40 object-cover border border-app"
           />

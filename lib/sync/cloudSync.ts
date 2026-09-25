@@ -1,5 +1,6 @@
 import { isCloudEnabled, getSupabaseClient } from '../supabase/client';
 import { useAppStore } from '../store';
+import { ensureRemotePhotoUrl } from './photoStorage';
 import type {
   FoodLog,
   Symptom,
@@ -9,8 +10,11 @@ import type {
   Realization,
   Source,
   Recipe,
-  PhotoUpload,
-  AdminNotification,
+  Medication,
+  MedicationLog,
+  CustomFactor,
+  CustomFactorLog,
+  ChatSession,
 } from '@/types';
 
 type Row = Record<string, unknown>;
@@ -45,6 +49,29 @@ async function remove(table: string, ids: string[]) {
   if (!ids.length || !syncUserId) return;
   const { error } = await (await sb()).from(table).delete().in('id', ids).eq('user_id', syncUserId);
   if (error) console.warn(`sync delete ${table}:`, error.message);
+}
+
+async function syncTable(table: string, localIds: string[], rows: Row[]) {
+  await upsert(table, rows);
+  if (!syncUserId) return;
+  const client = await sb();
+  const { data } = await client.from(table).select('id').eq('user_id', syncUserId);
+  const remoteIds = (data ?? []).map((r: Row) => String(r.id));
+  const toDelete = remoteIds.filter((id) => !localIds.includes(id));
+  await remove(table, toDelete);
+}
+
+async function syncChatSession(uid: string, session: ChatSession | null) {
+  const client = await sb();
+  if (!session) {
+    await client.from('chat_sessions').delete().eq('user_id', uid);
+    return;
+  }
+  await client.from('chat_sessions').upsert({
+    user_id: uid,
+    session,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 function isDemoData(): boolean {
@@ -170,7 +197,7 @@ export async function pullAllFromCloud(): Promise<{ ok: boolean; reason?: string
     const uid = syncUserId;
     const state = useAppStore.getState();
 
-    const [foods, syms, ctxs, exps, expLogs, reals, srcs, recipes, photos, notifs, settingsRow] =
+    const [foods, syms, ctxs, exps, expLogs, reals, srcs, recipes, photos, notifs, settingsRow, meds, medLogs, factors, factorLogs, chatRow] =
       await Promise.all([
         client.from('food_logs').select('*').eq('user_id', uid),
         client.from('symptoms').select('*').eq('user_id', uid),
@@ -183,6 +210,11 @@ export async function pullAllFromCloud(): Promise<{ ok: boolean; reason?: string
         client.from('photo_uploads').select('*').eq('user_id', uid),
         client.from('admin_notifications').select('*').eq('user_id', uid),
         client.from('settings').select('*').eq('user_id', uid).maybeSingle(),
+        client.from('medications').select('*').eq('user_id', uid),
+        client.from('medication_logs').select('*').eq('user_id', uid),
+        client.from('custom_factors').select('*').eq('user_id', uid),
+        client.from('custom_factor_logs').select('*').eq('user_id', uid),
+        client.from('chat_sessions').select('*').eq('user_id', uid).maybeSingle(),
       ]);
 
     const localEmpty = state.foodLogs.length === 0 && state.symptoms.length === 0
@@ -266,6 +298,45 @@ export async function pullAllFromCloud(): Promise<{ ok: boolean; reason?: string
       if (s.recipe_sources) state.setRecipeSourcesSettings(s.recipe_sources as Parameters<typeof state.setRecipeSourcesSettings>[0]);
     }
 
+    if (meds.data?.length) {
+      state.setMedications(mergeById(state.medications, meds.data.map((m: Row) => ({
+        id: String(m.id), name: String(m.name), dose: m.dose ? String(m.dose) : undefined,
+        active: Boolean(m.active), notes: m.notes ? String(m.notes) : undefined,
+        addedAt: parseDate(m.added_at),
+      }))));
+    }
+    if (medLogs.data?.length) {
+      state.setMedicationLogs(mergeById(state.medicationLogs, medLogs.data.map((l: Row) => ({
+        id: String(l.id), medicationId: String(l.medication_id),
+        notes: l.notes ? String(l.notes) : undefined, timestamp: parseDate(l.timestamp),
+      }))));
+    }
+    if (factors.data?.length) {
+      state.setCustomFactors(mergeById(state.customFactors, factors.data.map((f: Row) => ({
+        id: String(f.id), label: String(f.label), scale: f.scale as CustomFactor['scale'],
+        unit: f.unit ? String(f.unit) : undefined, icon: f.icon ? String(f.icon) : undefined,
+        active: Boolean(f.active), addedAt: parseDate(f.added_at),
+      }))));
+    }
+    if (factorLogs.data?.length) {
+      state.setCustomFactorLogs(mergeById(state.customFactorLogs, factorLogs.data.map((l: Row) => ({
+        id: String(l.id), factorId: String(l.factor_id), value: Number(l.value),
+        notes: l.notes ? String(l.notes) : undefined, timestamp: parseDate(l.timestamp),
+      }))));
+    }
+    if (chatRow.data?.session) {
+      const raw = chatRow.data.session as ChatSession;
+      state.setChatSession({
+        ...raw,
+        createdAt: parseDate(raw.createdAt),
+        updatedAt: parseDate(raw.updatedAt),
+        messages: (raw.messages ?? []).map((m) => ({
+          ...m,
+          timestamp: parseDate(m.timestamp),
+        })),
+      });
+    }
+
     lastSnapshot = '';
     return { ok: true };
   } catch (e: unknown) {
@@ -282,29 +353,36 @@ export async function pushAllToCloud(): Promise<{ ok: boolean; reason?: string }
     const uid = syncUserId;
     const s = useAppStore.getState();
 
-    await upsert('food_logs', s.foodLogs.map((f) => foodToRow(f, uid)));
-    await upsert('symptoms', s.symptoms.map((x) => symptomToRow(x, uid)));
-    await upsert('contexts', s.contexts.map((c) => contextToRow(c, uid)));
-    await upsert('experiments', s.experiments.map((e) => experimentToRow(e, uid)));
+    const symptomsWithPhotos = await Promise.all(
+      s.symptoms.map(async (sym) => {
+        const photoUrl = await ensureRemotePhotoUrl(sym.photoUrl, `symptoms/${sym.id}.jpg`);
+        return { ...sym, photoUrl };
+      })
+    );
+
+    await syncTable('food_logs', s.foodLogs.map((f) => f.id), s.foodLogs.map((f) => foodToRow(f, uid)));
+    await syncTable('symptoms', symptomsWithPhotos.map((x) => x.id), symptomsWithPhotos.map((x) => symptomToRow(x, uid)));
+    await syncTable('contexts', s.contexts.map((c) => c.id), s.contexts.map((c) => contextToRow(c, uid)));
+    await syncTable('experiments', s.experiments.map((e) => e.id), s.experiments.map((e) => experimentToRow(e, uid)));
 
     const allExpLogs: ExperimentLog[] = [];
     s.experiments.forEach((e) => (e.logs ?? []).forEach((l) => allExpLogs.push({ ...l, experimentId: e.id })));
-    await upsert('experiment_logs', allExpLogs.map((l) => expLogToRow(l, uid)));
+    await syncTable('experiment_logs', allExpLogs.map((l) => l.id), allExpLogs.map((l) => expLogToRow(l, uid)));
 
-    await upsert('realizations', s.realizations.map((r) => ({
+    await syncTable('realizations', s.realizations.map((r) => r.id), s.realizations.map((r) => ({
       id: r.id, user_id: uid, content: r.content,
       linked_data: r.linkedData ?? null, ai_organized: r.aiOrganized ?? null,
       timestamp: ts(r.timestamp),
     })));
 
-    await upsert('sources', s.sources.map((src) => ({
+    await syncTable('sources', s.sources.map((x) => x.id), s.sources.map((src) => ({
       id: src.id, user_id: uid, title: src.title, type: src.type,
       url: src.url ?? null, file_path: src.filePath ?? null,
       description: src.description ?? null, author: src.author ?? null,
       content: src.content ?? null, tags: src.tags ?? null, added_at: ts(src.addedAt),
     })));
 
-    await upsert('recipes', s.recipes.map((r) => ({
+    await syncTable('recipes', s.recipes.map((r) => r.id), s.recipes.map((r) => ({
       id: r.id, user_id: uid, name: r.name, description: r.description ?? null,
       ingredients: r.ingredients, instructions: r.instructions, tags: r.tags,
       estimated_macros: r.estimatedMacros ?? null, source_url: r.sourceUrl ?? null,
@@ -312,15 +390,35 @@ export async function pushAllToCloud(): Promise<{ ok: boolean; reason?: string }
       created_at: new Date().toISOString(),
     })));
 
-    await upsert('photo_uploads', s.photoUploads.map((p) => ({
+    await syncTable('photo_uploads', s.photoUploads.map((p) => p.id), s.photoUploads.map((p) => ({
       id: p.id, user_id: uid, file_url: p.fileUrl,
       parsed_content: p.parsedContent ?? null, food_log_id: p.foodLogId ?? null,
       uploaded_at: ts(p.uploadedAt),
     })));
 
-    await upsert('admin_notifications', s.adminNotifications.map((n) => ({
+    await syncTable('admin_notifications', s.adminNotifications.map((n) => n.id), s.adminNotifications.map((n) => ({
       id: n.id, user_id: uid, type: n.type, message: n.message,
       details: n.details ?? null, resolved: n.resolved, timestamp: ts(n.timestamp),
+    })));
+
+    await syncTable('medications', s.medications.map((m) => m.id), s.medications.map((m) => ({
+      id: m.id, user_id: uid, name: m.name, dose: m.dose ?? null,
+      active: m.active, notes: m.notes ?? null, added_at: ts(m.addedAt),
+    })));
+
+    await syncTable('medication_logs', s.medicationLogs.map((l) => l.id), s.medicationLogs.map((l) => ({
+      id: l.id, user_id: uid, medication_id: l.medicationId,
+      notes: l.notes ?? null, timestamp: ts(l.timestamp),
+    })));
+
+    await syncTable('custom_factors', s.customFactors.map((f) => f.id), s.customFactors.map((f) => ({
+      id: f.id, user_id: uid, label: f.label, scale: f.scale,
+      unit: f.unit ?? null, icon: f.icon ?? null, active: f.active, added_at: ts(f.addedAt),
+    })));
+
+    await syncTable('custom_factor_logs', s.customFactorLogs.map((l) => l.id), s.customFactorLogs.map((l) => ({
+      id: l.id, user_id: uid, factor_id: l.factorId, value: l.value,
+      notes: l.notes ?? null, timestamp: ts(l.timestamp),
     })));
 
     await (await sb()).from('settings').upsert({
@@ -331,6 +429,13 @@ export async function pushAllToCloud(): Promise<{ ok: boolean; reason?: string }
       recipe_sources: s.recipeSourcesSettings,
       updated_at: new Date().toISOString(),
     });
+
+    await syncChatSession(uid, s.chatSession);
+
+    // Persist uploaded photo URLs locally
+    if (symptomsWithPhotos.some((sym, i) => sym.photoUrl !== s.symptoms[i]?.photoUrl)) {
+      useAppStore.setState({ symptoms: symptomsWithPhotos });
+    }
 
     lastSnapshot = JSON.stringify({
       food: s.foodLogs.map((x) => x.id),
@@ -359,9 +464,11 @@ export async function deleteAllCloudData(): Promise<void> {
   const tables = [
     'food_logs', 'symptoms', 'contexts', 'experiment_logs', 'experiments',
     'realizations', 'sources', 'recipes', 'photo_uploads', 'admin_notifications',
+    'medication_logs', 'medications', 'custom_factor_logs', 'custom_factors',
   ];
   await Promise.all(tables.map((t) => client.from(t).delete().eq('user_id', uid)));
   await client.from('settings').delete().eq('user_id', uid);
+  await client.from('chat_sessions').delete().eq('user_id', uid);
 }
 
 export function scheduleCloudPush() {

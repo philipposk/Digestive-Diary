@@ -28,6 +28,7 @@ import { useT, LOCALE_LABEL, type Locale } from '@/lib/i18n';
 import PageHeader from '@/components/ui/PageHeader';
 import PasswordInput from '@/components/ui/PasswordInput';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function SettingsPage() {
@@ -43,6 +44,7 @@ export default function SettingsPage() {
 
   const { t, locale, setLocale } = useT();
   const confirm = useConfirm();
+  const { toast } = useToast();
   const { user, cloudEnabled, signOut } = useAuth();
 
   const fastingSettings = useAppStore((s) => s.fastingSettings);
@@ -382,7 +384,7 @@ export default function SettingsPage() {
               const r = await runScan(files, autoScanSettings, photoUploads, {
                 addFoodLog, addPhotoUpload, setAutoScanSettings,
               });
-              alert(`Logged ${r.processed}. Skipped ${r.skipped} dupes. ${r.notFood} not food. ${r.failed} failed.`);
+              toast(`Logged ${r.processed}. Skipped ${r.skipped} dupes. ${r.notFood} not food. ${r.failed} failed.`);
             };
             input.click();
           }}
@@ -448,7 +450,7 @@ export default function SettingsPage() {
           <button
             onClick={async () => {
               const enabled = recipeSourcesSettings.sources.filter((s) => s.enabled);
-              if (enabled.length === 0) { alert('Enable at least one source.'); return; }
+              if (enabled.length === 0) { toast('Enable at least one source.'); return; }
               try {
                 const r = await fetch('/api/recipes/fetch-from-sources', {
                   method: 'POST',
@@ -469,16 +471,16 @@ export default function SettingsPage() {
                   const setRecipes = useAppStore.getState().setRecipes;
                   const cur = useAppStore.getState().recipes;
                   setRecipes([...cur, ...d.recipes]);
-                  alert(`Fetched ${d.recipes.length} recipes${d.errors?.length ? ` (${d.errors.length} errors — see Admin).` : '.'}`);
+                  toast(`Fetched ${d.recipes.length} recipes${d.errors?.length ? ` (${d.errors.length} errors — see Admin).` : '.'}`);
                 } else if (d.errors?.length) {
-                  alert(`No recipes. ${d.errors.length} errors — see Admin.`);
+                  toast(`No recipes. ${d.errors.length} errors — see Admin.`);
                 } else {
-                  alert('No recipes found in enabled sources.');
+                  toast('No recipes found in enabled sources.');
                 }
               } catch (err: any) {
                 const add = useAppStore.getState().addAdminNotification;
                 add({ type: 'api_error', message: 'Failed to fetch recipes', details: { error: err.message }, resolved: false });
-                alert('Fetch error — see Admin.');
+                toast('Fetch error — see Admin.');
               }
             }}
             className="px-3 py-1.5 rounded-full text-[12.5px]"
@@ -539,7 +541,7 @@ export default function SettingsPage() {
               if (!store.chatSession) store.setChatSession(data.chatSession);
               store.setSources([...data.sources, ...store.sources]);
               localStorage.removeItem('demoDataCleared');
-              alert('Sample data reloaded. Visit Today / Insights to see new entries.');
+              toast('Sample data reloaded. Visit Today / Insights to see new entries.');
             }}
             className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] ink hover:bg-surf-alt transition-colors"
             style={{ border: '1px solid var(--border)' }}
@@ -583,7 +585,7 @@ export default function SettingsPage() {
               s.resetAllData();
               localStorage.setItem('demoDataCleared', 'true');
               try { await deleteAllCloudData(); } catch { /* offline */ }
-              alert('All data deleted.');
+              toast('All data deleted.');
             }}
             className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] transition-colors"
             style={{ border: '1px solid var(--border)', color: '#c44' }}

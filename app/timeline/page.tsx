@@ -9,6 +9,7 @@ import Sparkline from '@/components/ui/Sparkline';
 import { IconDownRight, IconUpRight } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
 import { SkeletonTimeline } from '@/components/ui/Skeleton';
+import { useTimelineDelete } from '@/lib/hooks/useTimelineDelete';
 
 type SortOrder = 'newest' | 'oldest';
 
@@ -21,6 +22,7 @@ const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function TimelinePage() {
   const { t } = useT();
+  const deleteEntry = useTimelineDelete();
   const [filter, setFilter] = useState<'all' | 'food' | 'symptom' | 'context'>('all');
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
@@ -63,6 +65,7 @@ export default function TimelinePage() {
             title: log.food,
             detail: log.quantity,
             tags: log.tags,
+            onDelete: () => { void deleteEntry({ type: 'food', id: log.id }, log.food); },
           });
         }
       });
@@ -82,6 +85,7 @@ export default function TimelinePage() {
             note: sym.notes,
             photoUrl: sym.photoUrl,
             linkedFoodTitle: linked?.food,
+            onDelete: () => { void deleteEntry({ type: 'symptom', id: sym.id }, sym.type); },
           });
         }
       });
@@ -104,6 +108,7 @@ export default function TimelinePage() {
             timestamp: t,
             title: bits.length ? bits.join(' · ') : 'Context',
             detail: ctx.notes,
+            onDelete: () => { void deleteEntry({ type: 'context', id: ctx.id }, bits.join(' · ') || 'Context'); },
           });
         }
       });
@@ -118,6 +123,7 @@ export default function TimelinePage() {
             title: `💊 ${med?.name ?? 'Medication'}`,
             detail: med?.dose,
             note: log.notes,
+            onDelete: () => { void deleteEntry({ type: 'medicationLog', id: log.id }, med?.name ?? 'Medication'); },
           });
         }
       });
@@ -133,13 +139,14 @@ export default function TimelinePage() {
             timestamp: t,
             title: `${f.label}: ${display}`,
             note: log.notes,
+            onDelete: () => { void deleteEntry({ type: 'customFactorLog', id: log.id }, f.label); },
           });
         }
       });
     }
     items.sort((a, b) => sortOrder === 'newest' ? b.timestamp.getTime() - a.timestamp.getTime() : a.timestamp.getTime() - b.timestamp.getTime());
     return items;
-  }, [foodLogs, symptoms, contexts, medicationLogs, medications, customFactorLogs, customFactors, filter, startMs, sortOrder]);
+  }, [foodLogs, symptoms, contexts, medicationLogs, medications, customFactorLogs, customFactors, filter, startMs, sortOrder, deleteEntry]);
 
   // Build per-day buckets for "Today / Yesterday / DD MMM" sections.
   const grouped = useMemo(() => {

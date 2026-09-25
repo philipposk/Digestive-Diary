@@ -6,6 +6,7 @@ import { SleepQuality, StressLevel, ActivityLevel, BowelType, BristolType, Cycle
 import { IconClose } from '@/components/ui/Icon';
 import BristolPicker from '@/components/ui/BristolPicker';
 import { useT } from '@/lib/i18n';
+import { useModalA11y } from '@/lib/hooks/useModalA11y';
 
 interface Props {
   isOpen: boolean;
@@ -47,6 +48,7 @@ function ChipRow<T extends string>({
 
 export default function LogContextModal({ isOpen, onClose }: Props) {
   const { t } = useT();
+  const { overlayProps } = useModalA11y(isOpen, onClose, 'log-context-title');
   const [sleepQuality, setSleepQuality] = useState<SleepQuality | undefined>();
   const [sleepDuration, setSleepDuration] = useState<number | undefined>();
   const [sleepStart, setSleepStart] = useState('');
@@ -116,6 +118,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onClose}
+      {...overlayProps}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -130,7 +133,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
         <div className="px-5 pt-2.5 pb-6">
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="m-0 font-heading text-[22px] tracking-head ink">{t('log_context.title')}</h2>
+            <h2 id="log-context-title" className="m-0 font-heading text-[22px] tracking-head ink">{t('log_context.title')}</h2>
             <button onClick={onClose} className="muted hover:text-ink" aria-label="Close">
               <IconClose size={18} />
             </button>
