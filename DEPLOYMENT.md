@@ -5,7 +5,8 @@ Digestive Diary uses the shared **6x7** Supabase project (`fmrnqepyyjucnfbrqawl`
 ## Vercel
 
 - **Project:** `digestive-diary`
-- **Production URL:** https://digestive-diary-filippos-projects-06f05211.vercel.app
+- **Production URL:** https://digestive.6x7.gr (also https://digestive-diary.vercel.app)
+- **Note:** The `*-filippos-projects-06f05211.vercel.app` URL has Vercel SSO — use the custom domain or `digestive-diary.vercel.app` for Google sign-in.
 - Env vars configured: `NEXT_PUBLIC_USE_CLOUD`, Supabase URL/anon key, API keys, `NEXT_PUBLIC_SITE_URL`
 
 ## Local
@@ -24,6 +25,8 @@ Configured on the shared **6x7** project (`uri_allow_list` includes):
 
 ```
 http://localhost:3000/**
+https://*.6x7.gr/**
+https://digestive-diary.vercel.app/**
 https://digestive-diary-filippos-projects-06f05211.vercel.app/**
 https://digestive-diary-*-filippos-projects-06f05211.vercel.app/**
 ```
