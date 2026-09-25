@@ -25,6 +25,9 @@ import {
 import { importSleepCSV } from '@/lib/wearableImport';
 import { useT, LOCALE_LABEL, type Locale } from '@/lib/i18n';
 import PageHeader from '@/components/ui/PageHeader';
+import PasswordInput from '@/components/ui/PasswordInput';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
@@ -38,6 +41,8 @@ export default function SettingsPage() {
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | 'unsupported'>('default');
 
   const { t, locale, setLocale } = useT();
+  const confirm = useConfirm();
+  const { user, cloudEnabled, signOut } = useAuth();
 
   const fastingSettings = useAppStore((s) => s.fastingSettings);
   const setFastingSettings = useAppStore((s) => s.setFastingSettings);
@@ -176,6 +181,32 @@ export default function SettingsPage() {
             })}
           </div>
         </Field>
+      </Section>
+
+      <Section title="Account" eyebrow="Cloud sync">
+        {cloudEnabled ? (
+          user ? (
+            <div className="space-y-2">
+              <p className="text-[13px] ink-soft m-0">Signed in as <strong className="ink">{user.email}</strong></p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => signOut()} className="btn-secondary px-4 py-2 rounded-full text-[13px]">
+                  Sign out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[13px] ink-soft m-0">Sign in with Google to sync logs across devices.</p>
+              <Link href="/login" className="inline-block btn-primary px-4 py-2 rounded-full text-[13px]">
+                Sign in →
+              </Link>
+            </div>
+          )
+        ) : (
+          <p className="text-[13px] muted m-0">
+            Cloud sync is off. Enable <code className="font-mono text-[12px]">NEXT_PUBLIC_USE_CLOUD=true</code> in .env.local to use Google sign-in.
+          </p>
+        )}
       </Section>
 
       <Section title="Accessibility" eyebrow="A11y">
@@ -491,7 +522,11 @@ export default function SettingsPage() {
           </Link>
           <button
             onClick={async () => {
-              if (!confirm('Reload sample demo data? This adds 14 days of example logs alongside your current data.')) return;
+              const ok = await confirm({
+                title: 'Reload sample data?',
+                message: 'This adds 14 days of example logs alongside your current data.',
+              });
+              if (!ok) return;
               const mod = await import('@/lib/generateSampleData');
               const data = mod.generateSampleData();
               const store = useAppStore.getState();
@@ -535,8 +570,14 @@ export default function SettingsPage() {
 {t('settings.export_doctor')}
           </button>
           <button
-            onClick={() => {
-              if (!confirm('Delete ALL data? Cannot be undone.')) return;
+            onClick={async () => {
+              const ok = await confirm({
+                title: 'Delete all data?',
+                message: 'This permanently removes all logs on this device. Cannot be undone.',
+                confirmLabel: 'Delete everything',
+                destructive: true,
+              });
+              if (!ok) return;
               const s = useAppStore.getState();
               s.setFoodLogs([]); s.setSymptoms([]); s.setContexts([]); s.setExperiments([]);
               s.clearChatSession();
@@ -552,9 +593,14 @@ export default function SettingsPage() {
       </Section>
 
       <Section title={t('settings.about')} eyebrow={t('settings.about_eyebrow')}>
-        <p className="text-[12.5px] ink-soft m-0">
+        <p className="text-[12.5px] ink-soft m-0 mb-3">
           {t('settings.about_body')}
         </p>
+        <div className="flex flex-wrap gap-3 text-[13px]">
+          <Link href="/help" className="text-accent hover:underline">Help & FAQ</Link>
+          <Link href="/privacy" className="text-accent hover:underline">Privacy</Link>
+          <Link href="/terms" className="text-accent hover:underline">Terms</Link>
+        </div>
       </Section>
     </div>
   );
@@ -583,6 +629,7 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
 
 function WearableImportBlock() {
   const addContext = useAppStore((s) => s.addContext);
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -596,7 +643,11 @@ function WearableImportBlock() {
         setMsg(preview.errors[0] || 'No usable sleep rows found in this CSV.');
         return;
       }
-      if (!confirm(`Import ${preview.sleepEntries.length} sleep entries as context logs?`)) return;
+      const ok = await confirm({
+        title: 'Import sleep data?',
+        message: `Import ${preview.sleepEntries.length} sleep entries as context logs?`,
+      });
+      if (!ok) return;
       let imported = 0;
       preview.sleepEntries.forEach((entry) => {
         addContext(entry);
@@ -638,6 +689,7 @@ function WearableImportBlock() {
 
 function BackupBlock() {
   const { t } = useT();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [passOpen, setPassOpen] = useState<null | 'export' | 'import'>(null);
@@ -678,10 +730,15 @@ function BackupBlock() {
     if (isEncrypted) { setPassOpen('import'); return; }
     // Plain JSON path
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const payload = JSON.parse(reader.result as string);
-        if (!confirm('This replaces your current data. Continue?')) return;
+        const ok = await confirm({
+          title: 'Replace current data?',
+          message: 'Restoring this backup replaces all logs on this device.',
+          destructive: true,
+        });
+        if (!ok) return;
         applyBackupPayload(payload);
         setMsg('Backup restored.');
       } catch (err: any) {
@@ -699,7 +756,12 @@ function BackupBlock() {
     try {
       const text = await pendingFile.text();
       const payload = await decryptBackup(text, pass);
-      if (!confirm('This replaces your current data. Continue?')) return;
+      const ok = await confirm({
+        title: 'Replace current data?',
+        message: 'Restoring this encrypted backup replaces all logs on this device.',
+        destructive: true,
+      });
+      if (!ok) return;
       applyBackupPayload(payload);
       setMsg('Encrypted backup restored.');
       setPassOpen(null); setPass(''); setPendingFile(null);
@@ -770,14 +832,11 @@ function BackupBlock() {
                 ? 'Pick a passphrase. You will need it to restore later. We cannot recover it.'
                 : 'Enter the passphrase you used when exporting this backup.'}
             </p>
-            <input
+            <PasswordInput
               autoFocus
-              type="password"
               value={pass}
-              onChange={(e) => setPass(e.target.value)}
+              onChange={setPass}
               placeholder="Passphrase"
-              className="w-full px-3 py-2 rounded-card text-[14px] ink bg-app outline-none"
-              style={{ border: '1px solid var(--border)' }}
             />
             <div className="flex gap-2 mt-3">
               <button

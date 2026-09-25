@@ -1,0 +1,27 @@
+# Digestive Diary
+
+> A non-judgmental digestive health logging app. Not medical advice.
+
+Digestive Diary helps people log food, symptoms, sleep, stress, and experiments to notice personal patterns over time.
+
+## Key pages
+
+- Today (home): /
+- Timeline: /timeline
+- Insights: /insights
+- Settings: /settings
+- Help & FAQ: /help
+- Privacy: /privacy
+- Terms: /terms
+
+## Features
+
+- Food and symptom logging with optional voice input
+- Pattern insights from your own data only
+- Doctor-friendly PDF export
+- Optional Google sign-in with Supabase cloud sync
+- English and Greek (el) locales
+
+## Important
+
+This app does not provide medical diagnoses or treatment recommendations.

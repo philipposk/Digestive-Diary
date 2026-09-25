@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { CustomFactorScale, Medication } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { IconPlus, IconTrash, IconClose } from '@/components/ui/Icon';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
@@ -11,6 +12,7 @@ const fmt = (d: Date) =>
   `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 export default function FactorsPage() {
+  const confirm = useConfirm();
   const medications = useAppStore((s) => s.medications);
   const medicationLogs = useAppStore((s) => s.medicationLogs);
   const customFactors = useAppStore((s) => s.customFactors);
@@ -139,9 +141,14 @@ export default function FactorsPage() {
                         {m.active ? 'Pause' : 'Activate'}
                       </button>
                       <button
-                        onClick={() => {
-                          if (confirm(`Delete ${m.name} and its log history?`)) deleteMedication(m.id);
-                        }}
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Delete medication?',
+                              message: `Delete ${m.name} and its log history?`,
+                              destructive: true,
+                            });
+                            if (ok) deleteMedication(m.id);
+                          }}
                         aria-label="Delete"
                         className="muted hover:text-ink self-end"
                       >
@@ -222,9 +229,14 @@ export default function FactorsPage() {
                     <div className="flex flex-col gap-1.5">
                       <FactorQuickLog factor={f} onLog={(value) => addCustomFactorLog({ factorId: f.id, value })} />
                       <button
-                        onClick={() => {
-                          if (confirm(`Delete factor "${f.label}" and its log history?`)) deleteCustomFactor(f.id);
-                        }}
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Delete factor?',
+                              message: `Delete factor "${f.label}" and its log history?`,
+                              destructive: true,
+                            });
+                            if (ok) deleteCustomFactor(f.id);
+                          }}
                         aria-label="Delete"
                         className="muted hover:text-ink self-end"
                       >

@@ -8,6 +8,7 @@ import { rankSuspectFoods } from '@/lib/suspectFoods';
 import { generateInsights } from '@/lib/generateInsights';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
 import BodyMapPicker from '@/components/ui/BodyMapPicker';
+import LazyImage from '@/components/ui/LazyImage';
 import { useT } from '@/lib/i18n';
 
 interface Props {
@@ -355,7 +356,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
                 <div className="space-y-2">
                   <div className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoUrl} alt="" className="w-full rounded-card max-h-48 object-cover" />
+                    <LazyImage src={photoUrl} alt="Symptom photo for logging" className="w-full rounded-card max-h-48 object-cover" />
                     <button
                       type="button"
                       onClick={() => { setPhotoUrl(''); setPhotoFile(null); setAiAnalysis(null); }}

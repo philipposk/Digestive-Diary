@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useVoiceCapture } from '@/lib/hooks/useVoiceCapture';
 import Tag from '@/components/ui/Tag';
 import { IconCamera, IconClose, IconMic, IconSpark } from '@/components/ui/Icon';
+import LazyImage from '@/components/ui/LazyImage';
 import { useT } from '@/lib/i18n';
 import { detectBarcodeFromImage, fetchProduct, hasBarcodeDetector } from '@/lib/openFoodFacts';
 
@@ -374,7 +375,7 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
             {imagePreview && (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imagePreview} alt="" className="w-full rounded-card max-h-48 object-cover" />
+                <LazyImage src={imagePreview} alt="Food photo preview" className="w-full rounded-card max-h-48 object-cover" />
                 <button
                   type="button"
                   onClick={() => setImagePreview(null)}

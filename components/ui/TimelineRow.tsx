@@ -1,6 +1,7 @@
 import * as React from 'react';
 import Severity, { severityColor } from './Severity';
 import Tag from './Tag';
+import LazyImage from './LazyImage';
 import { IconLink } from './Icon';
 
 export type TimelineKind = 'food' | 'symptom' | 'context';
@@ -84,10 +85,9 @@ export default function TimelineRow({ item, prev, next }: Props) {
           </div>
         )}
         {item.photoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <LazyImage
             src={item.photoUrl}
-            alt={`${item.title} photo`}
+            alt={`${item.title} symptom photo`}
             className="mt-2 rounded-card max-h-40 object-cover border border-app"
           />
         )}

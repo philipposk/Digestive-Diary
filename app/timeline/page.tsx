@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { FoodLog, Symptom } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
@@ -8,6 +8,7 @@ import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import Sparkline from '@/components/ui/Sparkline';
 import { IconDownRight, IconUpRight } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { SkeletonTimeline } from '@/components/ui/Skeleton';
 
 type SortOrder = 'newest' | 'oldest';
 
@@ -26,7 +27,11 @@ export default function TimelinePage() {
   const [summary, setSummary] = useState<SummaryResult | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [visibleLimit, setVisibleLimit] = useState(40);
+  const [hydrated, setHydrated] = useState(false);
   const summaryCacheRef = useRef<Map<string, SummaryResult>>(new Map());
+
+  useEffect(() => setHydrated(true), []);
 
   const foodLogs = useAppStore((s) => s.foodLogs);
   const symptoms = useAppStore((s) => s.symptoms);
@@ -138,9 +143,10 @@ export default function TimelinePage() {
 
   // Build per-day buckets for "Today / Yesterday / DD MMM" sections.
   const grouped = useMemo(() => {
+    const visible = filteredItems.slice(0, visibleLimit);
     const map = new Map<string, { label: string; items: TimelineItem[] }>();
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    filteredItems.forEach((it) => {
+    visible.forEach((it) => {
       const d = new Date(it.timestamp); d.setHours(0, 0, 0, 0);
       const key = d.toISOString().slice(0, 10);
       const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
@@ -150,7 +156,7 @@ export default function TimelinePage() {
       map.set(key, entry);
     });
     return Array.from(map.values());
-  }, [filteredItems]);
+  }, [filteredItems, visibleLimit]);
 
   // 14-day severity sparkline (always built from full symptom set, ignoring date filter)
   const spark14 = useMemo(() => {
@@ -325,7 +331,15 @@ export default function TimelinePage() {
         )}
       </div>
 
-      {grouped.length === 0 ? (
+      {summaryLoading && !summary && (
+        <div className="mx-5 mb-5">
+          <SkeletonTimeline count={2} />
+        </div>
+      )}
+
+      {!hydrated ? (
+        <SkeletonTimeline count={6} />
+      ) : grouped.length === 0 ? (
         <div className="mx-5 mb-10 card p-4 muted text-[13px]">{t('timeline.no_entries')}</div>
       ) : (
         grouped.map((g) => (
@@ -343,6 +357,17 @@ export default function TimelinePage() {
             ))}
           </section>
         ))
+      )}
+      {hydrated && filteredItems.length > visibleLimit && (
+        <div className="px-5 pb-8 text-center">
+          <button
+            type="button"
+            onClick={() => setVisibleLimit((n) => n + 40)}
+            className="btn-secondary px-5 py-2.5 rounded-full text-[13px]"
+          >
+            Load more ({filteredItems.length - visibleLimit} remaining)
+          </button>
+        </div>
       )}
     </div>
   );

@@ -92,7 +92,7 @@ export default function CalendarPage() {
           const isToday = c.date.getTime() === today.getTime();
           const isSelected = dayKey(c.date) === dayKey(selectedDate);
           const future = c.date.getTime() > today.getTime();
-          const data = counts.get(dayKey(c.date)) || { food: 0, sym: 0 };
+          const data = counts.get(dayKey(c.date)) || { food: 0, sym: 0, maxSev: 0 };
           return (
             <button
               key={i}

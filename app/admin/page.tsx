@@ -4,6 +4,7 @@ import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
 import { Dot } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
@@ -15,6 +16,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function AdminPage() {
   const { t } = useT();
+  const confirm = useConfirm();
   const notifs = useAppStore((s) => s.adminNotifications);
   const resolveOne = useAppStore((s) => s.resolveAdminNotification);
   const clearAll = useAppStore((s) => s.clearAdminNotifications);
@@ -42,8 +44,12 @@ export default function AdminPage() {
                 <div className="flex items-baseline justify-between mb-2">
                   <h2 className="m-0 font-heading text-[17px] tracking-head ink">{t('admin.active_n', { n: open.length })}</h2>
                   <button
-                    onClick={() => {
-                      if (confirm(t('admin.resolve_all') + '?')) open.forEach((n) => resolveOne(n.id));
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: t('admin.resolve_all'),
+                        message: 'Mark all active notifications as resolved?',
+                      });
+                      if (ok) open.forEach((n) => resolveOne(n.id));
                     }}
                     className="text-[12px] text-accent hover:underline"
                   >
@@ -92,8 +98,13 @@ export default function AdminPage() {
                 <div className="flex items-baseline justify-between mb-2">
                   <h2 className="m-0 font-heading text-[16px] tracking-head muted">{t('admin.resolved_n', { n: done.length })}</h2>
                   <button
-                    onClick={() => {
-                      if (confirm(t('admin.clear_all') + '?')) clearAll();
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: t('admin.clear_all'),
+                        message: 'Remove all notifications from this list?',
+                        destructive: true,
+                      });
+                      if (ok) clearAll();
                     }}
                     className="text-[12px] text-accent hover:underline"
                   >

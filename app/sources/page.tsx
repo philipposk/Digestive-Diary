@@ -7,11 +7,13 @@ import PageHeader from '@/components/ui/PageHeader';
 import Tag from '@/components/ui/Tag';
 import { IconBook, IconClose, IconPlus, IconTrash } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function SourcesPage() {
   const { t } = useT();
+  const confirm = useConfirm();
   const TYPE_LABEL: Record<SourceType, string> = {
     book: t('sources.type_book'),
     article: t('sources.type_article'),
@@ -128,9 +130,14 @@ export default function SourcesPage() {
                       {t('common.edit')}
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm('Delete this source?')) deleteSource(s.id);
-                      }}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: 'Delete source?',
+                            message: 'Remove this knowledge source from your library?',
+                            destructive: true,
+                          });
+                          if (ok) deleteSource(s.id);
+                        }}
                       aria-label="Delete"
                       className="muted hover:text-ink"
                     >

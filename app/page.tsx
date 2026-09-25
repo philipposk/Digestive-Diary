@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useDebounce } from '@/lib/hooks/useDebounce';
 import { useAppStore } from '@/lib/store';
 import LogFoodModal from '@/components/modals/LogFoodModal';
 import LogSymptomModal from '@/components/modals/LogSymptomModal';
@@ -13,17 +14,20 @@ import AIAnnotation from '@/components/ui/AIAnnotation';
 import TimelineRow, { TimelineItem } from '@/components/ui/TimelineRow';
 import { IconBowl, IconPulse, IconMoon, IconSearch } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { foodKey } from '@/lib/foodNormalize';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
 export default function HomePage() {
   const { t } = useT();
+  const confirm = useConfirm();
   const [today] = useState(new Date());
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [showSymptomModal, setShowSymptomModal] = useState(false);
   const [showContextModal, setShowContextModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [showClearDemoButton, setShowClearDemoButton] = useState(false);
@@ -125,8 +129,13 @@ export default function HomePage() {
     setShowWelcomeBanner(false);
     localStorage.setItem('welcomeBannerDismissed', 'true');
   };
-  const handleClearDemoData = () => {
-    if (!confirm('Clear all demo data and start fresh? Cannot be undone.')) return;
+  const handleClearDemoData = async () => {
+    const ok = await confirm({
+      title: 'Clear demo data?',
+      message: 'Remove all sample logs and start fresh. Cannot be undone.',
+      destructive: true,
+    });
+    if (!ok) return;
     setFoodLogs([]);
     setSymptoms([]);
     setContexts([]);
@@ -249,14 +258,14 @@ export default function HomePage() {
   }, [foodLogs]);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return { foods: [] as FoodLog[], symptoms: [] as Symptom[], experiments: [] as typeof experiments };
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearch.trim()) return { foods: [] as FoodLog[], symptoms: [] as Symptom[], experiments: [] as typeof experiments };
+    const q = debouncedSearch.toLowerCase();
     return {
       foods: foodLogs.filter((l) => l.food.toLowerCase().includes(q) || l.tags.some((t) => t.toLowerCase().includes(q)) || l.notes?.toLowerCase().includes(q)).slice(0, 10),
       symptoms: symptoms.filter((s) => s.type.toLowerCase().includes(q) || s.notes?.toLowerCase().includes(q)).slice(0, 10),
       experiments: experiments.filter((e) => e.name.toLowerCase().includes(q) || e.notes?.toLowerCase().includes(q)).slice(0, 10),
     };
-  }, [searchQuery, foodLogs, symptoms, experiments]);
+  }, [debouncedSearch, foodLogs, symptoms, experiments]);
 
   const fastingInfo = useMemo(() => {
     if (!fastingSettings.enabled) return null;

@@ -174,3 +174,82 @@ html.reduce-motion *::after {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
 }
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  z-index: 200;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 8px;
+  font-size: 14px;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+}
+
+/* Interactive button utilities */
+.btn-primary {
+  background: var(--ink);
+  color: var(--bg);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.88; }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-secondary:hover:not(:disabled) { background: var(--surface-alt); border-color: var(--border-strong); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  transition: color 0.15s, background 0.15s;
+}
+.btn-ghost:hover:not(:disabled) { color: var(--ink); }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse {
+  animation: pulse-soft 1.5s ease-in-out infinite;
+}
+
+/* Print styles — doctor report & general */
+@media print {
+  nav,
+  .fixed,
+  [class*="fixed"],
+  .skip-link {
+    display: none !important;
+  }
+  body, main {
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0 !important;
+  }
+  .card {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+  }
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555;
+  }
+  a[href^="/"]::after,
+  a[href^="#"]::after {
+    content: "";
+  }
+}

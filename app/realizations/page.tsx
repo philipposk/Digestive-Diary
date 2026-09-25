@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import PageHeader from '@/components/ui/PageHeader';
 import { IconPlus, IconClose, IconTrash } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 const fmt = (d: Date) =>
@@ -12,6 +13,7 @@ const fmt = (d: Date) =>
 
 export default function RealizationsPage() {
   const { t } = useT();
+  const confirm = useConfirm();
   const realizations = useAppStore((s) => s.realizations);
   const addRealization = useAppStore((s) => s.addRealization);
   const deleteRealization = useAppStore((s) => s.deleteRealization);
@@ -58,9 +60,14 @@ export default function RealizationsPage() {
                   <div className="eyebrow mt-2">{fmt(toDate(r.timestamp))}</div>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm('Delete this realization?')) deleteRealization(r.id);
-                  }}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: 'Delete realization?',
+                        message: 'Remove this note permanently?',
+                        destructive: true,
+                      });
+                      if (ok) deleteRealization(r.id);
+                    }}
                   aria-label="Delete"
                   className="muted hover:text-ink self-start"
                 >
