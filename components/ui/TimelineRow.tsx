@@ -70,7 +70,7 @@ export default function TimelineRow({ item, prev, next }: Props) {
             <button
               type="button"
               onClick={item.onEdit}
-              className="ml-auto opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-ink transition-opacity"
+              className="ml-auto opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-ink transition-opacity"
               aria-label={`Edit ${item.title}`}
             >
               Edit
@@ -80,7 +80,7 @@ export default function TimelineRow({ item, prev, next }: Props) {
             <button
               type="button"
               onClick={item.onDelete}
-              className={`${item.onEdit ? '' : 'ml-auto '}opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-[#c44] transition-opacity`}
+              className={`${item.onEdit ? '' : 'ml-auto '}opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-[#c44] transition-opacity`}
               aria-label={`Delete ${item.title}`}
             >
               Delete
