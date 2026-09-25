@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Inter, Instrument_Serif, JetBrains_Mono, DM_Sans } from 'next/font/google';
 import "./globals.css";
 import BottomNav from "@/components/navigation/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
@@ -15,32 +14,6 @@ import ScrollProgress from "@/components/ui/ScrollProgress";
 import BackToTop from "@/components/ui/BackToTop";
 import CookieBanner from "@/components/ui/CookieBanner";
 import { APP_SCHEMA, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-geist",
-  display: "swap",
-});
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
-  display: "swap",
-});
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -85,9 +58,15 @@ export default function RootLayout({
       suppressHydrationWarning
       data-mode="light"
       data-vibe="clinical"
-      className={`${inter.variable} ${instrumentSerif.variable} ${jetbrains.variable} ${dmSans.variable} w-full`}
+      className="w-full"
     >
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(APP_SCHEMA) }}
