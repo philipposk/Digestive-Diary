@@ -18,14 +18,14 @@ npm run dev
 
 Visit `/login` → **Continue with Google**.
 
-## Supabase redirect URLs (required once)
+## Supabase redirect URLs
 
-In [Supabase → 6x7 → Authentication → URL Configuration](https://supabase.com/dashboard/project/fmrnqepyyjucnfbrqawl/auth/url-configuration), add:
+Configured on the shared **6x7** project (`uri_allow_list` includes):
 
 ```
-http://localhost:3000/auth/callback
-https://digestive-diary-filippos-projects-06f05211.vercel.app/auth/callback
-https://digestive-diary-*.vercel.app/auth/callback
+http://localhost:3000/**
+https://digestive-diary-filippos-projects-06f05211.vercel.app/**
+https://digestive-diary-*-filippos-projects-06f05211.vercel.app/**
 ```
 
 Google provider is already enabled on this project (used by your other apps).
