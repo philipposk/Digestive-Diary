@@ -65,6 +65,7 @@ export default function ExperimentsPage() {
       startDate: new Date(),
       active: true,
       notes: newNotes.trim() || undefined,
+      targetDays: newTotal,
       logs: [],
     });
     setShowNew(false);
@@ -120,13 +121,13 @@ export default function ExperimentsPage() {
                 <div
                   className="h-full"
                   style={{
-                    width: `${Math.min(100, daysBetween(active.startDate) / 30 * 100)}%`,
+                    width: `${Math.min(100, daysBetween(active.startDate) / (active.targetDays ?? 30) * 100)}%`,
                     background: 'var(--accent)',
                   }}
                 />
               </div>
               <div className="flex justify-between mt-1.5 eyebrow text-[10px]">
-                <span>D1</span><span>D30</span>
+                <span>D1</span><span>D{active.targetDays ?? 30}</span>
               </div>
             </div>
 

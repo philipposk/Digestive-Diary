@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { deleteAllCloudData } from '@/lib/storageAdapter';
 import {
   getTheme, setTheme, applyTheme,
   getVibeId, setVibe, getAccentHex, setAccent,
@@ -579,9 +580,9 @@ export default function SettingsPage() {
               });
               if (!ok) return;
               const s = useAppStore.getState();
-              s.setFoodLogs([]); s.setSymptoms([]); s.setContexts([]); s.setExperiments([]);
-              s.clearChatSession();
-              [...s.realizations].forEach((r) => s.deleteRealization(r.id));
+              s.resetAllData();
+              localStorage.setItem('demoDataCleared', 'true');
+              try { await deleteAllCloudData(); } catch { /* offline */ }
               alert('All data deleted.');
             }}
             className="w-full text-left px-3 py-2.5 rounded-card text-[13.5px] transition-colors"

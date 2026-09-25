@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseClient, isCloudEnabled } from '@/lib/supabase/client';
-import { migrateLocalToCloudIfNeeded, pullCloudToLocalIfEmpty } from '@/lib/storageAdapter';
+import { syncOnSignIn, setSyncUserId } from '@/lib/sync/cloudSync';
 
 interface AuthContextValue {
   user: User | null;
@@ -30,17 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sb.auth.getUser().then(({ data }) => {
       setUser(data.user ?? null);
       setLoading(false);
-      if (data.user) {
-        migrateLocalToCloudIfNeeded().catch(() => {});
-        pullCloudToLocalIfEmpty().catch(() => {});
-      }
+      if (data.user) syncOnSignIn(data.user.id).catch((e) => console.warn('sync:', e));
     });
 
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        migrateLocalToCloudIfNeeded().catch(() => {});
-        pullCloudToLocalIfEmpty().catch(() => {});
+        syncOnSignIn(session.user.id).catch((e) => console.warn('sync:', e));
+      } else {
+        setSyncUserId(null);
       }
     });
 
@@ -60,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const sb = getSupabaseClient();
     if (!sb) return;
+    setSyncUserId(null);
     await sb.auth.signOut();
     setUser(null);
   }, []);

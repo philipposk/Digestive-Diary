@@ -27,6 +27,10 @@ export interface BackupPayload {
     recipeSourcesSettings: unknown;
     adminNotifications: unknown[];
     chatSession: unknown;
+    medications: unknown[];
+    medicationLogs: unknown[];
+    customFactors: unknown[];
+    customFactorLogs: unknown[];
   };
 }
 
@@ -51,6 +55,10 @@ export function buildBackupPayload(): BackupPayload {
       recipeSourcesSettings: s.recipeSourcesSettings,
       adminNotifications: s.adminNotifications,
       chatSession: s.chatSession,
+      medications: s.medications,
+      medicationLogs: s.medicationLogs,
+      customFactors: s.customFactors,
+      customFactorLogs: s.customFactorLogs,
     },
   };
 }

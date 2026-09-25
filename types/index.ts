@@ -116,6 +116,7 @@ export interface Experiment {
   notes?: string;
   logs?: ExperimentLog[]; // Optional logs for tracking progress
   fodmap?: FodmapState;   // Structured FODMAP mode when applicable
+  targetDays?: number;    // Planned experiment length in days
 }
 
 export interface TimelineItem {

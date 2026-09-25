@@ -7,6 +7,7 @@ import AutoScanRunner from "@/components/AutoScanRunner";
 import PWARegister from "@/components/PWARegister";
 import RemindersRunner from "@/components/RemindersRunner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import SyncProvider from "@/components/SyncProvider";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import SiteHeader from "@/components/ui/SiteHeader";
 import SkipToContent from "@/components/ui/SkipToContent";
@@ -25,7 +26,6 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   themeColor: "#f6f5f1",
   robots: { index: true, follow: true },
-  alternates: { canonical: '/' },
   openGraph: {
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
@@ -76,6 +76,7 @@ export default function RootLayout({
         <AuthProvider>
           <ConfirmProvider>
             <ThemeProvider>
+              <SyncProvider>
               <SkipToContent />
               <ScrollProgress />
               <SiteHeader />
@@ -89,6 +90,7 @@ export default function RootLayout({
               <AutoScanRunner />
               <PWARegister />
               <RemindersRunner />
+              </SyncProvider>
             </ThemeProvider>
           </ConfirmProvider>
         </AuthProvider>

@@ -72,6 +72,9 @@ interface AppState {
   deleteCustomFactor: (id: string) => void;
   addCustomFactorLog: (log: Omit<CustomFactorLog, 'id' | 'timestamp'>) => void;
   deleteCustomFactorLog: (id: string) => void;
+  resetAllData: () => void;
+  _hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
 }
 
 // O(log n) sorted insertion (descending by key). Used by add* actions so we don't
@@ -330,6 +333,9 @@ export const useAppStore = create<AppState>()(
       customFactors: [],
       customFactorLogs: [],
 
+      _hasHydrated: false,
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
+
       addFoodLog: (log) => {
         const newLog: FoodLog = {
           ...log,
@@ -378,7 +384,12 @@ export const useAppStore = create<AppState>()(
           logs: experiment.logs || [],
         };
         set((state) => ({
-          experiments: insertSortedDesc(state.experiments, newExperiment, (e) => tsMs(e.startDate)),
+          experiments: [
+            ...state.experiments.map((e) =>
+              experiment.active && e.active ? { ...e, active: false, endDate: new Date() } : e
+            ),
+            newExperiment,
+          ].sort((a, b) => tsMs(b.startDate) - tsMs(a.startDate)),
         }));
       },
 
@@ -616,10 +627,34 @@ export const useAppStore = create<AppState>()(
       deleteCustomFactorLog: (id) => {
         set((state) => ({ customFactorLogs: state.customFactorLogs.filter((l) => l.id !== id) }));
       },
+
+      resetAllData: () => set({
+        foodLogs: [], symptoms: [], contexts: [], experiments: [], realizations: [],
+        chatSession: null, sources: [], photoUploads: [], recipes: [],
+        adminNotifications: [], medications: [], medicationLogs: [],
+        customFactors: [], customFactorLogs: [],
+        macroGoals: null,
+        fastingSettings: { enabled: false, fastingWindow: 16, eatingWindow: 8 },
+        autoScanSettings: { enabled: false, frequency: 'manual', processedPhotos: [] },
+        recipeSourcesSettings: {
+          sources: [
+            { url: 'https://www.allrecipes.com', enabled: true },
+            { url: 'https://www.bbcgoodfood.com', enabled: true },
+            { url: 'https://www.foodnetwork.com', enabled: true },
+          ],
+        },
+      }),
     }),
     {
       name: 'digestive-diary-storage',
       storage: createJSONStorage(() => storage),
+      partialize: (state) => {
+        const { _hasHydrated, setHasHydrated, ...rest } = state;
+        return rest;
+      },
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

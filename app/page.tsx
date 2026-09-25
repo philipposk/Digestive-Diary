@@ -50,6 +50,9 @@ export default function HomePage() {
   const experiments = useAppStore((s) => s.experiments);
   const fastingSettings = useAppStore((s) => s.fastingSettings);
   const foodLogs = useAppStore((s) => s.foodLogs);
+  const contexts = useAppStore((s) => s.contexts);
+  const hasHydrated = useAppStore((s) => s._hasHydrated);
+  const [showDemoOffer, setShowDemoOffer] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem('welcomeBannerDismissed') === 'true') setShowWelcomeBanner(false);
@@ -62,17 +65,33 @@ export default function HomePage() {
   }, [foodLogs.length, symptoms.length, experiments.length]);
 
   useEffect(() => {
-    if (foodLogs.length === 0) {
-      const data = generateSampleData();
-      setFoodLogs(data.foodLogs);
-      setSymptoms(data.symptoms);
-      setContexts(data.contexts);
-      setExperiments(data.experiments);
-      setRealizations(data.realizations);
-      setChatSession(data.chatSession);
-      setSources(data.sources);
+    if (!hasHydrated) return;
+    const cleared = localStorage.getItem('demoDataCleared');
+    const offered = localStorage.getItem('demoOfferShown');
+    const empty = foodLogs.length === 0 && symptoms.length === 0 && contexts.length === 0;
+    if (empty && cleared !== 'true' && offered !== 'true') {
+      setShowDemoOffer(true);
     }
-  }, [foodLogs.length, setFoodLogs, setSymptoms, setContexts, setExperiments, setRealizations, setChatSession, setSources]);
+  }, [hasHydrated, foodLogs.length, symptoms.length, contexts.length]);
+
+  const loadDemoData = () => {
+    const data = generateSampleData();
+    setFoodLogs(data.foodLogs);
+    setSymptoms(data.symptoms);
+    setContexts(data.contexts);
+    setExperiments(data.experiments);
+    setRealizations(data.realizations);
+    setChatSession(data.chatSession);
+    setSources(data.sources);
+    localStorage.setItem('demoOfferShown', 'true');
+    setShowDemoOffer(false);
+  };
+
+  const dismissDemoOffer = () => {
+    localStorage.setItem('demoOfferShown', 'true');
+    localStorage.setItem('demoDataCleared', 'true');
+    setShowDemoOffer(false);
+  };
 
   // Groq smart tip (15-min sessionStorage cache).
   useEffect(() => {
@@ -210,8 +229,27 @@ export default function HomePage() {
         });
       }
     });
+    contexts.forEach((ctx) => {
+      const t = toDate(ctx.timestamp);
+      if (t >= start && t <= end) {
+        const parts: string[] = [];
+        if (ctx.sleepQuality) parts.push(`sleep: ${ctx.sleepQuality}`);
+        if (ctx.stressLevel) parts.push(`stress: ${ctx.stressLevel}`);
+        if (ctx.activityLevel) parts.push(`activity: ${ctx.activityLevel}`);
+        if (ctx.bowelMovement !== undefined) parts.push(ctx.bowelMovement ? 'bowel: yes' : 'bowel: no');
+        if (ctx.bristolType) parts.push(`Bristol ${ctx.bristolType}`);
+        if (ctx.hydrationMl) parts.push(`${ctx.hydrationMl}ml water`);
+        items.push({
+          id: ctx.id,
+          kind: 'context',
+          timestamp: t,
+          title: parts.length ? parts.join(' · ') : 'Context logged',
+          note: ctx.notes,
+        });
+      }
+    });
     return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  }, [foodLogs, symptoms, today, medicationLogs, medications, customFactorLogs, customFactors]);
+  }, [foodLogs, symptoms, contexts, today, medicationLogs, medications, customFactorLogs, customFactors]);
 
   const counts = useMemo(() => ({
     food: todayItems.filter((i) => i.kind === 'food').length,
@@ -305,6 +343,23 @@ export default function HomePage() {
             </button>
           }
         />
+
+        {showDemoOffer && (
+          <div className="mx-5 mb-4 card p-4">
+            <div className="eyebrow mb-1">New here?</div>
+            <p className="text-[13.5px] ink-soft leading-relaxed m-0 mb-3">
+              Start empty, or load sample logs to explore how the diary works.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={loadDemoData} className="btn-primary px-4 py-2 rounded-full text-[13px]">
+                Load demo data
+              </button>
+              <button type="button" onClick={dismissDemoOffer} className="btn-secondary px-4 py-2 rounded-full text-[13px]">
+                Start empty
+              </button>
+            </div>
+          </div>
+        )}
 
         {showWelcomeBanner && (
           <div className="mx-5 mb-4 card p-4 relative">
