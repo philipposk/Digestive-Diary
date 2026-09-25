@@ -5,7 +5,7 @@
   "description": "Digestive Diary - A non-judgmental tracking app for digestive disorders",
   "scripts": {
     "dev": "next dev",
-    "build:page-assistant": "git submodule update --init --recursive && npm install --prefix vendor/page-assistant && npm run build --prefix vendor/page-assistant",
+    "build:page-assistant": "git submodule update --init --recursive && npm install --prefix vendor/page-assistant --include=dev && npm run build --prefix vendor/page-assistant",
     "build": "npm run build:page-assistant && next build",
     "start": "next start",
     "lint": "next lint"
