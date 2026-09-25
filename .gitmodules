@@ -1,0 +1,3 @@
+[submodule "vendor/page-assistant"]
+	path = vendor/page-assistant
+	url = https://github.com/philipposk/page-assistant.git

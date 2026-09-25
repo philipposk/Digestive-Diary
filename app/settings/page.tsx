@@ -30,6 +30,7 @@ import PasswordInput from '@/components/ui/PasswordInput';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAuth } from '@/components/auth/AuthProvider';
+import AssistantSettingsPanel from '@/components/AssistantSettingsPanel';
 
 export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<Theme>('system');
@@ -210,6 +211,13 @@ export default function SettingsPage() {
             Cloud sync is off. Enable <code className="font-mono text-[12px]">NEXT_PUBLIC_USE_CLOUD=true</code> in .env.local to use Google sign-in.
           </p>
         )}
+      </Section>
+
+      <Section title="Assistant" eyebrow="Diary Guide">
+        <p className="text-[13px] ink-soft m-0 mb-3">
+          Voice, chat history, and model preferences for the floating assistant.
+        </p>
+        <AssistantSettingsPanel />
       </Section>
 
       <Section title="Accessibility" eyebrow="A11y">

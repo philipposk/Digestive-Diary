@@ -148,14 +148,14 @@ export default function LogContextModal({ isOpen, onClose, editId = null }: Prop
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[70] flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onClose}
       {...overlayProps}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto bg-app"
+        className="w-full sm:max-w-md max-h-[92dvh] flex flex-col bg-app"
         style={{
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
@@ -163,16 +163,18 @@ export default function LogContextModal({ isOpen, onClose, editId = null }: Prop
           boxShadow: '0 -16px 40px rgba(0,0,0,0.18)',
         }}
       >
-        <div className="px-5 pt-2.5 pb-6">
+        <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="px-5 pt-2.5 pb-4">
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
           <div className="flex items-baseline justify-between mb-3">
             <h2 id="log-context-title" className="m-0 font-heading text-[22px] tracking-head ink">{t('log_context.title')}</h2>
-            <button onClick={onClose} className="muted hover:text-ink" aria-label="Close">
+            <button type="button" onClick={onClose} className="muted hover:text-ink" aria-label="Close">
               <IconClose size={18} />
             </button>
           </div>
 
-          <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-4">
             <div>
               <div className="eyebrow mb-1.5">{t('log_context.sleep_quality')}</div>
               <ChipRow<SleepQuality>
@@ -319,26 +321,31 @@ export default function LogContextModal({ isOpen, onClose, editId = null }: Prop
                 style={{ border: '1px solid var(--border)' }}
               />
             </label>
-
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-full text-[13px]"
-                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2.5 rounded-full text-[14px] font-medium"
-                style={{ background: 'var(--ink)', color: 'var(--bg)' }}
-              >
-                {t('common.save')}
-              </button>
+          </div>
             </div>
-          </form>
-        </div>
+          </div>
+
+          <div
+            className="flex-shrink-0 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2"
+            style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-full text-[13px]"
+              style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-soft)' }}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 rounded-full text-[14px] font-medium"
+              style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

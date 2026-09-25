@@ -2,13 +2,27 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { useAuth } from '@/components/auth/AuthProvider';
+
 function LoginContent() {
   const { user, loading, cloudEnabled, signInWithGoogle, signOut } = useAuth();
   const params = useSearchParams();
   const error = params.get('error');
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setSignInError(null);
+    setSigningIn(true);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setSignInError(e instanceof Error ? e.message : 'Sign-in failed');
+      setSigningIn(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -23,9 +37,9 @@ function LoginContent() {
           </div>
         )}
 
-        {error && (
+        {(error || signInError) && (
           <p className="text-[13px] m-0" style={{ color: '#c44a4a' }}>
-            Sign-in failed. Please try again.
+            {signInError ?? 'Sign-in failed. Please try again.'}
           </p>
         )}
 
@@ -53,11 +67,11 @@ function LoginContent() {
             </p>
             <button
               type="button"
-              onClick={() => signInWithGoogle()}
-              disabled={!cloudEnabled}
+              onClick={handleGoogleSignIn}
+              disabled={!cloudEnabled || signingIn}
               className="btn-primary w-full py-3 rounded-full text-[14px] disabled:opacity-50"
             >
-              Continue with Google
+              {signingIn ? 'Redirecting to Google…' : 'Continue with Google'}
             </button>
             <Link href="/" className="block text-center text-[12.5px] muted hover:text-ink">
               Continue without account →

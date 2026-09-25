@@ -5,11 +5,15 @@
   "description": "Digestive Diary - A non-judgmental tracking app for digestive disorders",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build:page-assistant": "git submodule update --init --recursive && npm install --prefix vendor/page-assistant && npm run build --prefix vendor/page-assistant",
+    "build": "npm run build:page-assistant && next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@page-assistant/core": "file:vendor/page-assistant/packages/core",
+    "@page-assistant/server": "file:vendor/page-assistant/packages/server",
+    "@page-assistant/widget": "file:vendor/page-assistant/packages/widget",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.1",
     "clsx": "^2.1.1",

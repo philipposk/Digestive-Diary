@@ -25,6 +25,7 @@ const SECURITY_HEADERS = [
 
 const nextConfig = {
   reactStrictMode: true,
+  transpilePackages: ['@page-assistant/widget', '@page-assistant/core', '@page-assistant/server'],
   images: {
     domains: [],
   },

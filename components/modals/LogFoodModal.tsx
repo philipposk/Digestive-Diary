@@ -262,14 +262,14 @@ export default function LogFoodModal({ isOpen, onClose, editId = null }: Props) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onClose}
       {...overlayProps}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto bg-app"
+        className="w-full sm:max-w-md max-h-[92dvh] overflow-y-auto bg-app"
         style={{
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
@@ -277,7 +277,7 @@ export default function LogFoodModal({ isOpen, onClose, editId = null }: Props) 
           boxShadow: '0 -16px 40px rgba(0,0,0,0.18)',
         }}
       >
-        <div className="px-5 pt-2.5 pb-6">
+        <div className="px-5 pt-2.5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: 'var(--border-strong)' }} />
 
           <div className="flex items-baseline justify-between mb-3">

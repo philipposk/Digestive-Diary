@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
+import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseClient, isCloudEnabled } from '@/lib/supabase/client';
 import { syncOnSignIn, setSyncUserId } from '@/lib/sync/cloudSync';
 
@@ -27,13 +27,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    sb.auth.getUser().then(({ data }) => {
+    sb.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
       setUser(data.user ?? null);
       setLoading(false);
       if (data.user) syncOnSignIn(data.user.id).catch((e) => console.warn('sync:', e));
     });
 
-    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = sb.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         syncOnSignIn(session.user.id).catch((e) => console.warn('sync:', e));
@@ -48,11 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     const sb = getSupabaseClient();
     if (!sb) return;
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    await sb.auth.signInWithOAuth({
+    const redirectTo = `${window.location.origin}/auth/callback?next=/settings`;
+    const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
     });
+    if (error) {
+      console.error('[auth] Google sign-in:', error.message);
+      throw error;
+    }
   }, []);
 
   const signOut = useCallback(async () => {

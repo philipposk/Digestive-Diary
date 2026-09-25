@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import "./globals.css";
 import BottomNav from "@/components/navigation/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
-import FloatingChatButton from "@/components/chat/FloatingChatButton";
+import PageAssistantWidget from "@/components/PageAssistantWidget";
 import AutoScanRunner from "@/components/AutoScanRunner";
 import PWARegister from "@/components/PWARegister";
 import RemindersRunner from "@/components/RemindersRunner";
@@ -86,7 +86,7 @@ export default function RootLayout({
                 {children}
               </main>
               <BottomNav />
-              <FloatingChatButton />
+              <PageAssistantWidget />
               <BackToTop />
               <CookieBanner />
               <AutoScanRunner />

@@ -1,0 +1,31 @@
+---
+description: Execute tasks yourself; never hand the user steps you can run
+alwaysApply: true
+---
+
+# Do it yourself
+
+You have shell, file, git, MCP, and network access in a real environment. **Do the work; do not delegate it.**
+
+## Default
+
+- Run installs, builds, migrations, submodules, env checks, and verification yourself.
+- If something fails, diagnose and retry (or try another approach) before asking the user.
+- End with what **you** did and the outcome — not a checklist for the user.
+
+## Only ask the user when
+
+- You need a **secret** you cannot read (OAuth consent, 2FA, payment, irreversible prod action they must approve).
+- You need a **product decision** only they can make (architecture fork, delete data, scope change).
+- You are **blocked** after real attempts and must report what failed + the one thing that unblocks you.
+
+## Never ask the user to
+
+- Run `npm install`, `git submodule update`, apply SQL you can run via Supabase MCP, restart dev server, or "try signing in again" when you can verify/fix the code path.
+- Copy-paste commands you could run in the terminal.
+- "Let me know if it works" when you can curl, build, or test locally.
+
+## Closing messages
+
+Prefer: "Done — I applied X and verified Y."  
+Avoid: "Next steps for you: 1. run … 2. open …"
