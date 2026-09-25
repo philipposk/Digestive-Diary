@@ -21,6 +21,7 @@ export interface TimelineItem {
   note?: string;
   linkedFoodTitle?: string;
   photoUrl?: string;
+  onEdit?: () => void;
   onDelete?: () => void;
 }
 
@@ -65,11 +66,21 @@ export default function TimelineRow({ item, prev, next }: Props) {
           {isSymptom && item.duration && (
             <span className="text-xs muted font-mono">· {item.duration}</span>
           )}
+          {item.onEdit && (
+            <button
+              type="button"
+              onClick={item.onEdit}
+              className="ml-auto opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-ink transition-opacity"
+              aria-label={`Edit ${item.title}`}
+            >
+              Edit
+            </button>
+          )}
           {item.onDelete && (
             <button
               type="button"
               onClick={item.onDelete}
-              className="ml-auto opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-[#c44] transition-opacity"
+              className={`${item.onEdit ? '' : 'ml-auto '}opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] muted hover:text-[#c44] transition-opacity`}
               aria-label={`Delete ${item.title}`}
             >
               Delete

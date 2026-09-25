@@ -13,6 +13,7 @@ import { detectBarcodeFromImage, fetchProduct, hasBarcodeDetector } from '@/lib/
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  editId?: string | null;
 }
 
 const commonTags = ['dairy', 'gluten', 'spicy', 'raw', 'processed', 'fiber-rich', 'fatty', 'alcohol', 'sugar'];
@@ -23,7 +24,7 @@ interface ParsedItem {
   tags: string[];
 }
 
-export default function LogFoodModal({ isOpen, onClose }: Props) {
+export default function LogFoodModal({ isOpen, onClose, editId = null }: Props) {
   const { t } = useT();
   const [food, setFood] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -39,6 +40,8 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
   const [imageError, setImageError] = useState<string | null>(null);
 
   const addFoodLog = useAppStore((s) => s.addFoodLog);
+  const updateFoodLog = useAppStore((s) => s.updateFoodLog);
+  const foodLogs = useAppStore((s) => s.foodLogs);
   const voice = useVoiceCapture();
   const fileRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
@@ -85,8 +88,21 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
       setImagePreview(null); setMacros(null); setPortionWeight(undefined);
       setParsed(null); setParseMs(null); setAnalyzing(false); setParsing(false);
       setImageError(null);
+      return;
     }
-  }, [isOpen]);
+    if (editId) {
+      const log = foodLogs.find((f) => f.id === editId);
+      if (log) {
+        setFood(log.food);
+        setQuantity(log.quantity ?? '');
+        setSelectedTags(log.tags ?? []);
+        setNotes(log.notes ?? '');
+        setMacros(log.macros ?? null);
+        setPortionWeight(log.portionWeight);
+        setParsed(null);
+      }
+    }
+  }, [isOpen, editId, foodLogs]);
 
   if (!isOpen) return null;
 
@@ -202,6 +218,19 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (editId) {
+      if (!food.trim()) return;
+      updateFoodLog(editId, {
+        food: food.trim(),
+        quantity: quantity.trim() || undefined,
+        tags: selectedTags,
+        notes: notes.trim() || undefined,
+        macros: macros || undefined,
+        portionWeight,
+      });
+      onClose();
+      return;
+    }
     if (parsed && parsed.length > 0) {
       parsed.forEach((p) => {
         addFoodLog({
@@ -225,7 +254,9 @@ export default function LogFoodModal({ isOpen, onClose }: Props) {
     onClose();
   };
 
-  const saveLabel = parsed && parsed.length > 0
+  const saveLabel = editId
+    ? t('common.save')
+    : parsed && parsed.length > 0
     ? t('log_food.save_n', { n: parsed.length, s: parsed.length === 1 ? '' : 's' })
     : t('common.save');
 

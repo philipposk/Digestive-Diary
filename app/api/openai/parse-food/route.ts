@@ -9,7 +9,7 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, ParseFoodSchema, { bucket: 'parse-food', capacity: 30, refillPerMinute: 30 });
+  const g = await guard(request, ParseFoodSchema, { bucket: 'parse-food', capacity: 30, refillPerMinute: 30, requireAuth: true });
   if (!g.ok) return g.response;
   const { text } = g.data as { text: string };
 

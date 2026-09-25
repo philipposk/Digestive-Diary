@@ -8,7 +8,7 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, DetectFoodPhotoSchema, { bucket: 'detect-food', capacity: 30, refillPerMinute: 30 });
+  const g = await guard(request, DetectFoodPhotoSchema, { bucket: 'detect-food', capacity: 30, refillPerMinute: 30, requireAuth: true });
   if (!g.ok) return g.response;
   const { imageBase64 } = g.data as { imageBase64: string };
 

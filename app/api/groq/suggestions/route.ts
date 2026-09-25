@@ -11,7 +11,7 @@ const groq = new Groq({
 const sanitize = (s: unknown, max = 300) => escapeForPrompt(s, max);
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, GroqSuggestionsSchema, { bucket: 'groq-suggest', capacity: 20, refillPerMinute: 20 });
+  const g = await guard(request, GroqSuggestionsSchema, { bucket: 'groq-suggest', capacity: 20, refillPerMinute: 20, requireAuth: true });
   if (!g.ok) return g.response;
   const { context, userData } = g.data as { context: string; userData?: unknown };
 

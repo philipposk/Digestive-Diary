@@ -9,7 +9,7 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, AnalyzeSymptomImageSchema, { bucket: 'symptom-image', capacity: 8, refillPerMinute: 8 });
+  const g = await guard(request, AnalyzeSymptomImageSchema, { bucket: 'symptom-image', capacity: 8, refillPerMinute: 8, requireAuth: true });
   if (!g.ok) return g.response;
   const { imageBase64, userData } = g.data as { imageBase64: string; userData?: any };
 

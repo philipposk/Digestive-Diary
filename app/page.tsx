@@ -16,6 +16,8 @@ import { IconBowl, IconPulse, IconMoon, IconSearch } from '@/components/ui/Icon'
 import { useT } from '@/lib/i18n';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useTimelineDelete } from '@/lib/hooks/useTimelineDelete';
+import { useTimelineEdit } from '@/lib/hooks/useTimelineEdit';
+import TimelineEditModals from '@/components/timeline/TimelineEditModals';
 import { foodKey } from '@/lib/foodNormalize';
 
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
@@ -24,6 +26,7 @@ export default function HomePage() {
   const { t } = useT();
   const confirm = useConfirm();
   const deleteEntry = useTimelineDelete();
+  const { target: editTarget, openEdit, closeEdit } = useTimelineEdit();
   const [today] = useState(new Date());
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [showSymptomModal, setShowSymptomModal] = useState(false);
@@ -182,6 +185,7 @@ export default function HomePage() {
           title: log.food,
           detail: log.quantity,
           tags: log.tags,
+          onEdit: () => openEdit({ type: 'food', id: log.id }),
           onDelete: () => { void deleteEntry({ type: 'food', id: log.id }, log.food); },
         });
       }
@@ -200,6 +204,7 @@ export default function HomePage() {
           note: sym.notes,
           photoUrl: sym.photoUrl,
           linkedFoodTitle: linked?.food,
+          onEdit: () => openEdit({ type: 'symptom', id: sym.id }),
           onDelete: () => { void deleteEntry({ type: 'symptom', id: sym.id }, sym.type); },
         });
       }
@@ -215,6 +220,7 @@ export default function HomePage() {
           title: `💊 ${med?.name ?? 'Medication'}`,
           detail: med?.dose,
           note: log.notes,
+          onEdit: () => openEdit({ type: 'medicationLog', id: log.id }),
           onDelete: () => { void deleteEntry({ type: 'medicationLog', id: log.id }, med?.name ?? 'Medication'); },
         });
       }
@@ -231,6 +237,7 @@ export default function HomePage() {
           timestamp: t,
           title: `${f.label}: ${display}`,
           note: log.notes,
+          onEdit: () => openEdit({ type: 'customFactorLog', id: log.id }),
           onDelete: () => { void deleteEntry({ type: 'customFactorLog', id: log.id }, f.label); },
         });
       }
@@ -251,12 +258,13 @@ export default function HomePage() {
           timestamp: t,
           title: parts.length ? parts.join(' · ') : 'Context logged',
           note: ctx.notes,
+          onEdit: () => openEdit({ type: 'context', id: ctx.id }),
           onDelete: () => { void deleteEntry({ type: 'context', id: ctx.id }, parts.join(' · ') || 'Context'); },
         });
       }
     });
     return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  }, [foodLogs, symptoms, contexts, today, medicationLogs, medications, customFactorLogs, customFactors, deleteEntry]);
+  }, [foodLogs, symptoms, contexts, today, medicationLogs, medications, customFactorLogs, customFactors, deleteEntry, openEdit]);
 
   const counts = useMemo(() => ({
     food: todayItems.filter((i) => i.kind === 'food').length,
@@ -574,6 +582,7 @@ export default function HomePage() {
       <LogFoodModal isOpen={showFoodModal} onClose={() => setShowFoodModal(false)} />
       <LogSymptomModal isOpen={showSymptomModal} onClose={() => setShowSymptomModal(false)} />
       <LogContextModal isOpen={showContextModal} onClose={() => setShowContextModal(false)} />
+      <TimelineEditModals target={editTarget} onClose={closeEdit} />
     </>
   );
 }

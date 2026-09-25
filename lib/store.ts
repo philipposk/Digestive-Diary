@@ -24,8 +24,10 @@ interface AppState {
 
   // Actions
   addFoodLog: (log: Omit<FoodLog, 'id' | 'timestamp'>) => void;
+  updateFoodLog: (id: string, updates: Partial<FoodLog>) => void;
   addSymptom: (symptom: Omit<Symptom, 'id' | 'timestamp'>) => void;
   updateSymptom: (id: string, updates: Partial<Symptom>) => void;
+  updateContext: (id: string, updates: Partial<Context>) => void;
   addRealization: (realization: Omit<Realization, 'id' | 'timestamp'>) => void;
   deleteRealization: (id: string) => void;
   addContext: (context: Omit<Context, 'id' | 'timestamp'>) => void;
@@ -71,11 +73,13 @@ interface AppState {
   updateMedication: (id: string, updates: Partial<Medication>) => void;
   deleteMedication: (id: string) => void;
   addMedicationLog: (log: Omit<MedicationLog, 'id' | 'timestamp'>) => void;
+  updateMedicationLog: (id: string, updates: Partial<MedicationLog>) => void;
   deleteMedicationLog: (id: string) => void;
   addCustomFactor: (f: Omit<CustomFactor, 'id' | 'addedAt'>) => void;
   updateCustomFactor: (id: string, updates: Partial<CustomFactor>) => void;
   deleteCustomFactor: (id: string) => void;
   addCustomFactorLog: (log: Omit<CustomFactorLog, 'id' | 'timestamp'>) => void;
+  updateCustomFactorLog: (id: string, updates: Partial<CustomFactorLog>) => void;
   deleteCustomFactorLog: (id: string) => void;
   resetAllData: () => void;
   _hasHydrated: boolean;
@@ -352,6 +356,14 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      updateFoodLog: (id, updates) => {
+        set((state) => ({
+          foodLogs: state.foodLogs.map((log) =>
+            log.id === id ? { ...log, ...updates } : log
+          ),
+        }));
+      },
+
       addSymptom: (symptom) => {
         const newSymptom: Symptom = {
           ...symptom,
@@ -379,6 +391,14 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           contexts: insertSortedDesc(state.contexts, newContext, (c) => tsMs(c.timestamp)),
+        }));
+      },
+
+      updateContext: (id, updates) => {
+        set((state) => ({
+          contexts: state.contexts.map((ctx) =>
+            ctx.id === id ? { ...ctx, ...updates } : ctx
+          ),
         }));
       },
 
@@ -611,6 +631,13 @@ export const useAppStore = create<AppState>()(
           medicationLogs: insertSortedDesc(state.medicationLogs, newLog, (l) => tsMs(l.timestamp)),
         }));
       },
+      updateMedicationLog: (id, updates) => {
+        set((state) => ({
+          medicationLogs: state.medicationLogs.map((l) =>
+            l.id === id ? { ...l, ...updates } : l
+          ),
+        }));
+      },
       deleteMedicationLog: (id) => {
         set((state) => ({ medicationLogs: state.medicationLogs.filter((l) => l.id !== id) }));
       },
@@ -637,6 +664,13 @@ export const useAppStore = create<AppState>()(
         const newLog: CustomFactorLog = { ...log, id: crypto.randomUUID(), timestamp: new Date() };
         set((state) => ({
           customFactorLogs: insertSortedDesc(state.customFactorLogs, newLog, (l) => tsMs(l.timestamp)),
+        }));
+      },
+      updateCustomFactorLog: (id, updates) => {
+        set((state) => ({
+          customFactorLogs: state.customFactorLogs.map((l) =>
+            l.id === id ? { ...l, ...updates } : l
+          ),
         }));
       },
       deleteCustomFactorLog: (id) => {

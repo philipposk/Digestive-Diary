@@ -11,6 +11,7 @@ import { useModalA11y } from '@/lib/hooks/useModalA11y';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  editId?: string | null;
 }
 
 function ChipRow<T extends string>({
@@ -46,7 +47,7 @@ function ChipRow<T extends string>({
   );
 }
 
-export default function LogContextModal({ isOpen, onClose }: Props) {
+export default function LogContextModal({ isOpen, onClose, editId = null }: Props) {
   const { t } = useT();
   const { overlayProps } = useModalA11y(isOpen, onClose, 'log-context-title');
   const [sleepQuality, setSleepQuality] = useState<SleepQuality | undefined>();
@@ -64,6 +65,14 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
   const [notes, setNotes] = useState('');
 
   const addContext = useAppStore((s) => s.addContext);
+  const updateContext = useAppStore((s) => s.updateContext);
+  const contexts = useAppStore((s) => s.contexts);
+
+  const toTimeInput = (d?: Date | string) => {
+    if (!d) return '';
+    const date = d instanceof Date ? d : new Date(d);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -73,8 +82,27 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
       setBowelMovement(undefined); setBowelType(undefined);
       setBristolType(undefined); setCyclePhase(undefined); setCycleFlow(undefined);
       setHydrationMl(undefined); setNotes('');
+      return;
     }
-  }, [isOpen]);
+    if (editId) {
+      const ctx = contexts.find((c) => c.id === editId);
+      if (ctx) {
+        setSleepQuality(ctx.sleepQuality);
+        setSleepDuration(ctx.sleepDuration);
+        setSleepStart(toTimeInput(ctx.sleepStartTime));
+        setSleepEnd(toTimeInput(ctx.sleepEndTime));
+        setStressLevel(ctx.stressLevel);
+        setActivityLevel(ctx.activityLevel);
+        setBowelMovement(ctx.bowelMovement);
+        setBowelType(ctx.bowelType);
+        setBristolType(ctx.bristolType);
+        setCyclePhase(ctx.cyclePhase);
+        setCycleFlow(ctx.cycleFlow);
+        setHydrationMl(ctx.hydrationMl);
+        setNotes(ctx.notes ?? '');
+      }
+    }
+  }, [isOpen, editId, contexts]);
 
   if (!isOpen) return null;
 
@@ -95,7 +123,7 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
       endDate.setHours(h, m, 0, 0);
     }
 
-    addContext({
+    const payload = {
       sleepQuality,
       sleepDuration,
       sleepStartTime: startDate,
@@ -109,7 +137,12 @@ export default function LogContextModal({ isOpen, onClose }: Props) {
       cycleFlow,
       hydrationMl,
       notes: notes.trim() || undefined,
-    });
+    };
+    if (editId) {
+      updateContext(editId, payload);
+    } else {
+      addContext(payload);
+    }
     onClose();
   };
 

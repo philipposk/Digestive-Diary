@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit, type RateLimitOptions } from './rateLimit';
+import { createSupabaseServerClient } from './supabase/server';
 import type { Validator } from './validation';
 
 const SITE_HOSTS = new Set([
@@ -18,6 +19,19 @@ interface GuardError {
   response: NextResponse;
 }
 
+/** Require a signed-in Supabase user (Google OAuth session cookie). */
+export async function requireAuth(): Promise<NextResponse | null> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    return NextResponse.json({ error: 'sign in required' }, { status: 401 });
+  }
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    return NextResponse.json({ error: 'sign in required' }, { status: 401 });
+  }
+  return null;
+}
+
 /** Reject obvious cross-site API abuse (browser sends Origin on fetch). */
 export function checkApiOrigin(req: NextRequest): NextResponse | null {
   const origin = req.headers.get('origin');
@@ -33,10 +47,14 @@ export function checkApiOrigin(req: NextRequest): NextResponse | null {
   return null;
 }
 
-export function guardApiRoute(
+export async function guardApiRoute(
   req: NextRequest,
-  opts: RateLimitOptions & { checkOrigin?: boolean }
-): NextResponse | null {
+  opts: RateLimitOptions & { checkOrigin?: boolean; requireAuth?: boolean }
+): Promise<NextResponse | null> {
+  if (opts.requireAuth) {
+    const authBlock = await requireAuth();
+    if (authBlock) return authBlock;
+  }
   if (opts.checkOrigin !== false) {
     const originBlock = checkApiOrigin(req);
     if (originBlock) return originBlock;
@@ -53,9 +71,9 @@ export function guardApiRoute(
 export async function guard<T>(
   request: NextRequest,
   schema: Validator<T>,
-  rl: RateLimitOptions & { checkOrigin?: boolean }
+  rl: RateLimitOptions & { checkOrigin?: boolean; requireAuth?: boolean }
 ): Promise<GuardResult<T> | GuardError> {
-  const blocked = guardApiRoute(request, rl);
+  const blocked = await guardApiRoute(request, rl);
   if (blocked) return { ok: false, response: blocked };
 
   let body: unknown;

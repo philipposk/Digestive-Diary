@@ -9,7 +9,7 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, AnalyzeFoodMacrosSchema, { bucket: 'analyze-macros', capacity: 15, refillPerMinute: 15 });
+  const g = await guard(request, AnalyzeFoodMacrosSchema, { bucket: 'analyze-macros', capacity: 15, refillPerMinute: 15, requireAuth: true });
   if (!g.ok) return g.response;
   const { imageBase64, foodName: rawFoodName, quantity: rawQuantity } = g.data as { imageBase64: string; foodName?: string; quantity?: string };
   const foodName = escapeForPrompt(rawFoodName, 200);

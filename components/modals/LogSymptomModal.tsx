@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  editId?: string | null;
 }
 
 const symptomTypes = [
@@ -28,7 +29,7 @@ const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const fmtShortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-export default function LogSymptomModal({ isOpen, onClose }: Props) {
+export default function LogSymptomModal({ isOpen, onClose, editId = null }: Props) {
   const { t } = useT();
   const { toast } = useToast();
   const { overlayProps } = useModalA11y(isOpen, onClose, 'log-symptom-title');
@@ -47,6 +48,7 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const addSymptom = useAppStore((s) => s.addSymptom);
+  const updateSymptom = useAppStore((s) => s.updateSymptom);
   const foodLogs = useAppStore((s) => s.foodLogs);
   const symptoms = useAppStore((s) => s.symptoms);
   const experiments = useAppStore((s) => s.experiments);
@@ -87,8 +89,29 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
       setLinkedFoodId(''); setLinkedSymptomId('');
       setPhotoUrl(''); setPhotoFile(null); setAiAnalysis(null); setAnalyzing(false);
       setLocations([]);
+      return;
     }
-  }, [isOpen]);
+    if (editId) {
+      const sym = symptoms.find((s) => s.id === editId);
+      if (sym) {
+        if (symptomTypes.includes(sym.type)) {
+          setType(sym.type);
+          setCustomType('');
+        } else {
+          setType('other');
+          setCustomType(sym.type);
+        }
+        setSeverity(sym.severity);
+        setDuration(sym.duration ?? '');
+        setNotes(sym.notes ?? '');
+        setLinkedFoodId(sym.linkedFoodId ?? '');
+        setLinkedSymptomId(sym.linkedSymptomId ?? '');
+        setPhotoUrl(sym.photoUrl ?? '');
+        setLocations(sym.locations ?? []);
+        setAiAnalysis(sym.aiAnalysis ?? null);
+      }
+    }
+  }, [isOpen, editId, symptoms]);
 
   if (!isOpen) return null;
 
@@ -163,7 +186,11 @@ export default function LogSymptomModal({ isOpen, onClose }: Props) {
           }
         : undefined,
     };
-    addSymptom(next);
+    if (editId) {
+      updateSymptom(editId, next);
+    } else {
+      addSymptom(next);
+    }
     onClose();
   };
 

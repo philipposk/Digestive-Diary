@@ -10,6 +10,8 @@ import { IconDownRight, IconUpRight } from '@/components/ui/Icon';
 import { useT } from '@/lib/i18n';
 import { SkeletonTimeline } from '@/components/ui/Skeleton';
 import { useTimelineDelete } from '@/lib/hooks/useTimelineDelete';
+import { useTimelineEdit } from '@/lib/hooks/useTimelineEdit';
+import TimelineEditModals from '@/components/timeline/TimelineEditModals';
 
 type SortOrder = 'newest' | 'oldest';
 
@@ -23,6 +25,7 @@ const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 export default function TimelinePage() {
   const { t } = useT();
   const deleteEntry = useTimelineDelete();
+  const { target: editTarget, openEdit, closeEdit } = useTimelineEdit();
   const [filter, setFilter] = useState<'all' | 'food' | 'symptom' | 'context'>('all');
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
@@ -65,6 +68,7 @@ export default function TimelinePage() {
             title: log.food,
             detail: log.quantity,
             tags: log.tags,
+            onEdit: () => openEdit({ type: 'food', id: log.id }),
             onDelete: () => { void deleteEntry({ type: 'food', id: log.id }, log.food); },
           });
         }
@@ -85,6 +89,7 @@ export default function TimelinePage() {
             note: sym.notes,
             photoUrl: sym.photoUrl,
             linkedFoodTitle: linked?.food,
+            onEdit: () => openEdit({ type: 'symptom', id: sym.id }),
             onDelete: () => { void deleteEntry({ type: 'symptom', id: sym.id }, sym.type); },
           });
         }
@@ -108,6 +113,7 @@ export default function TimelinePage() {
             timestamp: t,
             title: bits.length ? bits.join(' · ') : 'Context',
             detail: ctx.notes,
+            onEdit: () => openEdit({ type: 'context', id: ctx.id }),
             onDelete: () => { void deleteEntry({ type: 'context', id: ctx.id }, bits.join(' · ') || 'Context'); },
           });
         }
@@ -123,6 +129,7 @@ export default function TimelinePage() {
             title: `💊 ${med?.name ?? 'Medication'}`,
             detail: med?.dose,
             note: log.notes,
+            onEdit: () => openEdit({ type: 'medicationLog', id: log.id }),
             onDelete: () => { void deleteEntry({ type: 'medicationLog', id: log.id }, med?.name ?? 'Medication'); },
           });
         }
@@ -139,6 +146,7 @@ export default function TimelinePage() {
             timestamp: t,
             title: `${f.label}: ${display}`,
             note: log.notes,
+            onEdit: () => openEdit({ type: 'customFactorLog', id: log.id }),
             onDelete: () => { void deleteEntry({ type: 'customFactorLog', id: log.id }, f.label); },
           });
         }
@@ -146,7 +154,7 @@ export default function TimelinePage() {
     }
     items.sort((a, b) => sortOrder === 'newest' ? b.timestamp.getTime() - a.timestamp.getTime() : a.timestamp.getTime() - b.timestamp.getTime());
     return items;
-  }, [foodLogs, symptoms, contexts, medicationLogs, medications, customFactorLogs, customFactors, filter, startMs, sortOrder, deleteEntry]);
+  }, [foodLogs, symptoms, contexts, medicationLogs, medications, customFactorLogs, customFactors, filter, startMs, sortOrder, deleteEntry, openEdit]);
 
   // Build per-day buckets for "Today / Yesterday / DD MMM" sections.
   const grouped = useMemo(() => {
@@ -224,6 +232,7 @@ export default function TimelinePage() {
   };
 
   return (
+    <>
     <div className="w-full max-w-2xl mx-auto">
       <PageHeader
         eyebrow={t('timeline.last_days', { n: days })}
@@ -377,5 +386,7 @@ export default function TimelinePage() {
         </div>
       )}
     </div>
+    <TimelineEditModals target={editTarget} onClose={closeEdit} />
+    </>
   );
 }

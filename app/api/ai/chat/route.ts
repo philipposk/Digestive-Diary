@@ -8,7 +8,7 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, ChatRequestSchema, { bucket: 'ai-chat', capacity: 10, refillPerMinute: 10 });
+  const g = await guard(request, ChatRequestSchema, { bucket: 'ai-chat', capacity: 10, refillPerMinute: 10, requireAuth: true });
   if (!g.ok) return g.response;
   const { message, userData, chatHistory, sources } = g.data as any;
   try {

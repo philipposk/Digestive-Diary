@@ -21,7 +21,7 @@ interface SummaryRequest {
 const sanitize = (s: unknown, max = 200) => escapeForPrompt(s, max);
 
 export async function POST(request: NextRequest) {
-  const g = await guard(request, SummarySchema, { bucket: 'summary', capacity: 6, refillPerMinute: 6 });
+  const g = await guard(request, SummarySchema, { bucket: 'summary', capacity: 6, refillPerMinute: 6, requireAuth: true });
   if (!g.ok) return g.response;
   const { timelineData } = g.data as SummaryRequest;
   try {

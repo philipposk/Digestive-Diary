@@ -9,7 +9,7 @@ const openai = new OpenAI({
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB (Whisper hard limit)
 
 export async function POST(request: NextRequest) {
-  const blocked = guardApiRoute(request, { bucket: 'transcribe', capacity: 15, refillPerMinute: 15 });
+  const blocked = await guardApiRoute(request, { bucket: 'transcribe', capacity: 15, refillPerMinute: 15, requireAuth: true });
   if (blocked) return blocked;
 
   if (!process.env.OPENAI_API_KEY) {
