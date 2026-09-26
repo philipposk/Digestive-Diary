@@ -4,13 +4,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseClient, isCloudEnabled } from '@/lib/supabase/client';
 import { syncOnSignIn, setSyncUserId } from '@/lib/sync/cloudSync';
+import { safeNext } from '@/lib/safe-next';
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   cloudEnabled: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signInWithGoogle: (next?: string) => Promise<void>;
+  signOut: (next?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -45,10 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (next = '/settings') => {
     const sb = getSupabaseClient();
-    if (!sb) return;
-    const redirectTo = `${window.location.origin}/auth/callback?next=/settings`;
+    if (!sb) throw new Error('Cloud sign-in is not configured.');
+    const safe = safeNext(next);
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safe)}`;
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
@@ -59,12 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signOut = useCallback(async () => {
-    const sb = getSupabaseClient();
-    if (!sb) return;
+  const signOut = useCallback(async (next = '/') => {
     setSyncUserId(null);
-    await sb.auth.signOut();
     setUser(null);
+    const safe = safeNext(next);
+    await fetch(`/auth/signout?next=${encodeURIComponent(safe)}`, { method: 'POST' });
+    window.location.href = safe;
   }, []);
 
   const value = useMemo(

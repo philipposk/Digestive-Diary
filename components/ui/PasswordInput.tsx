@@ -1,26 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type InputHTMLAttributes } from 'react';
 
-interface Props {
+interface Props extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange' | 'value'> {
   value: string;
   onChange: (v: string) => void;
-  placeholder?: string;
-  autoFocus?: boolean;
-  className?: string;
 }
 
-export default function PasswordInput({ value, onChange, placeholder, autoFocus, className }: Props) {
+export default function PasswordInput({ value, onChange, className, ...props }: Props) {
   const [visible, setVisible] = useState(false);
 
   return (
     <div className="relative">
       <input
-        autoFocus={autoFocus}
+        {...props}
         type={visible ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
         className={className ?? 'w-full px-3 py-2 pr-10 rounded-card text-[14px] ink bg-app outline-none'}
         style={{ border: '1px solid var(--border)' }}
       />
