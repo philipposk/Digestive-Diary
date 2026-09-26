@@ -85,13 +85,13 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return backToLogin(origin, next, error.message);
+    if (error) return backToLogin(origin, next, explainAuthError(error));
     return response;
   }
 
   if (tokenHash && isOtpType(type)) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (error) return backToLogin(origin, next, error.message);
+    if (error) return backToLogin(origin, next, explainAuthError(error));
     return response;
   }
 

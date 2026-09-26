@@ -6,7 +6,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import PasswordInput from '@/components/ui/PasswordInput';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { explainAuthError } from '@/lib/auth-error';
+import { explainAuthError, sanitizeAuthMessage } from '@/lib/auth-error';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { safeNext } from '@/lib/safe-next';
 import { getSupabaseClient } from '@/lib/supabase/client';
@@ -37,7 +37,9 @@ function LoginContent() {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [signUpTo, setSignUpTo] = useState<string | null>(null);
   const [resetTo, setResetTo] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(handoffError);
+  const [problem, setProblem] = useState<string | null>(
+    handoffError ? sanitizeAuthMessage(handoffError) : null
+  );
   const [busy, setBusy] = useState<
     'google' | 'email' | 'password' | 'reset' | 'code' | 'signup' | null
   >(null);

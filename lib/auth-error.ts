@@ -1,4 +1,22 @@
 const NETWORK_FAILURE = /failed to fetch|network error|load failed|networkrequestfailed/i;
+const INTERNAL_AUTH_ERROR =
+  /invalid api key|apikey|jwt|service role|supabase project|misconfigured|configuration error|unexpected failure/i;
+
+export function isInternalAuthError(error: AuthErrorLike): boolean {
+  const msg = (error.message ?? '').toLowerCase();
+  const code = (error.code ?? '').toLowerCase();
+  const status = typeof error.status === 'number' ? error.status : 0;
+  if (INTERNAL_AUTH_ERROR.test(msg)) return true;
+  if (code === 'invalid_jwt' || code === 'bad_jwt') return true;
+  if (status === 401 && /invalid|unauthorized|api key/.test(msg)) return true;
+  return false;
+}
+
+export function sanitizeAuthMessage(message: string | null | undefined): string {
+  if (!message?.trim()) return AUTH_ERROR_LABELS.err_generic;
+  if (INTERNAL_AUTH_ERROR.test(message)) return AUTH_ERROR_LABELS.authServerFailed;
+  return message.trim();
+}
 
 export type AuthErrorKind =
   | 'wrong'
@@ -51,6 +69,8 @@ export function classifyAuthError(
   const code = error.code ?? '';
   const msg = (error.message ?? '').toLowerCase();
   const status = typeof error.status === 'number' ? error.status : 0;
+
+  if (isInternalAuthError(error)) return 'server';
 
   if (status === 0 && (error.name === 'AuthRetryableFetchError' || NETWORK_FAILURE.test(msg))) {
     return 'offline';
@@ -107,6 +127,7 @@ export function explainAuthError(
     case 'wrong':
       return labels[wrong ?? 'passwordWrong'];
     default:
-      return error.message?.trim() || labels.err_generic;
+      if (isInternalAuthError(error)) return labels.authServerFailed;
+      return sanitizeAuthMessage(error.message);
   }
 }
