@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { trackAppAccess } from "./app-access";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -29,6 +30,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const { data: { user: __u } } = await supabase.auth.getUser();
+  await trackAppAccess(supabase, __u, request, supabaseResponse, "digestive-diary");
   return supabaseResponse;
 }
