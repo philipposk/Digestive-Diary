@@ -19,13 +19,15 @@ export async function trackAppAccess(
   const cookie = `x6_seen_${app}`;
   if (req.cookies.get(cookie)?.value === user.id.slice(0, 8)) return;
   try {
-    await Promise.race([
+    const result = (await Promise.race([
       supabase
         .schema("public")
         .from("app_access")
         .upsert({ user_id: user.id, app, last_seen: new Date().toISOString() }, { onConflict: "user_id,app" }),
-      new Promise((r) => setTimeout(r, 1500)),
-    ]);
+      new Promise((r) => setTimeout(() => r({ error: "timeout" }), 1500)),
+    ])) as { error?: unknown } | undefined;
+    // Only throttle after a successful write, so a failed/slow write is retried next request.
+    if (!result || result.error) return;
     res.cookies.set(cookie, user.id.slice(0, 8), {
       maxAge: 6 * 3600, httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production",
     });
