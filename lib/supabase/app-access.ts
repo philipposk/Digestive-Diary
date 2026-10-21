@@ -8,7 +8,6 @@ import type { NextRequest, NextResponse } from "next/server";
  * Never throws and never blocks the request for more than ~1.5s.
  */
 export async function trackAppAccess(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   user: { id: string } | null | undefined,
   req: NextRequest,
