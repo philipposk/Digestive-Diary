@@ -10,6 +10,7 @@ import { explainAuthError, sanitizeAuthMessage } from '@/lib/auth-error';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { safeNext } from '@/lib/safe-next';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { GoogleIdentityButton } from "@/components/GoogleIdentityButton";
 
 function GoogleMark() {
   return (
@@ -261,15 +262,17 @@ function LoginContent() {
           </div>
         ) : (
           <div className="card p-4 space-y-4">
-            <button
-              type="button"
-              onClick={() => void withGoogle()}
-              disabled={!cloudEnabled || busy !== null}
-              className="btn-primary w-full py-3 rounded-full text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <GoogleMark />
-              {busy === 'google' ? 'Redirecting to Google…' : 'Continue with Google'}
-            </button>
+            <GoogleIdentityButton forceFallback={!cloudEnabled} getSupabase={requireClient} onSignedIn={() => router.replace(next)} onError={setProblem}>
+              <button
+                type="button"
+                onClick={() => void withGoogle()}
+                disabled={!cloudEnabled || busy !== null}
+                className="btn-primary w-full py-3 rounded-full text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <GoogleMark />
+                {busy === 'google' ? 'Redirecting to Google…' : 'Continue with Google'}
+              </button>
+            </GoogleIdentityButton>
 
             <div className="flex items-center gap-3 text-[12px] muted">
               <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
