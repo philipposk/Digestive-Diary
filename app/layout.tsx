@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import "./globals.css";
 import BottomNav from "@/components/navigation/BottomNav";
 import ThemeProvider from "@/components/ThemeProvider";
+import { themeBootScript } from "@/lib/themeBoot";
 import PageAssistantWidget from "@/components/PageAssistantWidget";
 import AutoScanRunner from "@/components/AutoScanRunner";
 import PWARegister from "@/components/PWARegister";
@@ -62,6 +63,8 @@ export default function RootLayout({
       className="w-full"
     >
       <head>
+        {/* Saved look (vibe, light/dark/auto, accent) before first paint: no flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript() }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
