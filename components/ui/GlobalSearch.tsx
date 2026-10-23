@@ -71,7 +71,7 @@ export default function GlobalSearch() {
       >
         <IconSearch size={14} />
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden sm:inline font-mono text-[10px] opacity-60">⌘K</kbd>
+        <kbd className="hidden sm:inline font-mono text-[10px]">⌘K</kbd>
       </button>
 
       {open && (

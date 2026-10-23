@@ -47,7 +47,7 @@ export const VIBES: Record<VibeId, Vibe> = {
       borderStrong: 'rgba(20,20,15,0.16)',
       ink:          '#16161a',
       inkSoft:      '#3a3a36',
-      muted:        '#7a7770',
+      muted:        '#6a6761',
       faint:        '#a8a59c',
     },
     dark: {
@@ -81,7 +81,7 @@ export const VIBES: Record<VibeId, Vibe> = {
       borderStrong: 'rgba(60,40,15,0.22)',
       ink:          '#2a2520',
       inkSoft:      '#534a3e',
-      muted:        '#8a7e6c',
+      muted:        '#726859',
       faint:        '#b8ad99',
     },
     dark: {
@@ -93,7 +93,7 @@ export const VIBES: Record<VibeId, Vibe> = {
       borderStrong: 'rgba(245,235,210,0.20)',
       ink:          '#f0ebe0',
       inkSoft:      '#d0c9b8',
-      muted:        '#8d8472',
+      muted:        '#908876',
       faint:        '#5a5448',
     },
     accents: [
@@ -115,7 +115,7 @@ export const VIBES: Record<VibeId, Vibe> = {
       borderStrong: 'rgba(80,50,20,0.26)',
       ink:          '#2a1f14',
       inkSoft:      '#52432f',
-      muted:        '#8c7a60',
+      muted:        '#71624d',
       faint:        '#b5a48a',
     },
     dark: {
@@ -127,7 +127,7 @@ export const VIBES: Record<VibeId, Vibe> = {
       borderStrong: 'rgba(240,220,180,0.20)',
       ink:          '#f0e6d0',
       inkSoft:      '#d0c2a4',
-      muted:        '#8d7d62',
+      muted:        '#99896d',
       faint:        '#5a4f3e',
     },
     accents: [
