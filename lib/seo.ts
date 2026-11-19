@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const SITE_NAME = 'Digestive Diary';
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://digestive.6x7.gr';
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://digestive.6x7.gr').replace(/\/+$/, '');
 export const SITE_DESCRIPTION =
   'A non-judgmental tracking app for digestive disorders. Log food, symptoms, and patterns — not medical advice.';
 
