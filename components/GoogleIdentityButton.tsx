@@ -56,6 +56,19 @@ async function sha256Hex(input: string): Promise<string> {
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+
+/* ── Pending state (double-submit protection) ─────────────────────────────────────────────────────────────────
+ * From the moment Google's button (or the redirect fallback) is clicked until the browser navigates away: the
+ * button is replaced by a same-size "Signing in…" spinner (aria-busy), every other button / form submit in the
+ * same screen is disabled, and repeat clicks are ignored. Cleared on error, when the Google chooser is closed
+ * without a credential, and when the page returns from the back/forward cache (pageshow.persisted). */
+function pendingLabel(): string {
+  const l = (document.documentElement.lang || navigator.language || "en").toLowerCase();
+  if (l.startsWith("el")) return "Σύνδεση…";
+  if (l.startsWith("da")) return "Logger ind…";
+  return "Signing in…";
+}
+
 export function GoogleIdentityButton({
   getSupabase,
   onSignedIn,
@@ -84,6 +97,69 @@ export function GoogleIdentityButton({
     cb.current = { getSupabase, onSignedIn, onError };
   });
 
+  const wrap = useRef<HTMLDivElement>(null);
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const gotCredential = useRef(false);
+  const watch = useRef<{ stop: () => void } | null>(null);
+  const endRef = useRef<() => void>(() => {});
+  const begin = () => {
+    if (pendingRef.current) return false;
+    pendingRef.current = true;
+    setPending(true);
+    return true;
+  };
+  endRef.current = () => {
+    watch.current?.stop();
+    pendingRef.current = false;
+    setPending(false);
+  };
+  // Google draws its button in an iframe, so a click is only seen through click_listener. If the chooser is closed
+  // (popup closed / FedCM dismissed) no credential arrives: once the window regains focus and nothing came back
+  // shortly after, release the button. A hard cap covers anything else (and the redirect fallback on error).
+  function startWatch(capMs: number, watchFocus: boolean) {
+    watch.current?.stop();
+    gotCredential.current = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onFocus = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (!gotCredential.current) endRef.current(); }, 1500);
+    };
+    const cap = setTimeout(() => { if (!gotCredential.current) endRef.current(); }, capMs);
+    const stop = () => {
+      window.removeEventListener("focus", onFocus);
+      clearTimeout(timer); clearTimeout(cap);
+      watch.current = null;
+    };
+    if (watchFocus) window.addEventListener("focus", onFocus);
+    watch.current = { stop };
+  }
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) endRef.current(); };
+    window.addEventListener("pageshow", onShow);
+    return () => { window.removeEventListener("pageshow", onShow); watch.current?.stop(); };
+  }, []);
+  // While pending, disable every other button / submit on this screen (restored afterwards) and block submits.
+  useEffect(() => {
+    if (!pending) return;
+    const scope: ParentNode = wrap.current?.closest("main,[role='dialog']") ?? wrap.current?.parentElement?.parentElement ?? document.body;
+    const touched: HTMLElement[] = [];
+    scope.querySelectorAll<HTMLElement>("button, input[type='submit'], input[type='button']").forEach((el) => {
+      if (wrap.current?.contains(el) || (el as HTMLButtonElement).disabled) return;
+      (el as HTMLButtonElement).disabled = true;
+      el.setAttribute("data-auth-pending", "");
+      touched.push(el);
+    });
+    const block = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
+    document.addEventListener("submit", block, true);
+    document.documentElement.setAttribute("data-auth-pending", "1");
+    return () => {
+      document.removeEventListener("submit", block, true);
+      document.documentElement.removeAttribute("data-auth-pending");
+      touched.forEach((el) => { (el as HTMLButtonElement).disabled = false; el.removeAttribute("data-auth-pending"); });
+    };
+  }, [pending]);
+
   useEffect(() => {
     if (forceFallback) return;
     let cancelled = false;
@@ -102,11 +178,15 @@ export function GoogleIdentityButton({
           ux_mode: "popup",
           use_fedcm_for_button: true,
           callback: async ({ credential }: { credential: string }) => {
+            gotCredential.current = true;
+            watch.current?.stop();
+            if (!pendingRef.current) begin();
             const { error } = await cb.current.getSupabase().auth.signInWithIdToken({
               provider: "google",
               token: credential,
               nonce: rawNonce,
             });
+            if (error) endRef.current();
             if (error) cb.current.onError?.("Google sign-in failed. Please try again.");
             else cb.current.onSignedIn();
           },
@@ -118,6 +198,9 @@ export function GoogleIdentityButton({
           text,
           shape: "pill",
           width: Math.min(slot.current.clientWidth || 320, 400),
+          click_listener: () => {
+            if (begin()) startWatch(120000, true);
+          },
         });
       } catch {
         if (!cancelled) setFailed(true);
@@ -128,6 +211,34 @@ export function GoogleIdentityButton({
     };
   }, [clientId, text, forceFallback]);
 
-  if (failed || forceFallback) return <>{children}</>;
-  return <div ref={slot} style={{ width: "100%", display: "flex", justifyContent: "center", minHeight: 44 }} />;
+  const idle = failed || forceFallback;
+  return (
+    <div
+      ref={wrap}
+      style={{ position: "relative", width: "100%" }}
+      // The redirect fallback (a plain button elsewhere): treat its click as the start of a sign-in too.
+      onClickCapture={idle ? (e) => {
+        if (pendingRef.current) { e.preventDefault(); e.stopPropagation(); return; }
+        if ((e.target as HTMLElement).closest("button, a")) { begin(); startWatch(15000, false); }
+      } : undefined}
+    >
+      <style>{"@keyframes gib-rot{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.gib-spin{animation-duration:2s!important}}html[data-auth-pending] [data-auth-pending]{cursor:progress}"}</style>
+      {idle ? (
+        <div aria-hidden={pending || undefined} style={{ visibility: pending ? "hidden" : undefined }}>{children}</div>
+      ) : (
+        <div ref={slot} aria-hidden={pending || undefined} style={{ width: "100%", display: "flex", justifyContent: "center", minHeight: 44, visibility: pending ? "hidden" : undefined }} />
+      )}
+      {pending && (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-live="polite"
+          style={{ position: "absolute", inset: 0, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "1px solid rgba(128,128,128,.45)", borderRadius: 999, fontSize: 14, cursor: "progress", color: "inherit", background: "transparent" }}
+        >
+          <span className="gib-spin" aria-hidden="true" style={{ width: 14, height: 14, border: "2px solid currentColor", borderRightColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "gib-rot .7s linear infinite" }} />
+          {pendingLabel()}
+        </div>
+      )}
+    </div>
+  );
 }

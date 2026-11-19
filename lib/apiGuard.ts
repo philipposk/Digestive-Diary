@@ -5,6 +5,7 @@ import type { Validator } from './validation';
 
 const SITE_HOSTS = new Set([
   'digestive.6x7.gr',
+  'digestive.6x7.dk',
   'digestive-diary.vercel.app',
   'localhost:3000',
   '127.0.0.1:3000',
