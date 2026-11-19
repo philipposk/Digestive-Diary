@@ -1,18 +1,19 @@
 import type { Metadata } from 'next';
 
 export const SITE_NAME = 'Digestive Diary';
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://digestive.6x7.gr';
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://digestive.6x7.gr').replace(/\/+$/, '');
 export const SITE_DESCRIPTION =
   'A non-judgmental tracking app for digestive disorders. Log food, symptoms, and patterns — not medical advice.';
 
-export function pageMetadata(title: string, description?: string): Metadata {
+export function pageMetadata(title: string, description?: string, path?: string): Metadata {
   const fullTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
   const desc = description ?? SITE_DESCRIPTION;
 
   return {
-    title: fullTitle,
+    // The root layout's title template adds " · Digestive Diary"; pass the bare title so it appears once.
+    title: title === SITE_NAME ? { absolute: SITE_NAME } : title,
     description: desc,
-    alternates: { canonical: canonicalPath(title) },
+    alternates: { canonical: path !== undefined ? `${SITE_URL}${path}` : canonicalPath(title) },
     openGraph: {
       title: fullTitle,
       description: desc,
