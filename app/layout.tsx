@@ -20,6 +20,7 @@ import { APP_SCHEMA, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  alternates: { canonical: './' }, // always the .gr address, also when served from the .dk mirror
   title: {
     default: SITE_NAME,
     template: `%s · ${SITE_NAME}`,
