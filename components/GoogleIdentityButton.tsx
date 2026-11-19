@@ -69,6 +69,11 @@ function pendingLabel(): string {
   return "Signing in…";
 }
 
+/** Hosts whose origin is NOT registered as an "Authorized JavaScript origin" on the Google OAuth client: Google's popup
+ * fails there with Error 400 origin_mismatch, so they use the redirect button (Supabase OAuth) instead. Remove a host
+ * pattern here once its origin is added in Google Cloud Console (APIs & Services -> Credentials). */
+const GIS_UNREGISTERED_ORIGIN = /\.6x7\.dk$/i;
+
 export function GoogleIdentityButton({
   getSupabase,
   onSignedIn,
@@ -168,6 +173,7 @@ export function GoogleIdentityButton({
         // Google blocks its sign-in inside app WebViews (Capacitor shells): keep the native redirect flow.
         const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
         if (cap?.isNativePlatform?.()) throw new Error("native shell");
+        if (GIS_UNREGISTERED_ORIGIN.test(window.location.hostname)) throw new Error("origin not registered for Google sign-in");
         const gis = await loadGis();
         if (cancelled || !slot.current) return;
         const rawNonce = crypto.randomUUID() + crypto.randomUUID();
